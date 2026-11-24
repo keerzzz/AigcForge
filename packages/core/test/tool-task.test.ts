@@ -1,75 +1,75 @@
 import { describe, expect } from "bun:test"
 import path from "node:path"
-import { AIError, InvalidRequestError, LanguageModel, LLMClient, LLMEvent } from "@aigcfroge/ai"
-import { OpenAIChat } from "@aigcfroge/ai/protocols"
-import { TestLLM } from "@aigcfroge/ai/testing"
-import { Agent } from "@aigcfroge/core/agent"
-import { AgentAsset } from "@aigcfroge/core/agent-asset"
-import { App } from "@aigcfroge/core/app"
-import { Bus } from "@aigcfroge/core/bus"
-import { Config } from "@aigcfroge/core/config"
-import { CompositionDigest } from "@aigcfroge/core/composition/digest"
-import { Database } from "@aigcfroge/core/database/database"
-import { DelegationExecution } from "@aigcfroge/core/delegation/execution"
-import { DelegationService } from "@aigcfroge/core/delegation/service"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { LayerNodePlatform } from "@aigcfroge/core/effect/app-node-platform"
-import { Job } from "@aigcfroge/core/job"
-import { FileAccess } from "@aigcfroge/core/file-access"
-import { ShellSelect } from "@aigcfroge/core/shell/select"
-import { Location } from "@aigcfroge/core/location"
-import { LocationServiceMap } from "@aigcfroge/core/location-service-map"
-import { Model } from "@aigcfroge/core/model"
-import { ModelGroup } from "@aigcfroge/core/model-group"
-import { ModelResolver } from "@aigcfroge/core/model-resolver"
-import { Permission } from "@aigcfroge/core/permission"
-import { ApprovalPresence } from "@aigcfroge/core/permission/approval-presence"
-import { Plugin } from "@aigcfroge/core/plugin"
-import { Provider } from "@aigcfroge/core/provider"
-import { Project } from "@aigcfroge/core/project"
-import { AbsolutePath } from "@aigcfroge/core/schema"
-import { Session } from "@aigcfroge/core/session"
-import { SessionComposition } from "@aigcfroge/core/session/composition"
-import { SessionEvent } from "@aigcfroge/core/session/event"
-import { SessionExecution } from "@aigcfroge/core/session/execution"
-import { SessionInputResult } from "@aigcfroge/core/session/input-result"
-import { SessionInbox } from "@aigcfroge/core/session/inbox"
-import { SessionMessage } from "@aigcfroge/core/session/message"
-import { TaskOperation } from "@aigcfroge/core/session/task-operation"
-import { SessionRunnerModel } from "@aigcfroge/core/session/runner/model"
-import { SessionInboxTable, SessionMessageTable, SessionTable, TaskTable } from "@aigcfroge/core/session/sql"
-import { SessionTask } from "@aigcfroge/core/session/task"
-import { Tool } from "@aigcfroge/core/tool"
-import { TaskTool } from "@aigcfroge/core/tool/plugin/task"
-import { GoalTool } from "@aigcfroge/core/tool/plugin/goal"
-import { ScheduleTool } from "@aigcfroge/core/tool/plugin/schedule"
-import { SessionGoal } from "@aigcfroge/core/session/goal"
-import { ScheduleService } from "@aigcfroge/core/session/schedule-service"
-import { SubagentTool } from "@aigcfroge/core/tool/plugin/subagent"
-import { SessionContext } from "@aigcfroge/core/session/context"
-import { WorkflowAsset } from "@aigcfroge/core/workflow-asset"
-import { WorkflowExecution } from "@aigcfroge/core/workflow/execution"
-import { WorkflowRun } from "@aigcfroge/core/workflow/workflow-run"
-import { Composition } from "@aigcfroge/schema/composition"
-import { OperationExistingRootTarget, OperationNewRootTarget } from "@aigcfroge/schema/session-task"
-import { StepDef } from "@aigcfroge/schema/workflow-asset"
-import { Hash } from "@aigcfroge/util/hash"
-import { MetaAgentService } from "@aigcfroge/core/meta-agent/service"
-import { MetaAgentSessionTable, MetaAgentTable } from "@aigcfroge/core/meta-agent/sql"
-import { DelegationEvent } from "@aigcfroge/core/delegation/event"
-import { DelegationParticipantTable, DelegationTable, DelegationTurnTable } from "@aigcfroge/core/delegation/sql"
-import { EventSequenceTable, EventTable } from "@aigcfroge/core/event/sql"
-import { Event } from "@aigcfroge/schema/event"
-import { Money } from "@aigcfroge/schema/money"
-import { KV } from "@aigcfroge/core/kv"
-import { KVTable } from "@aigcfroge/core/kv/sql"
-import { ExecutorPreference, ExecutorBinding, TaskControllerSource } from "@aigcfroge/schema/session"
-import { DelegationID, ParticipantID, TurnID } from "@aigcfroge/schema/delegation-id"
-import { Delegation } from "@aigcfroge/schema/delegation"
-import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { Global } from "@aigcfroge/util/global"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { AIError, InvalidRequestError, LanguageModel, LLMClient, LLMEvent } from "@omnixa/ai"
+import { OpenAIChat } from "@omnixa/ai/protocols"
+import { TestLLM } from "@omnixa/ai/testing"
+import { Agent } from "@omnixa/core/agent"
+import { AgentAsset } from "@omnixa/core/agent-asset"
+import { App } from "@omnixa/core/app"
+import { Bus } from "@omnixa/core/bus"
+import { Config } from "@omnixa/core/config"
+import { CompositionDigest } from "@omnixa/core/composition/digest"
+import { Database } from "@omnixa/core/database/database"
+import { DelegationExecution } from "@omnixa/core/delegation/execution"
+import { DelegationService } from "@omnixa/core/delegation/service"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { LayerNodePlatform } from "@omnixa/core/effect/app-node-platform"
+import { Job } from "@omnixa/core/job"
+import { FileAccess } from "@omnixa/core/file-access"
+import { ShellSelect } from "@omnixa/core/shell/select"
+import { Location } from "@omnixa/core/location"
+import { LocationServiceMap } from "@omnixa/core/location-service-map"
+import { Model } from "@omnixa/core/model"
+import { ModelGroup } from "@omnixa/core/model-group"
+import { ModelResolver } from "@omnixa/core/model-resolver"
+import { Permission } from "@omnixa/core/permission"
+import { ApprovalPresence } from "@omnixa/core/permission/approval-presence"
+import { Plugin } from "@omnixa/core/plugin"
+import { Provider } from "@omnixa/core/provider"
+import { Project } from "@omnixa/core/project"
+import { AbsolutePath } from "@omnixa/core/schema"
+import { Session } from "@omnixa/core/session"
+import { SessionComposition } from "@omnixa/core/session/composition"
+import { SessionEvent } from "@omnixa/core/session/event"
+import { SessionExecution } from "@omnixa/core/session/execution"
+import { SessionInputResult } from "@omnixa/core/session/input-result"
+import { SessionInbox } from "@omnixa/core/session/inbox"
+import { SessionMessage } from "@omnixa/core/session/message"
+import { TaskOperation } from "@omnixa/core/session/task-operation"
+import { SessionRunnerModel } from "@omnixa/core/session/runner/model"
+import { SessionInboxTable, SessionMessageTable, SessionTable, TaskTable } from "@omnixa/core/session/sql"
+import { SessionTask } from "@omnixa/core/session/task"
+import { Tool } from "@omnixa/core/tool"
+import { TaskTool } from "@omnixa/core/tool/plugin/task"
+import { GoalTool } from "@omnixa/core/tool/plugin/goal"
+import { ScheduleTool } from "@omnixa/core/tool/plugin/schedule"
+import { SessionGoal } from "@omnixa/core/session/goal"
+import { ScheduleService } from "@omnixa/core/session/schedule-service"
+import { SubagentTool } from "@omnixa/core/tool/plugin/subagent"
+import { SessionContext } from "@omnixa/core/session/context"
+import { WorkflowAsset } from "@omnixa/core/workflow-asset"
+import { WorkflowExecution } from "@omnixa/core/workflow/execution"
+import { WorkflowRun } from "@omnixa/core/workflow/workflow-run"
+import { Composition } from "@omnixa/schema/composition"
+import { OperationExistingRootTarget, OperationNewRootTarget } from "@omnixa/schema/session-task"
+import { StepDef } from "@omnixa/schema/workflow-asset"
+import { Hash } from "@omnixa/util/hash"
+import { MetaAgentService } from "@omnixa/core/meta-agent/service"
+import { MetaAgentSessionTable, MetaAgentTable } from "@omnixa/core/meta-agent/sql"
+import { DelegationEvent } from "@omnixa/core/delegation/event"
+import { DelegationParticipantTable, DelegationTable, DelegationTurnTable } from "@omnixa/core/delegation/sql"
+import { EventSequenceTable, EventTable } from "@omnixa/core/event/sql"
+import { Event } from "@omnixa/schema/event"
+import { Money } from "@omnixa/schema/money"
+import { KV } from "@omnixa/core/kv"
+import { KVTable } from "@omnixa/core/kv/sql"
+import { ExecutorPreference, ExecutorBinding, TaskControllerSource } from "@omnixa/schema/session"
+import { DelegationID, ParticipantID, TurnID } from "@omnixa/schema/delegation-id"
+import { Delegation } from "@omnixa/schema/delegation"
+import { makeGlobalNode } from "@omnixa/util/effect/app-node"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { Global } from "@omnixa/util/global"
+import { FSUtil } from "@omnixa/util/fs-util"
 import { asc, eq, sql } from "drizzle-orm"
 import { Cause, Context, DateTime, Deferred, Effect, Exit, Fiber, Layer, Schema, Scope, Stream } from "effect"
 import { isReadonlyArrayNonEmpty } from "effect/Array"
@@ -167,7 +167,7 @@ const leafIt = testEffect(
 const metaLeaf = Effect.fnUntraced(function* (mode?: "work") {
   const directory = yield* tmpdirScoped()
   yield* Effect.promise(() =>
-    Bun.write(path.join(directory.path, "aigcfroge.json"), JSON.stringify({ experimental: { subagent_depth: 2 } })),
+    Bun.write(path.join(directory.path, "omnixa.json"), JSON.stringify({ experimental: { subagent_depth: 2 } })),
   )
   const location = Location.Ref.make({ directory: AbsolutePath.make(directory.path) })
   const locations = yield* LocationServiceMap.Service
@@ -180,7 +180,7 @@ const metaLeaf = Effect.fnUntraced(function* (mode?: "work") {
       info: Provider.Info.make({
         ...Provider.Info.empty(providerID),
         activation: "enabled",
-        package: "@aigcfroge/ai/providers/openai/responses",
+        package: "@omnixa/ai/providers/openai/responses",
       }),
       models: [metaModel, workerModel].map((ref) => Model.Info.make(Model.Info.default(ref.providerID, ref.id))),
     },
@@ -283,10 +283,10 @@ const workflowLeaf = Effect.fnUntraced(function* (
     steps,
   })
   yield* Effect.promise(() =>
-    Bun.write(path.join(fixture.root.location.directory, ".aigcfroge/agents/workflow-worker.md"), agent),
+    Bun.write(path.join(fixture.root.location.directory, ".omnixa/agents/workflow-worker.md"), agent),
   )
   yield* Effect.promise(() =>
-    Bun.write(path.join(fixture.root.location.directory, ".aigcfroge/workflows/task-keeper.yaml"), workflow),
+    Bun.write(path.join(fixture.root.location.directory, ".omnixa/workflows/task-keeper.yaml"), workflow),
   )
   yield* AgentAsset.Service.use((assets) => assets.reload()).pipe(Effect.provide(fixture.local))
   yield* WorkflowAsset.Service.use((assets) => assets.reload()).pipe(Effect.provide(fixture.local))
@@ -403,7 +403,7 @@ leafIt.live("inherits a Judge summary Group and records its actual fallback API 
         info: Provider.Info.make({
           ...Provider.Info.empty(f.metaModel.providerID),
           activation: "enabled",
-          package: "@aigcfroge/ai/providers/openai/responses",
+          package: "@omnixa/ai/providers/openai/responses",
         }),
         models: [f.metaModel, f.workerModel, rejected, accepted].map((ref) =>
           Model.Info.make({
@@ -2089,7 +2089,7 @@ for (const outcome of ["failed", "length", "empty", "cancelled"] as const) {
           info: Provider.Info.make({
             ...Provider.Info.empty(f.metaModel.providerID),
             activation: "enabled",
-            package: "@aigcfroge/ai/providers/openai/responses",
+            package: "@omnixa/ai/providers/openai/responses",
           }),
           models: [f.metaModel, f.workerModel, selected].map((ref) =>
             Model.Info.make(Model.Info.default(ref.providerID, ref.id)),
@@ -2786,10 +2786,10 @@ leafIt.live(
         revision: 2,
       })
       yield* Effect.promise(() =>
-        Bun.file(path.join(f.root.location.directory, ".aigcfroge/agents/workflow-worker.md")).delete(),
+        Bun.file(path.join(f.root.location.directory, ".omnixa/agents/workflow-worker.md")).delete(),
       )
       yield* Effect.promise(() =>
-        Bun.file(path.join(f.root.location.directory, ".aigcfroge/workflows/task-keeper.yaml")).delete(),
+        Bun.file(path.join(f.root.location.directory, ".omnixa/workflows/task-keeper.yaml")).delete(),
       )
       yield* AgentAsset.Service.use((assets) => assets.reload()).pipe(Effect.provide(f.local))
       yield* WorkflowAsset.Service.use((assets) => assets.reload()).pipe(Effect.provide(f.local))
@@ -3045,17 +3045,17 @@ const setupCustom = (effect: "allow" | "deny" = "allow") =>
 const backgroundFlag = (enabled: boolean) =>
   Effect.acquireRelease(
     Effect.sync(() => {
-      const previous = process.env.AIGCFROGE_EXPERIMENTAL_BACKGROUND_SUBAGENTS
-      process.env.AIGCFROGE_EXPERIMENTAL_BACKGROUND_SUBAGENTS = enabled ? "1" : "0"
+      const previous = process.env.OMNIXA_EXPERIMENTAL_BACKGROUND_SUBAGENTS
+      process.env.OMNIXA_EXPERIMENTAL_BACKGROUND_SUBAGENTS = enabled ? "1" : "0"
       return previous
     }),
     (previous) =>
       Effect.sync(() => {
         if (previous === undefined) {
-          delete process.env.AIGCFROGE_EXPERIMENTAL_BACKGROUND_SUBAGENTS
+          delete process.env.OMNIXA_EXPERIMENTAL_BACKGROUND_SUBAGENTS
           return
         }
-        process.env.AIGCFROGE_EXPERIMENTAL_BACKGROUND_SUBAGENTS = previous
+        process.env.OMNIXA_EXPERIMENTAL_BACKGROUND_SUBAGENTS = previous
       }),
   )
 
@@ -3070,7 +3070,7 @@ describe("TaskTool persistent delegation", () => {
             info: Provider.Info.make({
               ...Provider.Info.empty(model.providerID),
               activation: "enabled",
-              package: "@aigcfroge/ai/providers/openai/responses",
+              package: "@omnixa/ai/providers/openai/responses",
             }),
             models: [Model.Info.make(Model.Info.default(model.providerID, model.id))],
           },

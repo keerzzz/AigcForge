@@ -3,14 +3,14 @@ export * as MetaAgentService from "./service"
 import { and, desc, eq, inArray, lt, sql } from "drizzle-orm"
 import { Context, DateTime, Effect, Layer, Option, Result, Schema } from "effect"
 import { Database } from "../database/database"
-import { MetaAgent } from "@aigcfroge/schema/meta-agent"
+import { MetaAgent } from "@omnixa/schema/meta-agent"
 import { Agent } from "../agent"
 import { Model } from "../model"
-import { ModelGroup } from "@aigcfroge/schema/model-group"
+import { ModelGroup } from "@omnixa/schema/model-group"
 import { SessionSchema } from "../session/schema"
-import { SessionIdentity } from "@aigcfroge/schema/session-identity"
+import { SessionIdentity } from "@omnixa/schema/session-identity"
 import { MetaAgentTable, MetaAgentSessionTable, MetaAgentStepTable } from "./sql"
-import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
+import { makeGlobalNode } from "@omnixa/util/effect/app-node"
 import { SessionMessageTable, SessionTable, TaskTable } from "../session/sql.js"
 import { fromRow } from "../session/info.js"
 import { SessionMessage } from "../session/message.js"
@@ -21,14 +21,14 @@ import { WorkflowRun } from "../workflow/workflow-run.js"
 import { SessionEvent } from "../session/event.js"
 import { ControllerConflictError, NotFoundError, bindingMatches, sameExecutor } from "../session/error.js"
 import { DelegationParticipantTable, DelegationTable } from "../delegation/sql.js"
-import { Delegation } from "@aigcfroge/schema/delegation"
+import { Delegation } from "@omnixa/schema/delegation"
 import { DelegationFold } from "../delegation/fold.js"
 import { DelegationProjector } from "../delegation/projector.js"
 import { DelegationReceipt } from "../delegation/receipt.js"
 import { KVTable } from "../kv/sql.js"
 import { SessionInbox } from "../session/inbox.js"
-import { Permission } from "@aigcfroge/schema/permission"
-import { Event } from "@aigcfroge/schema/event"
+import { Permission } from "@omnixa/schema/permission"
+import { Event } from "@omnixa/schema/event"
 import { EventTable } from "../event/sql"
 import { ProductModePolicy } from "../product-mode-policy.js"
 
@@ -124,7 +124,7 @@ export interface Interface {
   }) => Effect.Effect<void>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/MetaAgentService") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/v2/MetaAgentService") {}
 
 function rowToInfo(row: typeof MetaAgentTable.$inferSelect): MetaAgent.Info {
   return MetaAgent.Info.make({

@@ -3,10 +3,10 @@ export * as ToolOutput from "./tool-output.js"
 import path from "path"
 import type { Tool } from "./tool.js"
 import { Context, Duration, Effect, Layer, Schedule } from "effect"
-import { makeGlobalNode, makeLocationNode } from "@aigcfroge/util/effect/app-node"
-import { FSUtil } from "@aigcfroge/util/fs-util"
-import { Global } from "@aigcfroge/util/global"
-import { Identifier } from "@aigcfroge/schema/identifier"
+import { makeGlobalNode, makeLocationNode } from "@omnixa/util/effect/app-node"
+import { FSUtil } from "@omnixa/util/fs-util"
+import { Global } from "@omnixa/util/global"
+import { Identifier } from "@omnixa/schema/identifier"
 import { FileRetention } from "./file-retention.js"
 import { State } from "./state.js"
 
@@ -33,7 +33,7 @@ export interface Interface extends State.Transformable<Editor> {
   readonly cleanup: () => Effect.Effect<void>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/ToolOutput") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/ToolOutput") {}
 
 const cleanup = Effect.fn("ToolOutput.cleanup")(function* (fs: FSUtil.Interface, directory: string) {
   const entries = yield* fs.readDirectory(directory).pipe(

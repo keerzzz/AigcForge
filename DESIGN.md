@@ -1,4 +1,4 @@
-# AigcForge V2 产品与设计入口
+# Omnixa V2 产品与设计入口
 
 执行见 [CLAUDE.md](CLAUDE.md)，架构归属见 [ARCHITECTURE.md](ARCHITECTURE.md)，工程/生命周期以 [AGENTS.md](AGENTS.md) 和目标包指南为准。本页定义迁移的产品边界，不把默认工作区组件树或 Token 路径复制为 V2 标准。
 
@@ -21,7 +21,7 @@
 ## UI 接入与状态归属
 
 - 优先 V2 现有 Shell、路由、Panel、MenuItem、Command、Slot、SettingsPage 与 session-ui；不新增模式专属 Shell、第二侧栏或万能 AppInterface 注册表。
-- 2026-11-09 会话 UI 新要求：以现有右侧工作区统一承载可插拔模块。协作历史、Meta 检查、工作流运行和产物从主对话列迁到独立右侧 Panel；文件、Git 审阅、浏览器、上下文和候选面板继续复用，文件树保留辅助区，终端按现设置在右侧下部或底部。智能体任务沿后续用户决定，在输入框上方自动只读展示。询问、权限、联网选择和待发送输入属于实际交互会话的 Composer；主会话及其真实子树沿主 Composer，独立侧聊沿自己的 Composer。[实施附件](/home/keer/workspace/aigcfroge-v2/docs/research/upstream-v2-sync/2026-11-09-unified-right-sidebar-implementation-plan.md)已按第一性原理修订批准；生产布局按实际改动验收。
+- 2026-11-09 会话 UI 新要求：以现有右侧工作区统一承载可插拔模块。协作历史、Meta 检查、工作流运行和产物从主对话列迁到独立右侧 Panel；文件、Git 审阅、浏览器、上下文和候选面板继续复用，文件树保留辅助区，终端按现设置在右侧下部或底部。智能体任务沿后续用户决定，在输入框上方自动只读展示。询问、权限、联网选择和待发送输入属于实际交互会话的 Composer；主会话及其真实子树沿主 Composer，独立侧聊沿自己的 Composer。[实施附件](docs/research/upstream-v2-sync/2026-11-09-unified-right-sidebar-implementation-plan.md)已按第一性原理修订批准；生产布局按实际改动验收。
 - Session 详情标题栏不放任何资产按钮，包括单一入口或溢出入口。候选按当前侧面板宿主归位，资产库存留在自己的管理工作面。
 - 不是所有页面都必须插件化。App owning data/路由责任保留；跨扩展只使用 typed contract。SDK 缺接缝时先证明消费者与生命周期，再做最小、通用且有文档的扩展。
 - 2026-11-17 用户明确左侧导航边界：可插拔的项目／会话底座属于 Session 详情工作区，与会话正文和右侧模块同层；桌面可展开常驻，移动端复用标题栏的 MobileDrawer 按需打开。首页保持原项目与会话列表；设置与帮助仅保留在首页项目区，不出现在详情项目底座。项目展开复用服务器项目状态，仅列出当前 Session 模式的会话；当前模式读取持久 Session 身份，不由首页筛选或 Agent 名称推测。默认内容复用 HomeProjects、HomeSessionRow 及原会话索引和菜单，扩展通过现有 Slot 的 `window.sidebar` 替换；右侧文件树与会话面板保留各自原状态。
@@ -33,7 +33,7 @@
 
 ### 会话内容与回答操作合同
 
-2026-11-10按[已批准计划](/home/keer/workspace/aigcfroge-v2/docs/research/upstream-v2-sync/2026-11-10-side-chat-subagent-implementation-plan.md)固定以下目标；具体接缝、文件和验收由[SC00任务单](/home/keer/workspace/aigcfroge-v2/docs/research/upstream-v2-sync/2026-11-10-session-surfaces-task-sheet.md)安排，功能接受沿原账本。
+2026-11-10按[已批准计划](docs/research/upstream-v2-sync/2026-11-10-side-chat-subagent-implementation-plan.md)固定以下目标；具体接缝、文件和验收由[SC00任务单](docs/research/upstream-v2-sync/2026-11-10-session-surfaces-task-sheet.md)安排，功能接受沿原账本。
 
 - Panel布局、标签和关闭动作属于source工作区；正文、附件、模型选择、草稿、队列、请求及停止属于target会话。主会话、独立普通root和真实child复用同一内容实现；child侧栏先只读，执行控制沿原Subagent/Delegation owner。挂载和恢复保留稳定会话ID，只有显式导航才将target打开为主会话。
 - 同一target的草稿沿原server scope、Location和Session持久键共享，光标和焦点沿各视图。B同时在主Shell和A侧栏显示时，关闭B的Shell仍保留侧栏B的草稿与请求；最后视图释放内存后，已保存草稿和附件可以恢复。关闭Panel只释放该视图，停止操作命中target原API。

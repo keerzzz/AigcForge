@@ -21,7 +21,7 @@ type Site = {
 const fixture = test.extend<{ site: Site }, { builds: Record<string, Record<string, Buffer>> }>({
   builds: [
     async ({}, use) => {
-      const directory = await mkdtemp(join(tmpdir(), "aigcfroge-precache-"))
+      const directory = await mkdtemp(join(tmpdir(), "omnixa-precache-"))
       const builds: Record<string, Record<string, Buffer>> = {}
 
       try {
@@ -91,7 +91,7 @@ const fixture = test.extend<{ site: Site }, { builds: Record<string, Record<stri
       if (path === "/api/info")
         return void response
           .writeHead(200, { "content-type": "application/json" })
-          .end(`{"version":"test","pid":1,"urls":["${url.origin}"],"paths":{"tmp":"/tmp/aigcfroge"}}`)
+          .end(`{"version":"test","pid":1,"urls":["${url.origin}"],"paths":{"tmp":"/tmp/omnixa"}}`)
 
       if (path === "/sw.js" && state.legacy && state.version === "old") {
         // Model the shipped worker's shared precache name and cache-first navigation behavior.
@@ -347,7 +347,7 @@ fixture("upgrades the legacy shared precache only after old tabs close", async (
   expect(entry).toBeDefined()
   await page.evaluate(async (entry) => {
     await (
-      await caches.open("aigcfroge-assets")
+      await caches.open("omnixa-assets")
     ).put(entry!, new Response("<html>stale fallback</html>", { headers: { "content-type": "text/html" } }))
   }, entry)
   site.deploy()
@@ -374,7 +374,7 @@ fixture("does not substitute cached HTML for API or missing asset navigations", 
     version: "test",
     pid: 1,
     urls: ["http://localhost"],
-    paths: { tmp: "/tmp/aigcfroge" },
+    paths: { tmp: "/tmp/omnixa" },
   })
   expect(api?.fromServiceWorker()).toBe(false)
   const asset = await page.goto(`${site.url}/_assets/missing.js`)

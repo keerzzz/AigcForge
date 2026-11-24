@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test"
 import { Effect, Layer } from "effect"
-import { FSUtil } from "@aigcfroge/util/fs-util"
-import { LocationMutation } from "@aigcfroge/core/location-mutation"
-import { Location } from "@aigcfroge/core/location"
-import { AbsolutePath } from "@aigcfroge/core/schema"
+import { FSUtil } from "@omnixa/util/fs-util"
+import { LocationMutation } from "@omnixa/core/location-mutation"
+import { Location } from "@omnixa/core/location"
+import { AbsolutePath } from "@omnixa/core/schema"
 import { location } from "./fixture/location"
 import { tmpdir } from "./fixture/tmpdir"
 import fs from "fs/promises"
@@ -113,20 +113,20 @@ describe("PluginAssetPath.validateRelativePath", () => {
 })
 
 describe("PluginAssetPath.nameToRelativePath", () => {
-  test("uses .aigcfroge/plugins/ prefix with .plugin.yaml extension", () => {
-    expect(PluginAssetPath.nameToRelativePath("code-review")).toBe(".aigcfroge/plugins/code-review.plugin.yaml")
+  test("uses .omnixa/plugins/ prefix with .plugin.yaml extension", () => {
+    expect(PluginAssetPath.nameToRelativePath("code-review")).toBe(".omnixa/plugins/code-review.plugin.yaml")
   })
 
   test("handles Chinese name", () => {
-    expect(PluginAssetPath.nameToRelativePath("插件")).toBe(".aigcfroge/plugins/插件.plugin.yaml")
+    expect(PluginAssetPath.nameToRelativePath("插件")).toBe(".omnixa/plugins/插件.plugin.yaml")
   })
 
   test("NFKC normalizes unicode", () => {
-    expect(PluginAssetPath.nameToRelativePath("ｈello")).toBe(".aigcfroge/plugins/hello.plugin.yaml")
+    expect(PluginAssetPath.nameToRelativePath("ｈello")).toBe(".omnixa/plugins/hello.plugin.yaml")
   })
 
   test("trims whitespace", () => {
-    expect(PluginAssetPath.nameToRelativePath("  hi  ")).toBe(".aigcfroge/plugins/hi.plugin.yaml")
+    expect(PluginAssetPath.nameToRelativePath("  hi  ")).toBe(".omnixa/plugins/hi.plugin.yaml")
   })
 
   test("rejects invalid name", () => {
@@ -138,7 +138,7 @@ describe("PluginAssetPath.nameToRelativePath", () => {
 
 describe("PluginAssetPath.resolveOwnerRoot", () => {
   nonWindowsTest("computes owner root from directory", () => {
-    expect(PluginAssetPath.resolveOwnerRoot("/home/user/project")).toBe("/home/user/project/.aigcfroge/plugins")
+    expect(PluginAssetPath.resolveOwnerRoot("/home/user/project")).toBe("/home/user/project/.omnixa/plugins")
   })
 })
 
@@ -156,7 +156,7 @@ describe("PluginAssetPath.resolveSafeTarget", () => {
     Effect.gen(function* () {
       const mutation = yield* LocationMutation.Service
       const result = yield* PluginAssetPath.resolveSafeTarget("test.plugin.yaml", mutation)
-      expect(result.absolute).toBe(AbsolutePath.make("/tmp/.aigcfroge/plugins/test.plugin.yaml"))
+      expect(result.absolute).toBe(AbsolutePath.make("/tmp/.omnixa/plugins/test.plugin.yaml"))
     }).pipe(Effect.provide(mutationLayer("/tmp"))),
   )
 
@@ -173,9 +173,9 @@ describe("PluginAssetPath.resolveSafeTarget", () => {
   nonWindowsTest("rejects a plugin root symlink redirected elsewhere in the Location", async () => {
     const tmp = await tmpdir()
     try {
-      await fs.mkdir(path.join(tmp.path, ".aigcfroge"), { recursive: true })
+      await fs.mkdir(path.join(tmp.path, ".omnixa"), { recursive: true })
       await fs.mkdir(path.join(tmp.path, "elsewhere"), { recursive: true })
-      await fs.symlink(path.join(tmp.path, "elsewhere"), path.join(tmp.path, ".aigcfroge", "plugins"))
+      await fs.symlink(path.join(tmp.path, "elsewhere"), path.join(tmp.path, ".omnixa", "plugins"))
 
       const result = await Effect.runPromise(
         Effect.gen(function* () {

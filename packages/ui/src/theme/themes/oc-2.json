@@ -1,6 +1,6 @@
 {
-  "$schema": "https://aigcfroge.ai/desktop-theme.json",
-  "name": "AigcForge",
+  "$schema": "../desktop-theme.schema.json",
+  "name": "Omnixa",
   "id": "oc-2",
   "light": {
     "palette": {

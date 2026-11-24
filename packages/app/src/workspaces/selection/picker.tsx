@@ -1,8 +1,8 @@
-import { useDialog } from "@aigcfroge/ui/context/dialog"
+import { useDialog } from "@omnixa/ui/context/dialog"
 import { ServerConnection } from "@/runtime/server/registry"
 import { usePlatform } from "@/runtime/platform/platform"
 import { lazy, Suspense } from "solid-js"
-import type { LocationRef } from "@aigcfroge/client/promise"
+import type { LocationRef } from "@omnixa/client/promise"
 import { directoryPickerKind } from "./policy"
 
 const DirectoryPickerDialog = lazy(() =>

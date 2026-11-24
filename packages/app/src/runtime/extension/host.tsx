@@ -22,8 +22,8 @@ import {
 import { createStore } from "solid-js/store"
 import { Predicate } from "effect"
 import { resolveTemplate } from "@solid-primitives/i18n"
-import { useDialog } from "@aigcfroge/ui/context/dialog"
-import { pluralCategory } from "@aigcfroge/ui/context/i18n"
+import { useDialog } from "@omnixa/ui/context/dialog"
+import { pluralCategory } from "@omnixa/ui/context/i18n"
 import {
   ExtensionContext,
   LifetimeContext,
@@ -48,7 +48,7 @@ import {
   type SessionRef,
   type SetupContext,
   type Token,
-} from "@aigcfroge/gui-extensions/sdk"
+} from "@omnixa/gui-extensions/sdk"
 import { useLanguage } from "@/runtime/i18n/language"
 import { createSessionStore, whenLoaded } from "./stores"
 

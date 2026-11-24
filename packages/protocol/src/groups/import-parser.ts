@@ -1,4 +1,4 @@
-import { ImportParser } from "@aigcfroge/schema/import-parser"
+import { ImportParser } from "@omnixa/schema/import-parser"
 import { Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/http-api"
 import { Authorization } from "../middleware/authorization.js"

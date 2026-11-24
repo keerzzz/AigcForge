@@ -1,4 +1,4 @@
-import { Plugin } from "@aigcfroge/plugin/tui"
+import { Plugin } from "@omnixa/plugin/tui"
 import { createMemo, Show } from "solid-js"
 import { useTerminalDimensions } from "@opentui/solid"
 import { FilePath } from "../../ui/file-path"
@@ -54,9 +54,8 @@ export function SidebarOnboarding(props: { context: Plugin.Context; sessionID: s
               ✕
             </text>
           </box>
-          <text fg={props.context.theme.text.muted}>AigcForge includes free models so you can start immediately.</text>
           <text fg={props.context.theme.text.muted}>
-            Connect from 75+ providers to use other models, including Claude, GPT, Gemini etc
+            Connect a provider to start using Claude, GPT, Gemini, or custom models.
           </text>
           <box
             id="sidebar.footer.getting-started.connect"
@@ -114,7 +113,7 @@ function SidebarFooter(props: { context: Plugin.Context; sessionID: string }) {
 }
 
 export default Plugin.define({
-  id: "aigcfroge.sidebar.footer",
+  id: "omnixa.sidebar.footer",
   setup(context) {
     // Append keeps the path open to additive plugin claims; an external
     // replace still takes the boundary over.

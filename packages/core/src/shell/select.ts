@@ -4,9 +4,9 @@ import path from "path"
 import { readFile } from "fs/promises"
 import { statSync } from "fs"
 import { Context, Effect, Layer, Schema } from "effect"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
-import { FSUtil } from "@aigcfroge/util/fs-util"
-import { Global } from "@aigcfroge/util/global"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
+import { FSUtil } from "@omnixa/util/fs-util"
+import { Global } from "@omnixa/util/global"
 import { State } from "../state.js"
 import { which } from "../util/which.js"
 
@@ -50,7 +50,7 @@ export interface Interface extends State.Transformable<Editor> {
   readonly list?: () => Effect.Effect<Item[]>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/ShellSelect") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/ShellSelect") {}
 
 function stat(file: string) {
   return statSync(file, { throwIfNoEntry: false }) ?? undefined

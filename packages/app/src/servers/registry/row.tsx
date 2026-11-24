@@ -1,6 +1,6 @@
-import { Tooltip } from "@aigcfroge/ui/tooltip"
-import { Icon } from "@aigcfroge/ui/icon"
-import { Spinner } from "@aigcfroge/ui/spinner"
+import { Tooltip } from "@omnixa/ui/tooltip"
+import { Icon } from "@omnixa/ui/icon"
+import { Spinner } from "@omnixa/ui/spinner"
 import { useLanguage } from "@/runtime/i18n/language"
 import { createResizeObserver } from "@solid-primitives/resize-observer"
 import {

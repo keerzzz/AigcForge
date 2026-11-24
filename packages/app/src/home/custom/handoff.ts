@@ -1,5 +1,5 @@
 import { createSignal } from "solid-js"
-import type { CompositionSnapshotV2 } from "@aigcfroge/client/promise"
+import type { CompositionSnapshotV2 } from "@omnixa/client/promise"
 import type { ServerScope } from "@/runtime/server/scope"
 import { composeDraftFromSnapshot, type ComposeDraft } from "./draft"
 

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { Arbitrary, Duration, Effect, Schema } from "effect"
-import { ConfigNormalize } from "@aigcfroge/core/config/normalize"
-import { Info } from "@aigcfroge/schema/config"
+import { ConfigNormalize } from "@omnixa/core/config/normalize"
+import { Info } from "@omnixa/schema/config"
 
 const options = { errors: "all", onExcessProperty: "ignore" } as const
 

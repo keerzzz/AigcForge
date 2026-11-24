@@ -1,5 +1,5 @@
 import fuzzysort from "fuzzysort"
-import type { WslInstalledDistro, WslOnlineDistro, WslAigcfrogeCheck, WslServersState } from "./contract"
+import type { WslInstalledDistro, WslOnlineDistro, WslOmnixaCheck, WslServersState } from "./contract"
 
 export type AddServerText = {
   key: string
@@ -17,7 +17,7 @@ export type AddServerPrimaryButton = {
   variant: "neutral" | "contrast"
   label: AddServerText
   disabled: boolean
-  action: "install-aigcfroge" | "add" | null
+  action: "install-omnixa" | "add" | null
   loading: boolean
   width: string | null
 }
@@ -41,12 +41,14 @@ function isHiddenDistro(name: string) {
   return /^docker-desktop(?:-data)?$/i.test(name)
 }
 
-export function wslAigcfrogeAction(check?: WslAigcfrogeCheck) {
-  if (!check) return
+export function wslOmnixaAction(check?: WslOmnixaCheck) {
+  if (!check) return undefined
 
-  if (!check.resolvedPath) return "onboarding.installAigcfroge"
+  if (!check.resolvedPath) return "onboarding.installOmnixa"
 
-  if (check.matchesDesktop === false) return "onboarding.updateAigcfroge"
+  if (check.matchesDesktop === false) return "onboarding.updateOmnixa"
+
+  return undefined
 }
 
 export function wslDistroReady(state: WslServersState | undefined, name: string) {
@@ -57,7 +59,7 @@ export function wslDistroReady(state: WslServersState | undefined, name: string)
 
   if (installed.version === 1) return false
 
-  return probe.canExecute && probe.hasBash && probe.hasCurl
+  return probe.canExecute && probe.hasBash
 }
 
 export function addServerViewModel(input: {
@@ -75,7 +77,7 @@ export function addServerViewModel(input: {
   const existingServerDistros = new Set((state?.servers ?? []).map((item) => item.config.distro))
   const addableInstalledDistros = visibleInstalledDistros.filter((item) => !existingServerDistros.has(item.name))
   const selectedDistro = addServerSelectedDistro(input.selectedDistro, visibleInstalledDistros, addableInstalledDistros)
-  const aigcfrogeCheck = selectedDistro ? (state?.aigcfrogeChecks[selectedDistro] ?? null) : null
+  const omnixaCheck = selectedDistro ? (state?.omnixaChecks[selectedDistro] ?? null) : null
   const installableDistros = addServerInstallableDistros(visibleInstalledDistros, visibleOnlineDistros)
   const filteredInstallableDistros = addServerFilteredInstallableDistros(installableDistros, input.catalogSearch)
   const catalogTarget = addServerCatalogTarget(input.catalogTarget, filteredInstallableDistros)
@@ -88,7 +90,7 @@ export function addServerViewModel(input: {
     visibleOnlineDistros,
     addableInstalledDistros,
     selectedDistro,
-    aigcfrogeCheck,
+    omnixaCheck,
     wslReady: !!state?.runtime?.available && !state?.pendingRestart,
     distroStatuses: Object.fromEntries(
       addableInstalledDistros.flatMap((item) => {
@@ -102,7 +104,7 @@ export function addServerViewModel(input: {
     primaryButton: addServerPrimaryButton({
       state,
       selectedDistro,
-      aigcfrogeCheck,
+      omnixaCheck,
       adding: input.adding,
       probingAddable: input.probingAddable,
     }),
@@ -171,11 +173,11 @@ function addServerDistroStatus(input: {
     return { label: { key: "onboarding.openDistroOnce", params: { distro: input.name } }, tone: "warning" }
   }
 
-  if (!probe.hasBash || !probe.hasCurl) {
-    return { label: { key: "onboarding.distroStatus.missingTools" }, tone: "warning" }
+  if (!probe.hasBash) {
+    return { label: { key: "onboarding.distroStatus.missingBash" }, tone: "warning" }
   }
 
-  const check = input.state?.aigcfrogeChecks[input.name]
+  const check = input.state?.omnixaChecks[input.name]
 
   if (!check) {
     if (input.probingAddable || (job?.kind === "probe-addable" && job.distros.includes(input.name))) {
@@ -185,11 +187,11 @@ function addServerDistroStatus(input: {
     return
   }
 
-  if (check.matchesDesktop === false) return { label: { key: "onboarding.updateAigcfroge" }, tone: "warning" }
+  if (check.matchesDesktop === false) return { label: { key: "onboarding.updateOmnixa" }, tone: "warning" }
 
-  if (!check.resolvedPath) return { label: { key: "onboarding.distroStatus.aigcfrogeMissing" }, tone: "warning" }
+  if (!check.resolvedPath) return { label: { key: "onboarding.distroStatus.omnixaMissing" }, tone: "warning" }
 
-  if (check.error) return { label: { key: "onboarding.installAigcfroge" }, tone: "warning" }
+  if (check.error) return { label: { key: "onboarding.installOmnixa" }, tone: "warning" }
 
   return { label: { key: "onboarding.distroStatus.ready" }, tone: "success" }
 }
@@ -201,25 +203,25 @@ function checkingStatus(): DistroStatus {
 function addServerPrimaryButton(input: {
   state: WslServersState | undefined
   selectedDistro: string | null
-  aigcfrogeCheck: WslAigcfrogeCheck | null
+  omnixaCheck: WslOmnixaCheck | null
   adding: boolean
   probingAddable: boolean
 }): AddServerPrimaryButton {
   const ready = !!input.selectedDistro && wslDistroReady(input.state, input.selectedDistro)
   const probingSelected = input.probingAddable && !addServerSelectedDistroSettled(input.state, input.selectedDistro)
 
-  const probingAigcfroge =
+  const probingOmnixa =
     probingSelected ||
     (ready &&
-      (!input.aigcfrogeCheck ||
+      (!input.omnixaCheck ||
         (!!input.selectedDistro &&
           input.state?.job?.kind === "probe-addable" &&
           input.state.job.distros.includes(input.selectedDistro))))
 
-  const installingAigcfroge =
-    input.state?.job?.kind === "install-aigcfroge" && input.state.job.distro === input.selectedDistro
+  const installingOmnixa =
+    input.state?.job?.kind === "install-omnixa" && input.state.job.distro === input.selectedDistro
 
-  if (!ready || probingAigcfroge) {
+  if (!ready || probingOmnixa) {
     return {
       variant: "contrast",
       label: probingSelected ? { key: "onboarding.distroStatus.checking" } : { key: "server.add" },
@@ -230,19 +232,19 @@ function addServerPrimaryButton(input: {
     }
   }
 
-  if (!addServerAigcfrogeReady(input.aigcfrogeCheck)) {
-    const update = !!input.aigcfrogeCheck?.resolvedPath && input.aigcfrogeCheck.matchesDesktop === false
+  if (!addServerOmnixaReady(input.omnixaCheck)) {
+    const update = !!input.omnixaCheck?.resolvedPath && input.omnixaCheck.matchesDesktop === false
 
     return {
       variant: "neutral",
-      label: installingAigcfroge
-        ? { key: "onboarding.updatingAigcfroge" }
+      label: installingOmnixa
+        ? { key: "onboarding.updatingOmnixa" }
         : update
-          ? { key: "onboarding.updateAigcfroge" }
-          : { key: "onboarding.installAigcfroge" },
+          ? { key: "onboarding.updateOmnixa" }
+          : { key: "onboarding.installOmnixa" },
       disabled: !!input.state?.job || input.adding,
-      action: "install-aigcfroge",
-      loading: installingAigcfroge,
+      action: "install-omnixa",
+      loading: installingOmnixa,
       width: update ? "138px" : "129px",
     }
   }
@@ -257,7 +259,7 @@ function addServerPrimaryButton(input: {
   }
 }
 
-function addServerAigcfrogeReady(check: WslAigcfrogeCheck | null) {
+function addServerOmnixaReady(check: WslOmnixaCheck | null) {
   return !!check?.resolvedPath && check.matchesDesktop !== false && !check.error
 }
 
@@ -271,7 +273,7 @@ function addServerSelectedDistroSettled(state: WslServersState | undefined, sele
 
   if (!wslDistroReady(state, selectedDistro)) return true
 
-  return !!state.aigcfrogeChecks[selectedDistro]
+  return !!state.omnixaChecks[selectedDistro]
 }
 
 function addServerInstallableDistros(installedDistros: WslInstalledDistro[], onlineDistros: WslOnlineDistro[]) {
@@ -322,7 +324,7 @@ export function addableProbePlan(input: {
 
     if (!state.distroProbes[item.name]) return [`distro:${item.name}`]
 
-    if (wslDistroReady(state, item.name) && !state.aigcfrogeChecks[item.name]) return [`aigcfroge:${item.name}`]
+    if (wslDistroReady(state, item.name) && !state.omnixaChecks[item.name]) return [`omnixa:${item.name}`]
 
     return []
   })

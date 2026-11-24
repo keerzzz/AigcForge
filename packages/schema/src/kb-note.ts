@@ -59,7 +59,7 @@ export const Title = Schema.String.pipe(
       },
       {
         message: "Note title must be a plain file name: no path separators, no parent references",
-        representation: { id: "aigcfroge/plainFileName", payload: {} },
+        representation: { id: "omnixa/plainFileName", payload: {} },
         arbitraryConstraint: {} as Record<string, unknown>,
         toCode: () => ({
           runtime:

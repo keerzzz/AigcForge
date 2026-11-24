@@ -1,9 +1,9 @@
 import { describe, expect } from "bun:test"
 import { Effect, Layer } from "effect"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { Mcp } from "@aigcfroge/core/mcp/index"
-import { McpInstructions } from "@aigcfroge/core/mcp/instructions"
-import { McpTool } from "@aigcfroge/core/tool/mcp"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { Mcp } from "@omnixa/core/mcp/index"
+import { McpInstructions } from "@omnixa/core/mcp/instructions"
+import { McpTool } from "@omnixa/core/tool/mcp"
 import { it } from "./lib/effect"
 import { readInitial, readUpdate } from "./lib/instructions"
 

@@ -3,7 +3,7 @@ import { useData } from "@/runtime/server/current"
 import { useWorkspaceLocation } from "@/workspaces/location"
 import { useServerSDK } from "@/runtime/server/client"
 import { Schema } from "effect"
-import { ConfigModel } from "@aigcfroge/schema/config/model"
+import { ConfigModel } from "@omnixa/schema/config/model"
 import { type ModelKey } from "./key"
 
 export function useConfiguredModel() {

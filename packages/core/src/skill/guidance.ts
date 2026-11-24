@@ -6,7 +6,7 @@ import { Permission } from "../permission"
 import { Skill } from "../skill"
 import { SystemContext } from "../system-context/index"
 
-import { Composition } from "@aigcfroge/schema/composition"
+import { Composition } from "@omnixa/schema/composition"
 import { CompositionConsumerView } from "../composition/consumer-view"
 
 const Summary = Schema.Struct({
@@ -47,7 +47,7 @@ export interface Interface {
   readonly load: (agent: Agent.Selection, options?: GuidanceOptions) => Effect.Effect<SystemContext.SystemContextValue>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/SkillGuidance") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/v2/SkillGuidance") {}
 
 export const layer = Layer.effect(
   Service,

@@ -5,8 +5,8 @@ import { parseSmallMarkdown } from "./marked-base"
 const parser = createMarkdownParser((code, language) => `<pre data-language="${language}">${code}</pre>`)
 
 test("renders links with application attributes", async () => {
-  expect(await parser.parse("[AigcForge](https://aigcfroge.ai)")).toBe(
-    '<p><a href="https://aigcfroge.ai" class="external-link" target="_blank" rel="noopener noreferrer">AigcForge</a></p>\n',
+  expect(await parser.parse("[Omnixa](https://omnixa.ai)")).toBe(
+    '<p><a href="https://omnixa.ai" class="external-link" target="_blank" rel="noopener noreferrer">Omnixa</a></p>\n',
   )
 })
 

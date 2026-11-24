@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import type { IntegrationInfo } from "@aigcfroge/client"
+import type { IntegrationInfo } from "@omnixa/client"
 import {
   connectionSummary,
   connectMethods,

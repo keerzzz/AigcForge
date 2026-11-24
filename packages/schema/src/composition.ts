@@ -191,7 +191,7 @@ export const strictBindings = <B extends Schema.Top>(value: B) =>
         (input) => Object.keys(input).every((key) => /^(orchestrator|agents\/[a-zA-Z0-9_-]+)$/.test(key)),
         {
           message: "Consumer must be 'orchestrator' or 'agents/<agentId>'",
-          representation: { id: "aigcfroge/strictConsumerKeys", payload: {} },
+          representation: { id: "omnixa/strictConsumerKeys", payload: {} },
           arbitraryConstraint: {} as Record<string, unknown>,
           // Effect 4.0.1 promise-client codegen inlines custom filters; the runtime
           // expression must be self-contained in the generated file's scope.

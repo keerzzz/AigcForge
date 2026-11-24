@@ -19,14 +19,14 @@ import {
 import { SqlError } from "effect/sql/SqlError"
 import { HttpClient } from "effect/http"
 import { isDeepStrictEqual } from "node:util"
-import { ProviderDiscovery } from "@aigcfroge/schema/provider-discovery"
-import { ModelSource } from "@aigcfroge/schema/model-source"
-import { ConfigProvider } from "@aigcfroge/schema/config/provider"
-import { ProviderDefinition } from "@aigcfroge/schema/provider-definition"
-import { Document, Info, type Entry } from "@aigcfroge/schema/config"
-import { Hash } from "@aigcfroge/util/hash"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
-import { httpClient } from "@aigcfroge/util/effect/app-node-platform"
+import { ProviderDiscovery } from "@omnixa/schema/provider-discovery"
+import { ModelSource } from "@omnixa/schema/model-source"
+import { ConfigProvider } from "@omnixa/schema/config/provider"
+import { ProviderDefinition } from "@omnixa/schema/provider-definition"
+import { Document, Info, type Entry } from "@omnixa/schema/config"
+import { Hash } from "@omnixa/util/hash"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
+import { httpClient } from "@omnixa/util/effect/app-node-platform"
 import { Bus } from "../bus.js"
 import { Config } from "../config.js"
 import { ConfigProviderFile } from "../config/provider-file.js"
@@ -40,17 +40,9 @@ import { ModelsDev } from "../models-dev.js"
 import { Provider } from "../provider.js"
 import { AISDKNative } from "../aisdk-native.js"
 import { ProviderDiscoveryHTTP } from "./discovery-http.js"
-import { Money } from "@aigcfroge/schema/money"
+import { Money } from "@omnixa/schema/money"
 
-export {
-  GetInput,
-  PreviewInput,
-  RefreshInput,
-  Read,
-  Inventory,
-  Status,
-  Event,
-} from "@aigcfroge/schema/provider-discovery"
+export { GetInput, PreviewInput, RefreshInput, Read, Inventory, Status, Event } from "@omnixa/schema/provider-discovery"
 
 export class InvalidError extends Schema.TaggedError<InvalidError>()("ProviderDiscovery.Invalid", {
   message: Schema.String,
@@ -84,7 +76,7 @@ export interface Interface {
   }) => Effect.Effect<Readonly<Record<string, ModelSource.Seed>>, Error>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/ProviderDiscovery") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/ProviderDiscovery") {}
 
 type Capture = {
   readonly identity: ModelSource.Identity
@@ -250,7 +242,7 @@ export const layer = Layer.effect(
       const baseURL =
         typeof settings.baseURL === "string"
           ? settings.baseURL.replace(/\$\{([^}]+)\}/g, (placeholder, name: string) => process.env[name] ?? placeholder)
-          : protocol === "anthropic" && packageName === "@aigcfroge/ai/providers/anthropic"
+          : protocol === "anthropic" && packageName === "@omnixa/ai/providers/anthropic"
             ? "https://api.anthropic.com/v1"
             : nativeOpenAI
               ? "https://api.openai.com/v1"
@@ -984,22 +976,19 @@ function effectiveDefinition(
 }
 
 const NativeOpenAI = new Set([
-  "@aigcfroge/ai/providers/openai",
-  "@aigcfroge/ai/providers/openai/chat",
-  "@aigcfroge/ai/providers/openai/responses",
+  "@omnixa/ai/providers/openai",
+  "@omnixa/ai/providers/openai/chat",
+  "@omnixa/ai/providers/openai/responses",
 ])
 
 function listingProtocol(packageName: string | undefined): ModelSource.Protocol | undefined {
-  if (
-    packageName === "@aigcfroge/ai/providers/anthropic" ||
-    packageName === "@aigcfroge/ai/providers/anthropic-compatible"
-  )
+  if (packageName === "@omnixa/ai/providers/anthropic" || packageName === "@omnixa/ai/providers/anthropic-compatible")
     return "anthropic"
   if (
     (packageName !== undefined && NativeOpenAI.has(packageName)) ||
-    packageName === "@aigcfroge/ai/providers/openai-compatible" ||
-    packageName === "@aigcfroge/ai/providers/openai-compatible/responses" ||
-    packageName === "@aigcfroge/ai/providers/openai-compatible-responses"
+    packageName === "@omnixa/ai/providers/openai-compatible" ||
+    packageName === "@omnixa/ai/providers/openai-compatible/responses" ||
+    packageName === "@omnixa/ai/providers/openai-compatible-responses"
   )
     return "openai"
 }

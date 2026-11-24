@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import type { McpServer } from "@agentclientprotocol/sdk"
-import { Model } from "@aigcfroge/schema/model"
-import { Session } from "@aigcfroge/schema/session"
+import { Model } from "@omnixa/schema/model"
+import { Session } from "@omnixa/schema/session"
 import { Schema } from "effect"
 import { currentValue } from "./select-options"
 import {
@@ -32,30 +32,30 @@ describe("acp session lifecycle over the wire", () => {
         mcpCapabilities: { http: true, sse: false },
         promptCapabilities: { embeddedContext: true, image: true },
         sessionCapabilities: { additionalDirectories: {}, close: {}, delete: {}, fork: {}, list: {}, resume: {} },
-        _meta: { "aigcfroge/child-session-updates": true },
+        _meta: { "omnixa/child-session-updates": true },
       },
-      agentInfo: { name: "AigcForge" },
+      agentInfo: { name: "Omnixa" },
     })
     expect(plain.authMethods).toEqual([
       {
-        id: "aigcfroge-login",
-        name: "Login with aigcfroge",
-        description: "Run `aigcfroge auth login` in the terminal",
+        id: "omnixa-login",
+        name: "Login with omnixa",
+        description: "Run `omnixa auth login` in the terminal",
       },
     ])
     expect(terminal.authMethods?.[0]?._meta).toEqual({
-      "terminal-auth": { command: "aigcfroge", args: ["auth", "login"], label: "AigcForge Login" },
+      "terminal-auth": { command: "omnixa", args: ["auth", "login"], label: "Omnixa Login" },
     })
     expect(standard.authMethods).toEqual([
       {
-        id: "aigcfroge-login",
-        name: "Login with aigcfroge",
-        description: "Run `aigcfroge auth login` in the terminal",
+        id: "omnixa-login",
+        name: "Login with omnixa",
+        description: "Run `omnixa auth login` in the terminal",
         type: "terminal",
         args: ["--login"],
       },
     ])
-    expect(await acp.request("authenticate", { methodId: "aigcfroge-login" })).toEqual({})
+    expect(await acp.request("authenticate", { methodId: "omnixa-login" })).toEqual({})
     expect(await rpcError(acp.request("authenticate", { methodId: "missing" }))).toMatchObject({
       code: -32602,
       data: { methodId: "missing" },
@@ -281,7 +281,7 @@ describe("acp session lifecycle over the wire", () => {
         "fresh request commands",
       )
       expect(acp.server.mcp).toHaveLength(mcp + 1)
-      expect(acp.server.sessions.get(sessionId)?.metadata?.["aigcfroge.acp.additionalDirectories"]).toEqual([
+      expect(acp.server.sessions.get(sessionId)?.metadata?.["omnixa.acp.additionalDirectories"]).toEqual([
         "/extra-lifecycle",
       ])
       expect(

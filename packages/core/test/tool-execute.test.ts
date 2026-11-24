@@ -1,11 +1,11 @@
 import { expect, test } from "bun:test"
-import { CodeModeTool } from "@aigcfroge/core/codemode/tool"
-import { Tool } from "@aigcfroge/core/tool"
-import { execute } from "@aigcfroge/core/tool/runtime"
-import { Agent } from "@aigcfroge/schema/agent"
-import { Session } from "@aigcfroge/schema/session"
-import { SessionMessage } from "@aigcfroge/schema/session-message"
-import type { Info } from "@aigcfroge/schema/tool"
+import { CodeModeTool } from "@omnixa/core/codemode/tool"
+import { Tool } from "@omnixa/core/tool"
+import { execute } from "@omnixa/core/tool/runtime"
+import { Agent } from "@omnixa/schema/agent"
+import { Session } from "@omnixa/schema/session"
+import { SessionMessage } from "@omnixa/schema/session-message"
+import type { Info } from "@omnixa/schema/tool"
 import { Effect, Schema } from "effect"
 
 const context = {

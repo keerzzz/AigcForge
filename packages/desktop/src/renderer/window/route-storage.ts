@@ -1,4 +1,4 @@
-import { ProductMode } from "@aigcfroge/schema/product-mode"
+import { ProductMode } from "@omnixa/schema/product-mode"
 
 export function getLastActiveUrl(windowID: string) {
   if (typeof localStorage !== "object") return "/"
@@ -34,5 +34,5 @@ export function acceptedLastActiveUrl(value: string | null | undefined) {
 }
 
 function windowLastActiveUrlKey(windowID: string) {
-  return `aigcfroge.desktop.window.${windowID}.last-active-url`
+  return `omnixa.desktop.window.${windowID}.last-active-url`
 }

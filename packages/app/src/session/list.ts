@@ -1,4 +1,4 @@
-import type { SessionApi, SessionInfo, SessionListInput } from "@aigcfroge/client/promise"
+import type { SessionApi, SessionInfo, SessionListInput } from "@omnixa/client/promise"
 
 export async function listAllSessions(api: Pick<SessionApi, "list">, input: Omit<SessionListInput, "cursor">) {
   const load = async (cursor?: string): Promise<SessionInfo[]> => {

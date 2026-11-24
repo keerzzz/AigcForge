@@ -1,9 +1,9 @@
 import { expect } from "bun:test"
 import { Cause, Deferred, Effect, Exit, Fiber } from "effect"
-import { Plugin } from "@aigcfroge/plugin"
-import type { WorktreeDefinition } from "@aigcfroge/plugin/effect/worktree"
-import { PluginPromise } from "@aigcfroge/core/plugin/promise"
-import { State } from "@aigcfroge/core/state"
+import { Plugin } from "@omnixa/plugin"
+import type { WorktreeDefinition } from "@omnixa/plugin/effect/worktree"
+import { PluginPromise } from "@omnixa/core/plugin/promise"
+import { State } from "@omnixa/core/state"
 import { it } from "../lib/effect"
 import { host } from "./host"
 

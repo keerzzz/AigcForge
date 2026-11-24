@@ -6,7 +6,7 @@ describe("desktop startup benchmark", () => {
   test.each(["/oc-theme-preload.js", "./oc-theme-preload.js"])("inlines %s before the renderer runs", (path) => {
     const html = inlineThemePreload(`<script id="oc-theme-preload-script" src="${path}"></script>`)
     expect(html).not.toContain(" src=")
-    expect(html).toContain("aigcfroge-color-scheme")
+    expect(html).toContain("omnixa-color-scheme")
   })
 
   test("recognizes startup milestones in colored output", () => {

@@ -1,12 +1,12 @@
 import { createHash } from "node:crypto"
 import { expect, test } from "@playwright/test"
-import type { SessionMessageInfo } from "@aigcfroge/client/promise"
-import { InvalidRequestError } from "@aigcfroge/protocol/errors"
-import { Session } from "@aigcfroge/schema/session"
-import { SessionConsultation } from "@aigcfroge/schema/session-consultation"
-import { SessionInbox } from "@aigcfroge/schema/session-inbox"
+import type { SessionMessageInfo } from "@omnixa/client/promise"
+import { InvalidRequestError } from "@omnixa/protocol/errors"
+import { Session } from "@omnixa/schema/session"
+import { SessionConsultation } from "@omnixa/schema/session-consultation"
+import { SessionInbox } from "@omnixa/schema/session-inbox"
 import { Schema } from "effect"
-import { base64Encode } from "@aigcfroge/util/encode"
+import { base64Encode } from "@omnixa/util/encode"
 import { pageMessagesFrom, provider, SERVER, session, sessionHref, T0, workspaceKey } from "../utils/app"
 import type { MockAnswer, MockServerConfig } from "../utils/mock-server"
 import { MockNotFound } from "../utils/mock-api"
@@ -15,7 +15,7 @@ import { installSseTransport } from "../utils/sse-transport"
 import { openSession } from "../utils/workspace"
 import { expectSessionTitle } from "../utils/waits"
 
-const model = { id: "sc07-model", providerID: "aigcfroge" }
+const model = { id: "sc07-model", providerID: "omnixa" }
 
 const sourceAnswer = "SC07 source answer whose completed boundary must be captured."
 

@@ -17,13 +17,13 @@ const repo = process.env.GH_REPO
 
 if (!repo) throw new Error("GH_REPO is required")
 
-const releaseId = process.env.AIGCFROGE_RELEASE
+const releaseId = process.env.OMNIXA_RELEASE
 
-if (!releaseId) throw new Error("AIGCFROGE_RELEASE is required")
+if (!releaseId) throw new Error("OMNIXA_RELEASE is required")
 
-const version = process.env.AIGCFROGE_VERSION
+const version = process.env.OMNIXA_VERSION
 
-if (!version) throw new Error("AIGCFROGE_VERSION is required")
+if (!version) throw new Error("OMNIXA_VERSION is required")
 
 const dir = process.env.LATEST_YML_DIR
 
@@ -189,9 +189,9 @@ const winxexe = pick(winx?.files ?? [], [".exe"])
 
 const winaexe = pick(wina?.files ?? [], [".exe"])
 
-const macxTarGz = "aigcfroge-desktop-mac-x64.app.tar.gz"
+const macxTarGz = "omnixa-desktop-mac-x64.app.tar.gz"
 
-const macaTarGz = "aigcfroge-desktop-mac-arm64.app.tar.gz"
+const macaTarGz = "omnixa-desktop-mac-arm64.app.tar.gz"
 
 const linxDeb = pick(linx?.files ?? [], [".deb"])
 

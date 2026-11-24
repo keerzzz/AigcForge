@@ -16,7 +16,7 @@ export interface Interface {
   readonly diff: (input: DiffInput) => Effect.Effect<V2Snapshot.FileDiff[]>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/SessionSummary") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/v2/SessionSummary") {}
 
 export const layer = Layer.effect(
   Service,

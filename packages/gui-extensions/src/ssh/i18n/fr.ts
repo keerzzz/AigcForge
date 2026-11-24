@@ -20,14 +20,8 @@ export default {
   "error.input":
     "Entrez une commande de connexion hôte ou SSH. Les commandes à distance et les options SSH non prises en charge ne sont pas autorisées.",
   "error.connection": "Impossible d'établir la connexion SSH. Vérifiez votre réseau et la configuration du SSH.",
-  "error.platform":
-    "Cette plateforme distante n'est pas prise en charge. La configuration automatique nécessite actuellement Linux ou macOS sur x64 ou arm64.",
   "error.version": "Le service distant doit correspondre à cette version de bureau avant de se connecter.",
-  "error.install":
-    "Impossible d'installer le serveur distant. Vérifiez la connectivité, l'espace disque et que tar est installé.",
-  "error.unpublished":
-    "Cette version de bureau n'a pas de serveur distant publié. Pour les versions de développement, installez et démarrez V2 sur l'hôte, puis réessayez.",
-  "error.service": "SSH s'est connecté, mais le serveur AigcForge n'est pas prêt.",
+  "error.service": "SSH s'est connecté, mais le serveur Omnixa n'est pas prêt.",
   "error.host-key":
     "L’identité de l’hôte n’a pas pu être vérifiée. Vérifiez son empreinte digitale avant de mettre à jour vos hôtes connus SSH.",
   "error.ssh-missing":

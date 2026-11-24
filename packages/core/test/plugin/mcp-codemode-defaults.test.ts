@@ -1,6 +1,6 @@
 import { expect } from "bun:test"
-import { McpCodeModeDefaultsPlugin } from "@aigcfroge/core/plugin/mcp-codemode-defaults"
-import type { Mcp } from "@aigcfroge/schema/mcp"
+import { McpCodeModeDefaultsPlugin } from "@omnixa/core/plugin/mcp-codemode-defaults"
+import type { Mcp } from "@omnixa/schema/mcp"
 import { Effect, type Types } from "effect"
 import { it } from "../lib/effect"
 import { host } from "./host"
@@ -15,7 +15,7 @@ it.effect("applies Code Mode defaults for known MCP servers unless codemode is c
     }> = [
       {
         name: "executor remote",
-        server: { type: "remote", url: "https://executor.sh/example/mcp?source=aigcfroge" },
+        server: { type: "remote", url: "https://executor.sh/example/mcp?source=omnixa" },
         codemode: false,
       },
       { name: "executor local", server: { type: "local", command: ["executor", "mcp"] }, codemode: false },

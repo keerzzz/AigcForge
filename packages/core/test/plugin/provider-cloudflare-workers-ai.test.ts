@@ -1,10 +1,10 @@
 import { describe, expect } from "bun:test"
 import { Effect } from "effect"
-import { Plugin } from "@aigcfroge/core/plugin"
-import { PluginHost } from "@aigcfroge/core/plugin/host"
-import { CloudflareWorkersAIPlugin } from "@aigcfroge/core/plugin/provider/cloudflare-workers-ai"
-import { Provider } from "@aigcfroge/core/provider"
-import { Integration } from "@aigcfroge/core/integration"
+import { Plugin } from "@omnixa/core/plugin"
+import { PluginHost } from "@omnixa/core/plugin/host"
+import { CloudflareWorkersAIPlugin } from "@omnixa/core/plugin/provider/cloudflare-workers-ai"
+import { Provider } from "@omnixa/core/provider"
+import { Integration } from "@omnixa/core/integration"
 import { testEffect } from "../lib/effect"
 import { PluginTestLayer } from "./fixture"
 
@@ -76,7 +76,7 @@ describe("CloudflareWorkersAIPlugin", () => {
     withEnv({ CLOUDFLARE_ACCOUNT_ID: "acct", CLOUDFLARE_API_KEY: "key" }, () =>
       Effect.gen(function* () {
         const catalog = yield* seed((provider) => {
-          provider.package = "@aigcfroge/ai/providers/cloudflare-workers-ai"
+          provider.package = "@omnixa/ai/providers/cloudflare-workers-ai"
         })
         yield* addPlugin()
         const integrations = yield* Integration.Service
@@ -84,7 +84,7 @@ describe("CloudflareWorkersAIPlugin", () => {
           type: "key",
           label: "API key",
         })
-        expect(required(yield* catalog.get(providerID)).package).toBe("@aigcfroge/ai/providers/cloudflare-workers-ai")
+        expect(required(yield* catalog.get(providerID)).package).toBe("@omnixa/ai/providers/cloudflare-workers-ai")
       }),
     ),
   )
@@ -93,7 +93,7 @@ describe("CloudflareWorkersAIPlugin", () => {
     withEnv({ CLOUDFLARE_ACCOUNT_ID: "acct" }, () =>
       Effect.gen(function* () {
         const catalog = yield* seed((provider) => {
-          provider.package = "@aigcfroge/ai/providers/cloudflare-workers-ai"
+          provider.package = "@omnixa/ai/providers/cloudflare-workers-ai"
         })
         yield* addPlugin()
         expect(required(yield* catalog.get(providerID)).settings).toEqual({ accountId: "acct" })

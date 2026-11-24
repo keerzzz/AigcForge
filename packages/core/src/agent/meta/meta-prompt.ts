@@ -5,13 +5,13 @@ import { Context, Effect } from "effect"
 /**
  * Fills {{SUBAGENTS_LIST}} and {{CLI_LIST}} placeholders in the meta agent
  * system prompt. SUBAGENTS_LIST is filled from AgentV2.all(). CLI_LIST
- * requires the aigcfroge AdapterRegistry (provided via seam).
+ * requires the omnixa AdapterRegistry (provided via seam).
  */
 export interface Interface {
   readonly fill: (prompt: string) => Effect.Effect<string>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/MetaPromptFiller") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/v2/MetaPromptFiller") {}
 
 /**
  * Replaces the placeholder or an exactly matched, previously generated catalog.
@@ -54,7 +54,7 @@ export function fillSubagentsList(
  * The message rendered when no external CLI tools are detectable. Kept as a
  * stable marker: `fillCliList` replaces either the `{{CLI_LIST}}` placeholder
  * or this marker, so a later fill can overwrite an earlier empty fill
- * (transforms may run in any order across core plugin init and the aigcfroge
+ * (transforms may run in any order across core plugin init and the omnixa
  * filler).
  */
 export const NO_CLI_MESSAGE = "(no external CLI tools configured)"
@@ -160,7 +160,7 @@ function refillSkills(
 
 /**
  * Renders the full prompt with all known fillers.
- * CLI_LIST requires the service to be present (aigcfroge layer provides it).
+ * CLI_LIST requires the service to be present (omnixa layer provides it).
  */
 export function renderPrompt(prompt: string, subagents: ReadonlyArray<{ id: string; description: string }>): string {
   return fillCliList(fillSubagentsList(prompt, subagents), [])

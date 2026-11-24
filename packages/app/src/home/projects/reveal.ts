@@ -1,7 +1,7 @@
 import { useLanguage } from "@/runtime/i18n/language"
 import { usePlatform } from "@/runtime/platform/platform"
 import { ServerConnection } from "@/runtime/server/registry"
-import { displayName } from "@aigcfroge/ui/project-avatar"
+import { displayName } from "@omnixa/ui/project-avatar"
 import { errorMessage } from "@/shell/layout/helpers"
 import type { LocalProject } from "@/shell/state/layout"
 import { showToast } from "@/shell/notifications/toast"

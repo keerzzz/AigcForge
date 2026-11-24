@@ -1,9 +1,9 @@
 export * as SessionMove from "./move.js"
 
-import type { Session } from "@aigcfroge/schema/session"
-import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
-import { FSUtil } from "@aigcfroge/util/fs-util"
-import { Global } from "@aigcfroge/util/global"
+import type { Session } from "@omnixa/schema/session"
+import { makeGlobalNode } from "@omnixa/util/effect/app-node"
+import { FSUtil } from "@omnixa/util/fs-util"
+import { Global } from "@omnixa/util/global"
 import { Cause, Context, Effect, Layer, Schema } from "effect"
 import path from "path"
 import { Bus } from "../bus.js"
@@ -54,7 +54,7 @@ export interface Interface {
   >
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/SessionMove") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/SessionMove") {}
 
 const layer = Layer.effect(
   Service,

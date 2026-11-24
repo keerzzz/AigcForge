@@ -1,5 +1,5 @@
-import { getDirectory, getFilename } from "@aigcfroge/util/path"
-import type { AigcForgeClient } from "@aigcfroge/client/promise"
+import { getDirectory, getFilename } from "@omnixa/util/path"
+import type { OmnixaClient } from "@omnixa/client/promise"
 
 const types = new Map([
   ["png", "image/png"],
@@ -14,7 +14,7 @@ const types = new Map([
 ])
 
 export async function readLocalImage(
-  api: Pick<AigcForgeClient, "file">,
+  api: Pick<OmnixaClient, "file">,
   directory: string,
   path: string,
   signal: AbortSignal,

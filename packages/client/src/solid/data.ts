@@ -66,8 +66,8 @@ import type {
   ShellInfo,
   SkillInfo,
   VcsInfo,
-  AigcForgeEvent,
-  AigcForgeClient,
+  OmnixaEvent,
+  OmnixaClient,
   SessionGoalSetInput,
   SessionGoalEditInput,
   SessionGoalPauseInput,
@@ -86,11 +86,11 @@ import type {
   RequestOptions,
   WebSearchProvider,
 } from "../promise"
-import { Worktree } from "@aigcfroge/schema/worktree"
-import { SessionID } from "@aigcfroge/schema/session-id"
-import { ProductMode } from "@aigcfroge/schema/product-mode"
-import { SessionMessage } from "@aigcfroge/schema/session-message"
-import { Delegation } from "@aigcfroge/schema/delegation"
+import { Worktree } from "@omnixa/schema/worktree"
+import { SessionID } from "@omnixa/schema/session-id"
+import { ProductMode } from "@omnixa/schema/product-mode"
+import { SessionMessage } from "@omnixa/schema/session-message"
+import { Delegation } from "@omnixa/schema/delegation"
 import {
   ClientError,
   isFormAlreadySettledError,
@@ -99,7 +99,7 @@ import {
   type SessionPromptInput,
 } from "../promise"
 import { createStore, produce, reconcile, unwrap } from "solid-js/store"
-import type { SessionInbox } from "@aigcfroge/schema/session-inbox"
+import type { SessionInbox } from "@omnixa/schema/session-inbox"
 import { batch, createEffect, createMemo, createSignal, onCleanup } from "solid-js"
 import { Option, Schema } from "effect"
 
@@ -110,19 +110,19 @@ export type DataSessionStatus = "idle" | "running"
  * execution that ended without delivering it, and `queued` waits for every steer to drain.
  */
 export type DataPendingStatus = "starting" | "steering" | "stranded" | "queued"
-type AigcForgeEventMap = { [Type in AigcForgeEvent["type"]]: Extract<AigcForgeEvent, { type: Type }> }
+type OmnixaEventMap = { [Type in OmnixaEvent["type"]]: Extract<OmnixaEvent, { type: Type }> }
 
 export type CreateDataInput = {
-  readonly api: () => AigcForgeClient
+  readonly api: () => OmnixaClient
   readonly directory: string
   /** Raw-message window used for an initial transcript read. Older pages retain their normal size. */
   readonly initialMessageLimit?: () => number
   readonly event: {
-    readonly on: <Type extends AigcForgeEvent["type"]>(
+    readonly on: <Type extends OmnixaEvent["type"]>(
       type: Type,
-      handler: (event: AigcForgeEventMap[Type]) => void,
+      handler: (event: OmnixaEventMap[Type]) => void,
     ) => () => void
-    readonly listen: (handler: (event: { name: AigcForgeEvent["type"]; details: AigcForgeEvent }) => void) => () => void
+    readonly listen: (handler: (event: { name: OmnixaEvent["type"]; details: OmnixaEvent }) => void) => () => void
   }
   readonly connection?: {
     readonly status: () => "connected" | "connecting" | "reconnecting"
@@ -239,7 +239,7 @@ function formRequestOptions(sessionID: string, ref?: LocationRef) {
   if (sessionID !== "global" || !ref) return undefined
   return {
     headers: {
-      "x-aigcfroge-directory": encodeURIComponent(ref.directory),
+      "x-omnixa-directory": encodeURIComponent(ref.directory),
     },
   }
 }
@@ -375,35 +375,35 @@ export function createData(config: CreateDataInput) {
   const taskKey = (sessionID: string) => `session.task:${sessionID}`
   const operationOwners = new Map<
     string,
-    { client: AigcForgeClient; location: string; keys: Set<string>; tail: Promise<void> }
+    { client: OmnixaClient; location: string; keys: Set<string>; tail: Promise<void> }
   >()
-  const delegationOwners = new Map<string, { client: AigcForgeClient; location: string }>()
+  const delegationOwners = new Map<string, { client: OmnixaClient; location: string }>()
   const goalOwners = new Map<
     string,
-    { client: AigcForgeClient; location: string; keys: Set<string>; tail: Promise<void> }
+    { client: OmnixaClient; location: string; keys: Set<string>; tail: Promise<void> }
   >()
   const communicationOwners = new Map<
     string,
-    { client: AigcForgeClient; location: string; keys: Set<string>; tail: Promise<void> }
+    { client: OmnixaClient; location: string; keys: Set<string>; tail: Promise<void> }
   >()
   const scheduleOwners = new Map<
     string,
-    { client: AigcForgeClient; location: string; keys: Set<string>; tail: Promise<void> }
+    { client: OmnixaClient; location: string; keys: Set<string>; tail: Promise<void> }
   >()
-  const workflowOwners = new Map<string, { client: AigcForgeClient; directory: string }>()
-  const cacheOwners = new Map<string, { client: AigcForgeClient; directory: string }>()
+  const workflowOwners = new Map<string, { client: OmnixaClient; directory: string }>()
+  const cacheOwners = new Map<string, { client: OmnixaClient; directory: string }>()
   const identityOwners = new Map<
     string,
-    { client: AigcForgeClient; location: string; agent?: string; selected?: { agent: string; eventID: string } }
+    { client: OmnixaClient; location: string; agent?: string; selected?: { agent: string; eventID: string } }
   >()
   const identityConnection = { client: api(), status: config.connection?.status() }
-  const metaOwners = new Map<string, { client: AigcForgeClient; directory: string }>()
-  const factOwners = new Map<string, { client: AigcForgeClient; directory: string; query: string }>()
-  const hubOwners = new Map<string, AigcForgeClient>()
+  const metaOwners = new Map<string, { client: OmnixaClient; directory: string }>()
+  const factOwners = new Map<string, { client: OmnixaClient; directory: string; query: string }>()
+  const hubOwners = new Map<string, OmnixaClient>()
   const discoveryOwners = new Map<
     string,
     {
-      client: AigcForgeClient
+      client: OmnixaClient
       location: LocationRef
       canonical?: string
       slot: string
@@ -411,7 +411,7 @@ export function createData(config: CreateDataInput) {
       connection?: ModelSourceConnectionRef
     }
   >()
-  let memoryOwner: AigcForgeClient | undefined
+  let memoryOwner: OmnixaClient | undefined
   let activeUpdates: Map<string, DataSessionStatus | undefined> | undefined
   const pendingUpdates = new Map<string, Map<string, SessionInboxInfo | SessionInbox.Delivery | undefined>>()
 
@@ -914,7 +914,7 @@ export function createData(config: CreateDataInput) {
     setStore("session", "schedule", sessionID, "occurrences", value.id, reconcile(value))
   }
 
-  function rememberMemory(client: AigcForgeClient, cache: Store["memory"], value: PersonalMemoryInfo) {
+  function rememberMemory(client: OmnixaClient, cache: Store["memory"], value: PersonalMemoryInfo) {
     if (disposed || api() !== client || memoryOwner !== client || store.memory !== cache) return
     if (cache.items)
       setStore(
@@ -1350,7 +1350,7 @@ export function createData(config: CreateDataInput) {
     )
   }
 
-  function handleEvent(event: AigcForgeEvent) {
+  function handleEvent(event: OmnixaEvent) {
     if (event.type.startsWith("delegation.") && "delegationID" in event.data) {
       const delegationID = event.data.delegationID
       const parentSessionID = "parentSessionID" in event.data ? event.data.parentSessionID : undefined
@@ -3591,7 +3591,7 @@ export function createData(config: CreateDataInput) {
       },
       async readback(sessionID: string, options?: { children?: boolean }) {
         // A joined or discarded read cannot acknowledge this caller's selection.
-        let adopted: { client: AigcForgeClient; info: SessionInfo } | undefined
+        let adopted: { client: OmnixaClient; info: SessionInfo } | undefined
         await sync.run(options?.children ? `session.family:${sessionID}` : `session:${sessionID}`, async (current) => {
           const client = api()
           if (disposed || !current()) return

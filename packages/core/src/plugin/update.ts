@@ -1,9 +1,9 @@
 export * as PluginUpdate from "./update.js"
 
 import { Clock, Context, Effect, Exit, Layer, Option, PubSub, Stream } from "effect"
-import { Npm } from "@aigcfroge/util/npm"
-import { EffectFlock } from "@aigcfroge/util/effect-flock"
-import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
+import { Npm } from "@omnixa/util/npm"
+import { EffectFlock } from "@omnixa/util/effect-flock"
+import { makeGlobalNode } from "@omnixa/util/effect/app-node"
 import { KeyedMutex } from "../effect/keyed-mutex.js"
 
 const interval = 24 * 60 * 60 * 1_000
@@ -20,7 +20,7 @@ export interface Interface {
   readonly changes: () => Stream.Stream<Change>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/PluginUpdate") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/PluginUpdate") {}
 
 const layer = Layer.effect(
   Service,

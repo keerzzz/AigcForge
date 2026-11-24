@@ -1,13 +1,13 @@
 {
-  "name": "@aigcfroge/desktop",
+  "name": "@omnixa/desktop",
   "private": true,
   "version": "0.0.9",
   "type": "module",
   "license": "MIT",
-  "homepage": "https://aigcfroge.ai",
+  "homepage": "https://github.com/keerzzz/AigcForge",
   "author": {
-    "name": "AigcForge",
-    "email": "hello@aigcfroge.ai"
+    "name": "Omnixa",
+    "email": "keerzzz@users.noreply.github.com"
   },
   "scripts": {
     "typecheck": "tsgo -b",
@@ -35,12 +35,12 @@
     "@brendonovich/vite-plugin-opencode": "0.1.3",
     "@effect/platform-node": "catalog:",
     "@lydell/node-pty": "catalog:",
-    "@aigcfroge/app": "workspace:*",
-    "@aigcfroge/gui-extensions": "workspace:*",
-    "@aigcfroge/client": "workspace:*",
-    "@aigcfroge/schema": "workspace:*",
-    "@aigcfroge/script": "workspace:*",
-    "@aigcfroge/ui": "workspace:*",
+    "@omnixa/app": "workspace:*",
+    "@omnixa/gui-extensions": "workspace:*",
+    "@omnixa/client": "workspace:*",
+    "@omnixa/schema": "workspace:*",
+    "@omnixa/script": "workspace:*",
+    "@omnixa/ui": "workspace:*",
     "@sentry/solid": "catalog:",
     "@sentry/vite-plugin": "catalog:",
     "@solidjs/router": "catalog:",

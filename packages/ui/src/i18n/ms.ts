@@ -65,16 +65,6 @@ export const dict: Record<string, string> = {
   "ui.sessionTurn.retry.attempt": "cubaan #{{attempt}}",
   "ui.sessionTurn.retry.attemptLine": "{{line}} - cubaan #{{attempt}}",
   "ui.sessionTurn.retry.geminiHot": "gemini terlalu sibuk sekarang",
-  "ui.sessionTurn.error.freeUsageExceeded": "Penggunaan percuma telah melebihi had",
-  "ui.sessionTurn.error.addCredits": "Tambah kredit",
-  "dialog.usageExceeded.freeTier.title": "Had percuma dicapai",
-  "dialog.usageExceeded.freeTier.description":
-    "Langgan AigcForge Go pada harga $10/bulan untuk akses yang lebih stabil kepada model sumber terbuka terbaik.",
-  "dialog.usageExceeded.freeTier.actionLabel": "Langgan",
-  "dialog.usageExceeded.accountRateLimit.title": "Had Go dicapai",
-  "dialog.usageExceeded.accountRateLimit.description":
-    "Had penggunaan telah dicapai. Untuk terus menggunakan model ini sekarang, aktifkan penggunaan daripada baki tersedia anda",
-  "dialog.usageExceeded.accountRateLimit.actionLabel": "Buka tetapan",
   "ui.sessionTurn.status.delegating": "Medelegasi tugasan",
   "ui.sessionTurn.status.planning": "Merancang langkah seterusnya",
   "ui.sessionTurn.status.gatheringContext": "Meneroka",

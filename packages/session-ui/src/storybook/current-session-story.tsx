@@ -4,8 +4,8 @@ import { DataProvider } from "../context/data"
 import type { SessionUserActions } from "../message/current-message"
 import type { SessionUserPresentation } from "../timeline/session-timeline"
 import { SessionTimeline } from "../timeline/session-timeline"
-import { FileComponentProvider } from "@aigcfroge/ui/context/file"
-import { Button } from "@aigcfroge/ui/button"
+import { FileComponentProvider } from "@omnixa/ui/context/file"
+import { Button } from "@omnixa/ui/button"
 import { Show, createMemo, createSignal, type JSX } from "solid-js"
 import { CURRENT_SESSION_ID, STORY_TIME } from "./current-session-fixtures"
 
@@ -16,7 +16,7 @@ export function CurrentSessionProviders(props: {
 }) {
   return (
     <DataProvider
-      directory="C:/workspaces/aigcfroge"
+      directory="C:/workspaces/omnixa"
       sessionID={props.document.sessionID}
       toolMotion={props.toolMotion}
       data={{

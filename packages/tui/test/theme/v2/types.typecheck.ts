@@ -1,6 +1,6 @@
-import { selectTheme } from "@aigcfroge/theme/tui"
-import type { BackgroundDefinition, TextDefinition, ThemeDefinition, ThemeDocument } from "@aigcfroge/theme/tui"
-import { getAigcForgeTheme } from "../../../src/theme"
+import { selectTheme } from "@omnixa/theme/tui"
+import type { BackgroundDefinition, TextDefinition, ThemeDefinition, ThemeDocument } from "@omnixa/theme/tui"
+import { getOmnixaTheme } from "../../../src/theme"
 
 const text = {
   base: "$hue.neutral.900",
@@ -40,17 +40,17 @@ const background = {
 } satisfies BackgroundDefinition
 
 const definition = {
-  ...selectTheme(getAigcForgeTheme(), "light"),
+  ...selectTheme(getOmnixaTheme(), "light"),
   "@dialog": { background: { base: "$background.raised.base" } },
 } satisfies ThemeDefinition
 
 export const document = {
-  base: getAigcForgeTheme().base,
+  base: getOmnixaTheme().base,
   light: { hue: definition.hue },
   dark: definition,
 } satisfies ThemeDocument
-export const lightOnly = { base: getAigcForgeTheme().base, light: { hue: definition.hue } } satisfies ThemeDocument
-export const darkOnly = { base: getAigcForgeTheme().base, dark: definition } satisfies ThemeDocument
+export const lightOnly = { base: getOmnixaTheme().base, light: { hue: definition.hue } } satisfies ThemeDocument
+export const darkOnly = { base: getOmnixaTheme().base, dark: definition } satisfies ThemeDocument
 // @ts-expect-error A theme document must provide at least one mode.
 export const empty = {} satisfies ThemeDocument
 // @ts-expect-error A base mode must be complete; partial tokens are only valid under @dialog.

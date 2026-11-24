@@ -2,23 +2,23 @@ export * as CommandAsset from "./command-asset"
 
 import { Context, Effect, Layer, Option, Schema, Scope, Stream } from "effect"
 import path from "path"
-import { Frontmatter } from "@aigcfroge/schema/command-asset"
+import { Frontmatter } from "@omnixa/schema/command-asset"
 import { AssetMigration } from "./asset-migration"
 import { Config } from "./config"
 import { ConfigMarkdown } from "./config/markdown"
 import { Bus } from "./bus"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { FSUtil } from "@omnixa/util/fs-util"
 import { Flag } from "./flag/flag"
 import { KeyedMutex } from "./effect/keyed-mutex"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
 import { Location } from "./location"
 import { CommandAssetPath } from "./command-asset/path"
-import { Hash } from "@aigcfroge/util/hash"
+import { Hash } from "@omnixa/util/hash"
 import { Watcher } from "./filesystem/watcher"
 import { COMMANDS_DIR } from "./constants"
 import { AssetPlacement } from "./asset-placement"
 import { LocationMutation } from "./location-mutation"
-import { Global } from "@aigcfroge/util/global"
+import { Global } from "@omnixa/util/global"
 
 export { COMMANDS_DIR }
 
@@ -66,7 +66,7 @@ export interface Selected {
   readonly reload: () => Effect.Effect<void, SelectError>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/CommandAsset") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/v2/CommandAsset") {}
 
 const decodeFrontmatter = Schema.decodeUnknownOption(Frontmatter)
 
@@ -107,7 +107,7 @@ export function loadDir<E = never>(
       if (Option.isSome(decoded)) {
         frontmatter = decoded.value
       } else {
-        // `.aigcfroge/commands` was a V1 command source before it became the
+        // `.omnixa/commands` was a V1 command source before it became the
         // asset owner. Read legacy entries until an explicit migration rewrites them.
         if (parsed.data.kind !== undefined) {
           invalid.set(relativePath, { relativePath, errorTag: "bad_frontmatter" })
@@ -178,11 +178,11 @@ export const layer = Layer.effect(
     const reloadLock = KeyedMutex.makeUnsafe<string>()
     const migration = yield* Effect.cached(
       Effect.gen(function* () {
-        if (!Flag.AIGCFROGE_EXPERIMENTAL_CHAT_ASSET || Option.isNone(config)) return
+        if (!Flag.OMNIXA_EXPERIMENTAL_CHAT_ASSET || Option.isNone(config)) return
         const files = yield* AssetMigration.legacyCommandFiles(fs, location.directory)
         yield* AssetMigration.importEntriesOnce(fs, {
           ownerRoot,
-          marker: path.resolve(location.directory, ".aigcfroge/.command-asset-migration-v1"),
+          marker: path.resolve(location.directory, ".omnixa/.command-asset-migration-v1"),
           entries: [
             ...AssetMigration.commandConfigEntries(yield* config.value.entries(), location.project.directory),
             ...(yield* AssetMigration.entriesFromFiles(fs, files, AssetMigration.commandEntry)),

@@ -3,10 +3,10 @@ export * as PluginBridge from "./bridge"
 import { Context, Duration, Effect, Layer } from "effect"
 import os from "node:os"
 import path from "path"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { FSUtil } from "@omnixa/util/fs-util"
 
 function getHome(): string {
-  return process.env.AIGCFROGE_TEST_HOME ?? os.homedir()
+  return process.env.OMNIXA_TEST_HOME ?? os.homedir()
 }
 
 export interface BridgeEntry {
@@ -29,7 +29,7 @@ export interface Interface {
   readonly scan: () => Effect.Effect<readonly BridgeEntry[]>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/PluginBridge") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/v2/PluginBridge") {}
 
 const EMPTY_BRIDGE: readonly BridgeEntry[] = []
 

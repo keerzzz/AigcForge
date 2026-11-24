@@ -2,14 +2,14 @@ export * as SkillAssetService from "./skill-asset-service"
 
 import path from "path"
 import { Context, Effect, Layer, Schema } from "effect"
-import { Candidate, Inspection, Revision } from "@aigcfroge/schema/skill-asset"
+import { Candidate, Inspection, Revision } from "@omnixa/schema/skill-asset"
 import { SkillAsset } from "./skill-asset"
 import { FileMutation } from "./file-mutation"
 import { SkillAssetPath } from "./skill-asset/path"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { FSUtil } from "@omnixa/util/fs-util"
 import { LocationMutation } from "./location-mutation"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
-import { Hash } from "@aigcfroge/util/hash"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
+import { Hash } from "@omnixa/util/hash"
 import { yamlEscape } from "./util/yaml-escape"
 import { AssetPlacement } from "./asset-placement"
 
@@ -142,7 +142,7 @@ export interface Interface {
   readonly delete: (input: DeleteInput) => Effect.Effect<void, DeleteError>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/SkillAssetService") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/v2/SkillAssetService") {}
 
 export const locationLayer = Layer.effect(
   Service,

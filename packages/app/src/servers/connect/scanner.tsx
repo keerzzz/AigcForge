@@ -1,7 +1,7 @@
 import QrScanner from "qr-scanner"
 import { onCleanup, onMount, Show } from "solid-js"
 import { createStore } from "solid-js/store"
-import { Button } from "@aigcfroge/ui/button"
+import { Button } from "@omnixa/ui/button"
 import { useLanguage } from "@/runtime/i18n/language"
 import { pairingLink } from "./pairing"
 import type { RedeemPairing } from "./redeem"

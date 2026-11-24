@@ -1,5 +1,5 @@
-import type { Prompt, PromptInput } from "@aigcfroge/schema"
-import { Skill } from "@aigcfroge/schema/skill"
+import type { Prompt, PromptInput } from "@omnixa/schema"
+import { Skill } from "@omnixa/schema/skill"
 import type { Types } from "effect"
 
 export type EditablePromptInput = Types.DeepMutable<PromptInput.Prompt>

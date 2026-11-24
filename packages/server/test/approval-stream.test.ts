@@ -1,16 +1,16 @@
 import { describe, expect } from "bun:test"
 import { NodeHttpServer } from "@effect/platform-node"
 import { createServer } from "node:http"
-import { AigcForge } from "@aigcfroge/client/effect"
-import { Agent } from "@aigcfroge/core/agent"
-import { Database } from "@aigcfroge/core/database/database"
-import { LocationServiceMap } from "@aigcfroge/core/location-service-map"
-import { Permission } from "@aigcfroge/core/permission"
-import { SessionComposition } from "@aigcfroge/core/session/composition"
-import { ApprovalPresence } from "@aigcfroge/core/permission/approval-presence"
-import { ProductModePolicy } from "@aigcfroge/core/product-mode-policy"
-import { SessionTable } from "@aigcfroge/core/session/sql"
-import { AbsolutePath } from "@aigcfroge/schema/schema"
+import { Omnixa } from "@omnixa/client/effect"
+import { Agent } from "@omnixa/core/agent"
+import { Database } from "@omnixa/core/database/database"
+import { LocationServiceMap } from "@omnixa/core/location-service-map"
+import { Permission } from "@omnixa/core/permission"
+import { SessionComposition } from "@omnixa/core/session/composition"
+import { ApprovalPresence } from "@omnixa/core/permission/approval-presence"
+import { ProductModePolicy } from "@omnixa/core/product-mode-policy"
+import { SessionTable } from "@omnixa/core/session/sql"
+import { AbsolutePath } from "@omnixa/schema/schema"
 import { Cause, Context, Deferred, Effect, Exit, Fiber, Layer, Schema, Stream } from "effect"
 import { FetchHttpClient, HttpClient, HttpClientRequest, HttpEffect, HttpRouter, HttpServer } from "effect/http"
 import { tmpdirScoped } from "../../core/test/fixture/tmpdir"
@@ -52,13 +52,13 @@ const setup = (transport: "web" | "node", custom = false) =>
         })
     const http = yield* HttpClient.HttpClient
     const makeClient = (capabilities?: string) =>
-      AigcForge.make({ baseUrl }).pipe(
+      Omnixa.make({ baseUrl }).pipe(
         Effect.provideService(
           HttpClient.HttpClient,
           http.pipe(
             HttpClient.mapRequest((request) =>
               HttpClientRequest.setHeaders(request, {
-                authorization: `Basic ${btoa("aigcfroge:secret")}`,
+                authorization: `Basic ${btoa("omnixa:secret")}`,
                 ...(capabilities === undefined ? {} : { [ProductModePolicy.CAPABILITIES_HEADER]: capabilities }),
               }),
             ),
@@ -104,7 +104,7 @@ const setup = (transport: "web" | "node", custom = false) =>
     }
   })
 
-const subscribe = (client: Effect.Success<ReturnType<typeof AigcForge.make>>) =>
+const subscribe = (client: Effect.Success<ReturnType<typeof Omnixa.make>>) =>
   Effect.gen(function* () {
     const connected = yield* Deferred.make<void>()
     const asked = yield* Deferred.make<Permission.Request>()

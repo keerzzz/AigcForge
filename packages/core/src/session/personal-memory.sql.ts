@@ -1,7 +1,7 @@
 export * as PersonalMemorySQL from "./personal-memory.sql"
 
 import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core"
-import { PersonalMemory } from "@aigcfroge/schema/personal-memory"
+import { PersonalMemory } from "@omnixa/schema/personal-memory"
 import { Timestamps } from "../database/schema.sql"
 
 /**

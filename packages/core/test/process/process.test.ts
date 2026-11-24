@@ -6,14 +6,15 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { Effect, Exit, Fiber, Stream } from "effect"
 import { ChildProcess } from "effect/process"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { AppProcess } from "@aigcfroge/util/process"
+import { TestClock } from "effect/testing"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { AppProcess } from "@omnixa/util/process"
 import { testEffect } from "../lib/effect"
 
 const it = testEffect(LayerNode.compile(AppProcess.node))
 
 const NODE = process.execPath
-const MISSING_CWD = path.join(tmpdir(), `aigcfroge-missing-cwd-${randomUUID()}`)
+const MISSING_CWD = path.join(tmpdir(), `omnixa-missing-cwd-${randomUUID()}`)
 const cmd = (...args: string[]) => ChildProcess.make(NODE, args)
 
 const waitForFile = (file: string) =>
@@ -157,19 +158,21 @@ describe("AppProcess", () => {
     )
 
     if (process.platform !== "win32") {
-      it.live(
+      it.effect(
         "timeout cleans up the scoped child process",
         Effect.acquireUseRelease(
-          Effect.promise(() => fs.mkdtemp(path.join(tmpdir(), "aigcfroge-process-timeout-"))),
+          Effect.promise(() => fs.mkdtemp(path.join(tmpdir(), "omnixa-process-timeout-"))),
           (directory) => {
             const ready = path.join(directory, "ready")
             const settled = path.join(directory, "settled")
-            const script = `const fs=require('fs');fs.writeFileSync(${JSON.stringify(ready)},String(process.pid));process.on('SIGTERM',()=>{fs.writeFileSync(${JSON.stringify(settled)},'settled');process.exit(0)});setInterval(()=>{},60000)`
+            const script = `const fs=require('fs');process.on('SIGTERM',()=>{fs.writeFileSync(${JSON.stringify(settled)},'settled');process.exit(0)});fs.writeFileSync(${JSON.stringify(ready)},String(process.pid));setInterval(()=>{},60000)`
             return Effect.gen(function* () {
               const svc = yield* AppProcess.Service
-              const exit = yield* Effect.exit(svc.run(cmd("-e", script), { timeout: "250 millis" }))
-              expect(Exit.isFailure(exit)).toBe(true)
+              const fiber = yield* svc.run(cmd("-e", script), { timeout: "250 millis" }).pipe(Effect.forkChild)
               expect(yield* waitForFile(ready)).toMatch(/^\d+$/)
+              // Trigger the application deadline only after the real child can handle SIGTERM.
+              yield* TestClock.adjust("250 millis")
+              expect(Exit.isFailure(yield* Fiber.await(fiber))).toBe(true)
               expect(yield* waitForFile(settled)).toBe("settled")
             })
           },
@@ -181,11 +184,11 @@ describe("AppProcess", () => {
       it.live(
         "fiber interruption cleans up the scoped child process after readiness",
         Effect.acquireUseRelease(
-          Effect.promise(() => fs.mkdtemp(path.join(tmpdir(), "aigcfroge-process-interrupt-"))),
+          Effect.promise(() => fs.mkdtemp(path.join(tmpdir(), "omnixa-process-interrupt-"))),
           (directory) => {
             const ready = path.join(directory, "ready")
             const settled = path.join(directory, "settled")
-            const script = `const fs=require('fs');fs.writeFileSync(${JSON.stringify(ready)},String(process.pid));process.on('SIGTERM',()=>{fs.writeFileSync(${JSON.stringify(settled)},'settled');process.exit(0)});setInterval(()=>{},60000)`
+            const script = `const fs=require('fs');process.on('SIGTERM',()=>{fs.writeFileSync(${JSON.stringify(settled)},'settled');process.exit(0)});fs.writeFileSync(${JSON.stringify(ready)},String(process.pid));setInterval(()=>{},60000)`
             return Effect.gen(function* () {
               const svc = yield* AppProcess.Service
               const fiber = yield* svc.run(cmd("-e", script)).pipe(Effect.forkChild)

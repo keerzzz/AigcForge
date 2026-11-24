@@ -1,6 +1,6 @@
-import { containsDirectory, sameDirectory } from "@aigcfroge/util/path"
+import { containsDirectory, sameDirectory } from "@omnixa/util/path"
 import type { WorkspaceDefaultDestination, WorkspaceLastUsed } from "@/settings/model"
-import type { SessionInfo, WorktreeDirectory } from "@aigcfroge/client/promise"
+import type { SessionInfo, WorktreeDirectory } from "@omnixa/client/promise"
 
 type WorkspaceProject = {
   worktree: string

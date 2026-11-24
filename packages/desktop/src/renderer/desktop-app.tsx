@@ -14,8 +14,8 @@ import {
   useExtensionServers,
   useTabs,
   type LayoutRoute,
-} from "@aigcfroge/app/desktop"
-import { useTheme } from "@aigcfroge/ui/theme/context"
+} from "@omnixa/app/desktop"
+import { useTheme } from "@omnixa/ui/theme/context"
 import type { BaseRouterProps } from "@solidjs/router"
 import { createEffect, createMemo, createResource, lazy, Show, Suspense } from "solid-js"
 import { createStore } from "solid-js/store"
@@ -74,7 +74,7 @@ export function DesktopApp(props: { api: ElectronAPI; version: string }) {
 
   const readyToReveal = () =>
     startup.ready &&
-    (!import.meta.env.AIGCFROGE_TEST_ONBOARDING || !firstLaunch() || initialUrl !== "/" || startup.drawingReady)
+    (!import.meta.env.OMNIXA_TEST_ONBOARDING || !firstLaunch() || initialUrl !== "/" || startup.drawingReady)
 
   // Reveal only after the theme and the first-launch splash choice are both resolved.
   createEffect(() => {
@@ -157,7 +157,7 @@ export function DesktopApp(props: { api: ElectronAPI; version: string }) {
               firstLaunch={!!firstLaunch() && initialUrl === "/"}
               deep={startup.route.type === "draft"}
               platform={platform}
-              preview={import.meta.env.AIGCFROGE_TEST_ONBOARDING}
+              preview={import.meta.env.OMNIXA_TEST_ONBOARDING}
               onDrawEnd={() => setStartup("drawingReady", true)}
             />
           </div>

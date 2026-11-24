@@ -20,13 +20,8 @@ export default {
   "error.input":
     "Bir ana bilgisayar veya SSH bağlantı komutunu girin. Uzaktan komutlara ve desteklenmeyen SSH seçeneklerine izin verilmez.",
   "error.connection": "SSH bağlantısı kurulamadı. Ağınızı ve SSH yapılandırmanızı kontrol edin.",
-  "error.platform":
-    "Bu uzak platform desteklenmiyor. Otomatik kurulum şu anda x64 veya arm64'te Linux veya macOS gerektirir.",
   "error.version": "Uzak hizmetin bağlanmadan önce bu Masaüstü sürümüyle eşleşmesi gerekir.",
-  "error.install": "Uzak sunucu yüklenemedi. Bağlantıyı, disk alanını ve tar'ın yüklü olup olmadığını kontrol edin.",
-  "error.unpublished":
-    "Bu Masaüstü sürümünde yayınlanmış bir uzak sunucu yok. Geliştirme derlemeleri için V2'yi ana makineye kurup başlatın ve ardından yeniden deneyin.",
-  "error.service": "SSH bağlandı ancak AigcForge sunucusu hazır olmadı.",
+  "error.service": "SSH bağlandı ancak Omnixa sunucusu hazır olmadı.",
   "error.host-key":
     "Toplantı sahibinin kimliği doğrulanamadı. Bilinen SSH ana bilgisayarlarınızı güncellemeden önce parmak izini doğrulayın.",
   "error.ssh-missing":

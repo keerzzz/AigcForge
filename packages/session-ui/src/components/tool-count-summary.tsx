@@ -1,5 +1,5 @@
 import { Index, createMemo } from "solid-js"
-import { useI18n, type UiI18nPluralKey } from "@aigcfroge/ui/context"
+import { useI18n, type UiI18nPluralKey } from "@omnixa/ui/context"
 import { AnimatedCountLabel } from "./tool-count-label"
 
 export type CountItem = {

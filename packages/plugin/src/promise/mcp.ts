@@ -1,5 +1,5 @@
-import type { McpApi } from "@aigcfroge/client/promise/api"
-import type { Mcp } from "@aigcfroge/schema/mcp"
+import type { McpApi } from "@omnixa/client/promise/api"
+import type { Mcp } from "@omnixa/schema/mcp"
 import type { Transform } from "./registration.js"
 import type { DeepMutable } from "./types.js"
 

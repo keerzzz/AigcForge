@@ -1,26 +1,26 @@
 import path from "node:path"
 import { expect } from "bun:test"
-import { AigcForge } from "@aigcfroge/client"
+import { Omnixa } from "@omnixa/client"
 import { LanguageModel, LLMClient } from "../../ai/src"
 import { OpenAIChat } from "../../ai/src/protocols"
 import { TestLLM } from "../../ai/src/testing"
-import { Database } from "@aigcfroge/core/database/database"
-import { LayerNodePlatform } from "@aigcfroge/core/effect/app-node-platform"
-import { Location } from "@aigcfroge/core/location"
-import { LocationServiceMap } from "@aigcfroge/core/location-service-map"
-import { Model } from "@aigcfroge/core/model"
-import { Provider } from "@aigcfroge/core/provider"
-import { Session } from "@aigcfroge/core/session"
-import { SessionRunnerModel } from "@aigcfroge/core/session/runner/model"
-import { SessionInboxTable, SessionMessageTable, SessionTable } from "@aigcfroge/core/session/sql"
-import { WorkflowExecution } from "@aigcfroge/core/workflow/execution"
-import { WorkflowRun } from "@aigcfroge/core/workflow/workflow-run"
-import { WorkflowRunTable, WorkflowStepRunTable } from "@aigcfroge/core/workflow/sql"
-import { AssetYaml } from "@aigcfroge/core/util/asset-yaml"
-import { Composition } from "@aigcfroge/schema/composition"
-import { AbsolutePath } from "@aigcfroge/schema/schema"
-import { WorkflowAsset } from "@aigcfroge/schema/workflow-asset"
-import { Hash } from "@aigcfroge/util/hash"
+import { Database } from "@omnixa/core/database/database"
+import { LayerNodePlatform } from "@omnixa/core/effect/app-node-platform"
+import { Location } from "@omnixa/core/location"
+import { LocationServiceMap } from "@omnixa/core/location-service-map"
+import { Model } from "@omnixa/core/model"
+import { Provider } from "@omnixa/core/provider"
+import { Session } from "@omnixa/core/session"
+import { SessionRunnerModel } from "@omnixa/core/session/runner/model"
+import { SessionInboxTable, SessionMessageTable, SessionTable } from "@omnixa/core/session/sql"
+import { WorkflowExecution } from "@omnixa/core/workflow/execution"
+import { WorkflowRun } from "@omnixa/core/workflow/workflow-run"
+import { WorkflowRunTable, WorkflowStepRunTable } from "@omnixa/core/workflow/sql"
+import { AssetYaml } from "@omnixa/core/util/asset-yaml"
+import { Composition } from "@omnixa/schema/composition"
+import { AbsolutePath } from "@omnixa/schema/schema"
+import { WorkflowAsset } from "@omnixa/schema/workflow-asset"
+import { Hash } from "@omnixa/util/hash"
 import { Context, Deferred, Effect, Fiber, Layer, Schema, Scope, Stream } from "effect"
 import { HttpEffect, HttpRouter, HttpServer } from "effect/http"
 import { tmpdirScoped } from "../../core/test/fixture/tmpdir"
@@ -30,7 +30,7 @@ import { withCustomMode } from "../../core/test/lib/product-mode"
 import { createRoutes } from "../src/routes"
 
 const setup = Effect.fnUntraced(function* (steps: readonly WorkflowAsset.StepDef[]) {
-  const directory = (yield* tmpdirScoped("aigcfroge-workflow-http-")).path
+  const directory = (yield* tmpdirScoped("omnixa-workflow-http-")).path
   const agent = "---\nkind: agent\nname: coder\ndescription: Workflow executor\n---\nExecute the supplied JSON input.\n"
   const workflow = AssetYaml.stringify({
     kind: "workflow",
@@ -39,8 +39,8 @@ const setup = Effect.fnUntraced(function* (steps: readonly WorkflowAsset.StepDef
     version: "1",
     steps,
   })
-  yield* Effect.promise(() => Bun.write(path.join(directory, ".aigcfroge/agents/coder.md"), agent))
-  yield* Effect.promise(() => Bun.write(path.join(directory, ".aigcfroge/workflows/http.yaml"), workflow))
+  yield* Effect.promise(() => Bun.write(path.join(directory, ".omnixa/agents/coder.md"), agent))
+  yield* Effect.promise(() => Bun.write(path.join(directory, ".omnixa/workflows/http.yaml"), workflow))
   const llm = Context.get(yield* Layer.build(TestLLM.testLayer()), TestLLM.Test)
   const context = yield* Layer.build(
     createRoutes(
@@ -79,7 +79,7 @@ const setup = Effect.fnUntraced(function* (steps: readonly WorkflowAsset.StepDef
     input: { body?: unknown; directory?: string; authenticated?: boolean; workspace?: string } = {},
   ) =>
     Effect.promise(() => {
-      const url = new URL(route, "http://aigcfroge.local")
+      const url = new URL(route, "http://omnixa.local")
       url.searchParams.set("directory", input.directory ?? directory)
       if (input.workspace !== undefined) url.searchParams.set("workspace", input.workspace)
       return handler(
@@ -87,7 +87,7 @@ const setup = Effect.fnUntraced(function* (steps: readonly WorkflowAsset.StepDef
           method: input.body === undefined ? "GET" : "POST",
           headers: {
             "content-type": "application/json",
-            ...(input.authenticated === false ? {} : { authorization: `Basic ${btoa("aigcfroge:secret")}` }),
+            ...(input.authenticated === false ? {} : { authorization: `Basic ${btoa("omnixa:secret")}` }),
           },
           body: input.body === undefined ? undefined : JSON.stringify(input.body),
         }),
@@ -100,14 +100,14 @@ const setup = Effect.fnUntraced(function* (steps: readonly WorkflowAsset.StepDef
       info: Provider.Info.make({
         ...Provider.Info.empty(Provider.ID.make("test")),
         activation: "enabled",
-        package: "@aigcfroge/ai/providers/openai/responses",
+        package: "@omnixa/ai/providers/openai/responses",
       }),
       models: [Model.Info.default(Provider.ID.make("test"), Model.ID.make("workflow"))],
     },
   ]).pipe(Effect.provideContext(local))
-  const client = AigcForge.make({
-    baseUrl: "http://aigcfroge.local",
-    headers: { authorization: `Basic ${btoa("aigcfroge:secret")}` },
+  const client = Omnixa.make({
+    baseUrl: "http://omnixa.local",
+    headers: { authorization: `Basic ${btoa("omnixa:secret")}` },
     fetch: Object.assign((input: string | URL | Request, init?: RequestInit) => handler(new Request(input, init)), {
       preconnect: fetch.preconnect,
     }),

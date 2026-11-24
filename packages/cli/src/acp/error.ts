@@ -125,7 +125,7 @@ export function toRequestError(error: Error): RequestError {
         error.safeMessage,
       )
     case "ACPServerUnavailableError":
-      return RequestError.internalError({ errorName: "ServerUnavailable" }, "AigcForge server is unavailable")
+      return RequestError.internalError({ errorName: "ServerUnavailable" }, "Omnixa server is unavailable")
   }
   const exhaustive: never = error
   return exhaustive

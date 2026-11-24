@@ -2,8 +2,8 @@
 
 Every feature of the desktop and web app that is not the core shell is an extension: the terminal, review, files, the browser, SSH, WSL, the updater and more. Each one builds only on the SDK in [`src/sdk`](src/sdk). The SDK is typed so that the common bugs fail to compile or fail the lint, and every declaration has TSDoc, so editor hovers answer most questions. This guide shows how the parts fit, with code from the extensions that ship. [Build your first extension](#build-your-first-extension) walks through [`src/pairing`](src/pairing), a small built-in that uses both processes. `bun run lint` checks every code block marked with its source against that source.
 
-- Window SDK: `@aigcfroge/gui-extensions/sdk` ([`index.ts`](src/sdk/index.ts))
-- Main-process SDK: `@aigcfroge/gui-extensions/sdk/main` ([`main.ts`](src/sdk/main.ts))
+- Window SDK: `@omnixa/gui-extensions/sdk` ([`index.ts`](src/sdk/index.ts))
+- Main-process SDK: `@omnixa/gui-extensions/sdk/main` ([`main.ts`](src/sdk/main.ts))
 - Rules for agents: [`AGENTS.md`](AGENTS.md)
 
 ```mermaid
@@ -106,16 +106,6 @@ stateDiagram-v2
 - A registration ends with the current Solid owner: a component, a `createKeyed` run, or else the extension.
 - Teardown of other work: `onCleanup` in the window, `ctx.scope.addFinalizer` in main. Setup returns nothing.
 - Window setup is synchronous: its `undefined` return type rejects async functions, and the host fails thenable-returning JavaScript setups instead of waiting for them. Put async work in `createKeyed` or `createLatest`, with `ctx.signal` or a signal derived from it. Only main setup may be async. After each `await` there is no owner; return if the signal aborted before registering or changing state. Late registrations remain safe: the host releases them when the owner or instance ended.
-
-The updater listens to its main side's `check` event once per generation of that side. When main restarts, the run ends and its listener goes with it:
-
-<!-- source: src/updater/renderer.tsx#createKeyed -->
-
-```tsx
-// Beta builds answer the app menu's Check for Updates in the focused window instead of a native dialog. The
-// listener ends with the generation of the main side that sends it.
-createKeyed(updater, (client) => void client.on("check", () => act("check")))
-```
 
 ### The routed session
 
@@ -258,7 +248,7 @@ const screenActive = useQuery(() => ({
 
 Each line links to the file whose TSDoc covers every field.
 
-SDK icon fields use `IconName` from `@aigcfroge/ui/icons/catalog`, a dependency-free module with no Solid or CSS imports. The UI renderer reads that same catalog: there is no copied name list or dependency on a UI component's props, and no artwork in the general-purpose util package.
+SDK icon fields use `IconName` from `@omnixa/ui/icons/catalog`, a dependency-free module with no Solid or CSS imports. The UI renderer reads that same catalog: there is no copied name list or dependency on a UI component's props, and no artwork in the general-purpose util package.
 
 ### Registries
 
@@ -365,7 +355,7 @@ These are running extension contributions. Loading a newly installed external re
 | `ctx.serverEndpoints` (main) | `ServerEndpoints`                                              | URL and credentials of a server the windows use                               |
 | `ctx.windows` (main)         | `Windows`                                                      | The app's main windows                                                        |
 | `ctx.embeds` (main)          | `Embeds`                                                       | `create(view, window)` places a web page                                      |
-| `ctx.cli` (main)             | `Cli`                                                          | The aigcfroge CLI the app runs                                                |
+| `ctx.cli` (main)             | `Cli`                                                          | The omnixa CLI the app runs                                                   |
 
 ## Ipc: main ↔ window
 
@@ -593,8 +583,8 @@ export default Extension.define({
   id: "pairing",
   provides: { pairing: Pairing },
   stores: {
-    // Whether main keeps the display awake; stored before in the desktop's own settings namespace.
-    keepScreenActive: Store.main(Schema.Boolean, false, { state: ["aigcfroge.settings", "keepScreenActive"] }),
+    // Whether main keeps the display awake.
+    keepScreenActive: Store.main(Schema.Boolean, false),
     // An address of this computer the server cannot see (a VPN, tunnel or proxy), and the address links use.
     links: Store.global(Schema.Struct({ custom: Schema.String, selected: Schema.String }), {
       custom: "",

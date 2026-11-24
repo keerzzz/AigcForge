@@ -1,7 +1,7 @@
 import { createContext, useContext } from "solid-js"
 import { useParams } from "@solidjs/router"
-import type { SessionTaskOperationReadonlyRef } from "@aigcfroge/client/promise"
-import type { SessionCommunicationRef } from "@aigcfroge/session-ui/context"
+import type { SessionTaskOperationReadonlyRef } from "@omnixa/client/promise"
+import type { SessionCommunicationRef } from "@omnixa/session-ui/context"
 
 /** The target identity and interaction of a conversation embedded in a source panel. */
 export const SessionContentContext = createContext<{

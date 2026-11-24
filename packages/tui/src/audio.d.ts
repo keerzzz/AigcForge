@@ -3,7 +3,7 @@ declare module "*.mp3" {
   export default path
 }
 
-declare module "@aigcfroge/ui/audio/*.mp3" {
+declare module "@omnixa/ui/audio/*.mp3" {
   const path: string
   export default path
 }

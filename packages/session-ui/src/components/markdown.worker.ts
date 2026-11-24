@@ -1,8 +1,8 @@
 /// <reference lib="webworker" />
 
 import { ShikiStreamTokenizer } from "@shikijs/stream"
-import { createMarkdownParser } from "@aigcfroge/ui/context/marked-parser"
-import { AigcForgeTheme } from "@aigcfroge/ui/context/marked-theme"
+import { createMarkdownParser } from "@omnixa/ui/context/marked-parser"
+import { OmnixaTheme } from "@omnixa/ui/context/marked-theme"
 import {
   bundledLanguages,
   createHighlighter,
@@ -41,13 +41,12 @@ const projectQueue = createLatestWorkerQueue<Extract<MarkdownWorkerRequest, { ty
 
 const parser = createMarkdownParser(async (code, language) => {
   const instance = await getHighlighter()
-  const name = language in bundledLanguages ? language : "text"
+  const name = isBundledLanguage(language) ? language : "text"
 
-  if (!instance.getLoadedLanguages().includes(name))
-    await instance.loadLanguage(bundledLanguages[name as BundledLanguage])
+  if (!instance.getLoadedLanguages().includes(name)) await instance.loadLanguage(name)
 
   return instance
-    .codeToHtml(code, { lang: name as BundledLanguage, theme: "AigcForge", tabindex: false })
+    .codeToHtml(code, { lang: name, theme: "Omnixa", tabindex: false })
     .replace("<code>", `<code class="language-${name}">`)
 })
 
@@ -100,13 +99,12 @@ async function runProject(request: Extract<MarkdownWorkerRequest, { type: "proje
 async function highlight(request: Extract<MarkdownWorkerRequest, { type: "highlight" }>) {
   try {
     const instance = await getHighlighter()
-    const language = request.language in bundledLanguages ? request.language : "text"
+    const language = isBundledLanguage(request.language) ? request.language : "text"
 
-    if (!instance.getLoadedLanguages().includes(language))
-      await instance.loadLanguage(bundledLanguages[language as BundledLanguage])
+    if (!instance.getLoadedLanguages().includes(language)) await instance.loadLanguage(language)
 
     if (request.complete) {
-      const result = instance.codeToTokens(request.text, { lang: language as BundledLanguage, theme: "AigcForge" })
+      const result = instance.codeToTokens(request.text, { lang: language, theme: "Omnixa" })
       streams.delete(request.key)
       post({
         type: "highlight",
@@ -132,7 +130,7 @@ async function highlight(request: Extract<MarkdownWorkerRequest, { type: "highli
       ? {
           language,
           source: "",
-          tokenizer: new ShikiStreamTokenizer({ highlighter: instance, lang: language, theme: "AigcForge" }),
+          tokenizer: new ShikiStreamTokenizer({ highlighter: instance, lang: language, theme: "Omnixa" }),
         }
       : previous
 
@@ -158,8 +156,12 @@ async function highlight(request: Extract<MarkdownWorkerRequest, { type: "highli
   }
 }
 
+function isBundledLanguage(language: string): language is BundledLanguage {
+  return Object.hasOwn(bundledLanguages, language)
+}
+
 function getHighlighter() {
-  return (highlighter ??= createHighlighter({ themes: [AigcForgeTheme], langs: [] }))
+  return (highlighter ??= createHighlighter({ themes: [OmnixaTheme], langs: [] }))
 }
 
 function post(response: MarkdownWorkerResponse) {

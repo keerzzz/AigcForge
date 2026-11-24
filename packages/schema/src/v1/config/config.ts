@@ -38,10 +38,10 @@ export const Info = Schema.revealCodec(
     shell: optional(Schema.String).annotate({ description: "Default shell to use for terminal and bash tool" }),
     logLevel: optional(LogLevelRef).annotate({ description: "Log level" }),
     server: optional(ConfigServerV1.Server).annotate({
-      description: "Server configuration for aigcfroge serve and web commands",
+      description: "Server configuration for omnixa serve and web commands",
     }),
     command: optional(Schema.Record(Schema.String, ConfigCommandV1.Info)).annotate({
-      description: "Command configuration, see https://aigcfroge.ai/docs/commands",
+      description: "Command configuration, see https://omnixa.ai/docs/commands",
     }),
     skills: optional(ConfigSkillsV1.Info).annotate({ description: "Additional skill folder paths" }),
     references: optional(ConfigReference.Info).annotate({
@@ -105,7 +105,7 @@ export const Info = Schema.revealCodec(
         }),
         [Schema.Record(Schema.String, ConfigAgentV1.Info)],
       ),
-    ).annotate({ description: "Agent configuration, see https://aigcfroge.ai/docs/agents" }),
+    ).annotate({ description: "Agent configuration, see https://omnixa.ai/docs/agents" }),
     provider: optional(Schema.Record(Schema.String, ConfigProviderV1.Info)).annotate({
       description: "Custom provider configurations and model overrides",
     }),

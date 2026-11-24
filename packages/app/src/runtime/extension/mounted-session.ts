@@ -20,7 +20,7 @@ import type {
   ServerRef,
   MountedSession,
   SessionScreen,
-} from "@aigcfroge/gui-extensions/sdk"
+} from "@omnixa/gui-extensions/sdk"
 import { useComments } from "@/composer/comments"
 import { createComposerEditorActions } from "@/composer/editor/actions"
 import { useComposerState } from "@/composer/persistence"

@@ -8,6 +8,6 @@ import { ForbiddenError } from "../errors.js"
  * the ticket validation Layer lives server-side (R2).
  */
 export class PtyConnectAuthorization extends HttpApiMiddleware.Service<PtyConnectAuthorization>()(
-  "@aigcfroge/HttpApiPtyConnectAuthorization",
+  "@omnixa/HttpApiPtyConnectAuthorization",
   { error: ForbiddenError },
 ) {}

@@ -1,4 +1,4 @@
-import type { Plugin } from "@aigcfroge/plugin/tui"
+import type { Plugin } from "@omnixa/plugin/tui"
 import { useTerminalDimensions } from "@opentui/solid"
 import { createMemo, createSignal, Show } from "solid-js"
 import { useTheme, useThemes } from "../../../context/theme"
@@ -11,10 +11,10 @@ const fixtures = [
     id: "deployment",
     title: "Deployment architecture",
     source: `flowchart LR
-  Client[AigcForge client]
+  Client[Omnixa client]
 
   subgraph CF[Cloudflare]
-    DNS[aigcfroge.ai]
+    DNS[omnixa.ai]
     Web[Console frontend Worker]
     Proxy[Console API proxy Worker]
     Infer[inference-next Worker]

@@ -1,5 +1,5 @@
-import { Icon } from "@aigcfroge/ui/icon"
-import { AppIcon } from "@aigcfroge/ui/app-icon"
+import { Icon } from "@omnixa/ui/icon"
+import { AppIcon } from "@omnixa/ui/app-icon"
 import { SplitButton, SplitButtonAction, SplitButtonMenuTrigger } from "./split-button"
 
 export default {

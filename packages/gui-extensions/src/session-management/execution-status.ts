@@ -1,4 +1,4 @@
-import type { DelegationLegacyState, SessionTaskOperationInfo } from "@aigcfroge/client/promise"
+import type { DelegationLegacyState, SessionTaskOperationInfo } from "@omnixa/client/promise"
 import type { ServerRef } from "../sdk"
 
 /** Permission and form requests suspend execution even while the transport reports running. */

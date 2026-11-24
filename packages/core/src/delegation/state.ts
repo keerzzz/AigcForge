@@ -1,8 +1,8 @@
 export * as DelegationState from "./state"
 
 import { Effect } from "effect"
-import { Delegation, type DelegationStatus, type ParticipantPhase } from "@aigcfroge/schema/delegation"
-import type { ID as DelegationID } from "@aigcfroge/schema/delegation-id"
+import { Delegation, type DelegationStatus, type ParticipantPhase } from "@omnixa/schema/delegation"
+import type { ID as DelegationID } from "@omnixa/schema/delegation-id"
 
 const VALID_TRANSITIONS: Record<DelegationStatus, readonly DelegationStatus[]> = {
   draft: ["running", "cancelled"],

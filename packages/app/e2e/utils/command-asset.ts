@@ -1,7 +1,7 @@
 import type { Page } from "@playwright/test"
-import type { CommandAssetInfo, CommandAssetListOutput, JsonValue, SessionMessageInfo } from "@aigcfroge/client/promise"
-import { AssetPlacement } from "@aigcfroge/schema/asset-placement"
-import { CommandAsset } from "@aigcfroge/schema/command-asset"
+import type { CommandAssetInfo, CommandAssetListOutput, JsonValue, SessionMessageInfo } from "@omnixa/client/promise"
+import { AssetPlacement } from "@omnixa/schema/asset-placement"
+import { CommandAsset } from "@omnixa/schema/command-asset"
 import { Schema } from "effect"
 import { SkillAssets } from "./skill-asset"
 

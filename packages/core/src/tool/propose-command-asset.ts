@@ -1,9 +1,9 @@
 export * as ProposeCommandAssetTool from "./propose-command-asset.js"
 
-import type { Context } from "@aigcfroge/plugin/effect/plugin"
-import { ToolFailure } from "@aigcfroge/ai"
+import type { Context } from "@omnixa/plugin/effect/plugin"
+import { ToolFailure } from "@omnixa/ai"
 import { Effect, Schema } from "effect"
-import { CommandAsset } from "@aigcfroge/schema/command-asset"
+import { CommandAsset } from "@omnixa/schema/command-asset"
 import path from "node:path"
 import { CommandAssetService } from "../command-asset-service.js"
 import { CommandAssetPath } from "../command-asset/path.js"
@@ -35,9 +35,9 @@ export const Input = Schema.Struct({
 export const Output = CommandAsset.Inspection
 
 export const Plugin = {
-  id: "aigcfroge.tool.propose_command_asset",
+  id: "omnixa.tool.propose_command_asset",
   effect: Effect.fn("ProposeCommandAssetTool.Plugin")(function* (ctx: Context) {
-    if (!Flag.AIGCFROGE_EXPERIMENTAL_CHAT_ASSET) return
+    if (!Flag.OMNIXA_EXPERIMENTAL_CHAT_ASSET) return
 
     const service = yield* CommandAssetService.Service
 

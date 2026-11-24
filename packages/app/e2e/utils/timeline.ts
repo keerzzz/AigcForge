@@ -4,26 +4,26 @@ import type {
   PromptFileAttachment,
   SessionMessageAssistantReasoning,
   SessionMessageAssistantTool,
-  AigcForgeEvent,
+  OmnixaEvent,
   SessionInfo,
   SessionMessageAssistant,
   SessionMessageInfo,
   SessionMessageUser,
   SessionStatus,
   SessionStructuredError,
-} from "@aigcfroge/client/promise"
-import { EventManifest } from "@aigcfroge/schema/event-manifest"
-import { SessionError } from "@aigcfroge/schema/session-error"
-import { SessionMessage } from "@aigcfroge/schema/session-message"
-import type { TimelineDetail } from "@aigcfroge/session-ui/timeline/detail"
+} from "@omnixa/client/promise"
+import { EventManifest } from "@omnixa/schema/event-manifest"
+import { SessionError } from "@omnixa/schema/session-error"
+import { SessionMessage } from "@omnixa/schema/session-message"
+import type { TimelineDetail } from "@omnixa/session-ui/timeline/detail"
 import { expect, test, type Page, type TestInfo } from "@playwright/test"
 import { Schema } from "effect"
 import { SERVER, seed, sessionHref } from "./app"
-import { mockAigcForgeServer, type MockServerConfig } from "./mock-server"
-import { installSseTransport } from "./sse-transport"
+import { mockOmnixaServer, type MockServerConfig } from "./mock-server"
+import { installSseTransport, type SseEvent } from "./sse-transport"
 import { expectSessionReady } from "./waits"
 
-export const directory = "C:/AigcForge/TimelineStability"
+export const directory = "C:/Omnixa/TimelineStability"
 
 export const projectID = "proj_timeline_stability"
 
@@ -35,7 +35,7 @@ export const assistantID = "msg_1001_timeline_assistant"
 
 export const title = "Timeline visual stability"
 
-export const model = { providerID: "aigcfroge", modelID: "claude-opus-4-6", variant: "max" }
+export const model = { providerID: "omnixa", modelID: "claude-opus-4-6", variant: "max" }
 
 const tokens = { input: 100, output: 200, reasoning: 0, cache: { read: 0, write: 0 } }
 
@@ -139,9 +139,9 @@ type TimelineServerInput = Partial<
 
 export type TimelineMessage = SessionMessageUser | SessionMessageAssistant
 
-export type TimelineEvent = AigcForgeEvent | readonly AigcForgeEvent[]
+export type TimelineEvent = SseEvent | readonly SseEvent[]
 
-export type EventPayload = AigcForgeEvent
+export type EventPayload = ReturnType<typeof validateTimelineEvent>
 
 export type ToolStatus = ToolSeed["state"]["status"]
 
@@ -248,13 +248,13 @@ export async function setupTimeline(
   const initialStatus: SessionStatus =
     active?.type === "assistant" && active.time.completed === undefined ? { type: "busy" } : { type: "idle" }
 
-  const transport = await installSseTransport(page, {
+  const transport = await installSseTransport<EventPayload>(page, {
     server: SERVER,
     retry: input.eventRetry ?? 20,
     keepalive: input.keepalive,
   })
 
-  const mock = await mockAigcForgeServer(page, {
+  const mock = await mockOmnixaServer(page, {
     ...input,
     directory,
     project: project(),
@@ -282,7 +282,7 @@ export async function setupTimeline(
 
   if (input.locale) {
     await page.addInitScript((locale) => {
-      localStorage.setItem("aigcfroge.global.dat:language", JSON.stringify({ locale }))
+      localStorage.setItem("omnixa.global.dat:language", JSON.stringify({ locale }))
     }, input.locale)
   }
 
@@ -343,7 +343,7 @@ function timelineEvents(input: TimelineEvent) {
   return (Array.isArray(input) ? input : [input]).map(validateTimelineEvent)
 }
 
-function describeEvent(event: AigcForgeEvent) {
+function describeEvent(event: EventPayload) {
   if (event.type.startsWith("session.tool.") && "id" in event.data)
     return [event.type, event.data.id].filter(Boolean).join(":")
 
@@ -352,48 +352,47 @@ function describeEvent(event: AigcForgeEvent) {
 
 export function event(
   type: "session.status",
-  data: Extract<AigcForgeEvent, { type: "session.status" }>["data"],
-): AigcForgeEvent {
+  data: Extract<OmnixaEvent, { type: "session.status" }>["data"],
+): EventPayload {
   return makeEvent(type, data)
 }
 
-export function compactionStarted(data: Extract<AigcForgeEvent, { type: "session.compaction.started" }>["data"]) {
+export function compactionStarted(data: Extract<OmnixaEvent, { type: "session.compaction.started" }>["data"]) {
   return makeEvent("session.compaction.started", data)
 }
 
-export function compactionDelta(data: Extract<AigcForgeEvent, { type: "session.compaction.delta" }>["data"]) {
+export function compactionDelta(data: Extract<OmnixaEvent, { type: "session.compaction.delta" }>["data"]) {
   return makeEvent("session.compaction.delta", data)
 }
 
-export function compactionEnded(data: Extract<AigcForgeEvent, { type: "session.compaction.ended" }>["data"]) {
+export function compactionEnded(data: Extract<OmnixaEvent, { type: "session.compaction.ended" }>["data"]) {
   return makeEvent("session.compaction.ended", data)
 }
 
-export function compactionFailed(data: Extract<AigcForgeEvent, { type: "session.compaction.failed" }>["data"]) {
+export function compactionFailed(data: Extract<OmnixaEvent, { type: "session.compaction.failed" }>["data"]) {
   return makeEvent("session.compaction.failed", data)
 }
 
-export function toolInputStarted(data: Extract<AigcForgeEvent, { type: "session.tool.input.started" }>["data"]) {
+export function toolInputStarted(data: Extract<OmnixaEvent, { type: "session.tool.input.started" }>["data"]) {
   return makeEvent("session.tool.input.started", data)
 }
 
-export function toolInputEnded(data: Extract<AigcForgeEvent, { type: "session.tool.input.ended" }>["data"]) {
+export function toolInputEnded(data: Extract<OmnixaEvent, { type: "session.tool.input.ended" }>["data"]) {
   return makeEvent("session.tool.input.ended", data)
 }
 
-export function toolCalled(data: Extract<AigcForgeEvent, { type: "session.tool.called" }>["data"]) {
+export function toolCalled(data: Extract<OmnixaEvent, { type: "session.tool.called" }>["data"]) {
   return makeEvent("session.tool.called", data)
 }
 
-export function validateTimelineEvent(input: JsonValue | Pick<AigcForgeEvent, "id" | "type" | "data">): AigcForgeEvent {
+export function validateTimelineEvent(input: unknown): SseEvent {
   const envelope = Schema.decodeUnknownSync(Schema.Struct({ type: Schema.String }))(input)
   const definition = EventManifest.ServerDefinitions.find((definition) => definition.type === envelope.type)
 
   if (!definition) throw new Error(`Unknown timeline event: ${envelope.type}`)
 
   // SSE carries encoded values; decoded Location defaults must not become explicit undefined wire fields.
-  // SAFETY: The public event codec validates and encodes the same wire contract used by the generated client.
-  return Schema.encodeSync(definition)(Schema.decodeUnknownSync(definition)(input)) as AigcForgeEvent
+  return Schema.encodeSync(definition)(Schema.decodeUnknownSync(definition)(input))
 }
 
 export function validateTimelineMessages(input: readonly TimelineMessage[]): TimelineMessage[] {
@@ -498,7 +497,7 @@ export function historyMessages(count: number): TimelineMessage[] {
   }).flat()
 }
 
-export function partUpdated(part: PartSeed<"assistant">): readonly AigcForgeEvent[] {
+export function partUpdated(part: PartSeed<"assistant">): readonly EventPayload[] {
   const messageID = part.messageID ?? assistantID
   const startedParts = scenario().startedParts
   const started = startedParts.has(part.id)
@@ -933,13 +932,13 @@ function messageContent(
   }
 }
 
-function toolEvents(part: ToolSeed, messageID: string): readonly AigcForgeEvent[] {
+function toolEvents(part: ToolSeed, messageID: string): readonly EventPayload[] {
   const toolStates = scenario().toolStates
   const previous = toolStates.get(part.id)
 
   if (previous === "completed" || previous === "error") return []
 
-  const events: AigcForgeEvent[] = []
+  const events: EventPayload[] = []
 
   if (!previous) {
     events.push(
@@ -1050,10 +1049,10 @@ function partRef(id: string, messageID: string, type: PartRef["type"]): PartRef 
   return ref
 }
 
-export function makeEvent<Type extends AigcForgeEvent["type"]>(
+export function makeEvent<Type extends OmnixaEvent["type"]>(
   type: Type,
-  data: Extract<AigcForgeEvent, { type: Type }>["data"] & { sessionID: string },
-): AigcForgeEvent {
+  data: Extract<OmnixaEvent, { type: Type }>["data"] & { sessionID: string },
+): EventPayload {
   const state = scenario()
   const sequence = ++state.eventSequence
   const id = `evt_timeline_${String(sequence).padStart(4, "0")}`
@@ -1083,8 +1082,8 @@ function provider() {
   return {
     all: [
       {
-        id: "aigcfroge",
-        name: "AigcForge",
+        id: "omnixa",
+        name: "Omnixa",
         models: { "claude-opus-4-6": { id: "claude-opus-4-6", name: "Claude Opus 4.6", limit: { context: 200_000 } } },
       },
       {
@@ -1106,7 +1105,7 @@ function provider() {
         },
       },
     ],
-    connected: ["aigcfroge", "company-gateway"],
-    default: { providerID: "aigcfroge", modelID: "claude-opus-4-6" },
+    connected: ["omnixa", "company-gateway"],
+    default: { providerID: "omnixa", modelID: "claude-opus-4-6" },
   }
 }

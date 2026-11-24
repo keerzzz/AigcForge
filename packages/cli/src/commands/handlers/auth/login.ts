@@ -1,6 +1,6 @@
 import { intro, log, outro, select, spinner, text } from "@clack/prompts"
 import { Effect, Option } from "effect"
-import type { FormAnswer, IntegrationInfo, AigcForgeClient } from "@aigcfroge/client"
+import type { FormAnswer, IntegrationInfo, OmnixaClient } from "@omnixa/client"
 import { Commands } from "../../commands"
 import { Runtime } from "../../../framework/runtime"
 import { selectIntegration, type IntegrationChoice } from "../../../ui/integration-picker"
@@ -57,7 +57,7 @@ const login = Effect.fn("cli.auth.login.run")(function* (input: {
   outro("Done")
 })
 
-const findIntegration = Effect.fn("cli.auth.login.integration")(function* (client: AigcForgeClient, target?: string) {
+const findIntegration = Effect.fn("cli.auth.login.integration")(function* (client: OmnixaClient, target?: string) {
   if (target && URL.canParse(target)) {
     const protocol = new URL(target).protocol
     if (protocol === "http:" || protocol === "https:") {
@@ -118,7 +118,7 @@ const chooseMethod = Effect.fn("cli.auth.login.method")(function* (methods: Conn
 })
 
 const authenticate = Effect.fn("cli.auth.login.authenticate")(function* (
-  client: AigcForgeClient,
+  client: OmnixaClient,
   integration: IntegrationInfo,
   method: ConnectMethod,
   answer?: FormAnswer,
@@ -130,7 +130,7 @@ const authenticate = Effect.fn("cli.auth.login.authenticate")(function* (
 })
 
 const externalLogin = Effect.fn("cli.auth.login.external")(function* (
-  client: AigcForgeClient,
+  client: OmnixaClient,
   integration: IntegrationInfo,
   method: Extract<ConnectMethod, { type: "external" }>,
   answer?: FormAnswer,
@@ -149,7 +149,7 @@ const externalLogin = Effect.fn("cli.auth.login.external")(function* (
 })
 
 const keyLogin = Effect.fn("cli.auth.login.key")(function* (
-  client: AigcForgeClient,
+  client: OmnixaClient,
   integration: IntegrationInfo,
   method: Extract<ConnectMethod, { type: "key" }>,
   answer?: FormAnswer,
@@ -166,7 +166,7 @@ const keyLogin = Effect.fn("cli.auth.login.key")(function* (
 })
 
 export const oauthLogin = Effect.fn("cli.auth.login.oauth")(function* (
-  client: AigcForgeClient,
+  client: OmnixaClient,
   integration: IntegrationInfo,
   method: Extract<ConnectMethod, { type: "oauth" }>,
   answer?: FormAnswer,
@@ -226,7 +226,7 @@ export const oauthLogin = Effect.fn("cli.auth.login.oauth")(function* (
 })
 
 const commandLogin = Effect.fn("cli.auth.login.command")(function* (
-  client: AigcForgeClient,
+  client: OmnixaClient,
   integration: IntegrationInfo,
   method: Extract<ConnectMethod, { type: "command" }>,
 ) {
@@ -267,7 +267,7 @@ const commandLogin = Effect.fn("cli.auth.login.command")(function* (
 })
 
 const waitForOAuth = Effect.fn("cli.auth.login.oauth.wait")(function* (
-  client: AigcForgeClient,
+  client: OmnixaClient,
   integrationID: string,
   attemptID: string,
 ) {
@@ -281,7 +281,7 @@ const waitForOAuth = Effect.fn("cli.auth.login.oauth.wait")(function* (
 })
 
 const waitForCommand = Effect.fn("cli.auth.login.command.wait")(function* (
-  client: AigcForgeClient,
+  client: OmnixaClient,
   integrationID: string,
   attemptID: string,
   update: (message: string) => void,

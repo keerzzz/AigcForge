@@ -3,7 +3,7 @@ import { createEffect, createMemo, For, Match, Show, Switch } from "solid-js"
 import { Portal, useRenderer, useTerminalDimensions, type JSX } from "@opentui/solid"
 import type { TextareaRenderable } from "@opentui/core"
 import { useTheme, useThemes } from "../../context/theme"
-import type { PermissionReply, PermissionRequest } from "@aigcfroge/client"
+import type { PermissionReply, PermissionRequest } from "@omnixa/client"
 import { SplitBorder } from "../../ui/border"
 import { useData } from "../../context/data"
 import { filetype } from "../../util/filetype"
@@ -367,7 +367,7 @@ function RejectPrompt(props: {
           <text fg={theme.text.base}>Reject permission</text>
         </box>
         <box paddingLeft={1}>
-          <text fg={theme.text.muted}>Tell AigcForge what to do differently</text>
+          <text fg={theme.text.muted}>Tell Omnixa what to do differently</text>
         </box>
       </box>
       <box

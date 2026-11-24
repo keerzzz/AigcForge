@@ -1,5 +1,5 @@
 import { BrowserWindow } from "electron"
-import { parseDesktopNativeBundle } from "@aigcfroge/app/i18n/desktop-native"
+import { parseDesktopNativeBundle } from "@omnixa/app/i18n/desktop-native"
 import { Effect } from "effect"
 import { AppRpcs } from "../../shared/ipc-rpc"
 import { openExternalURL } from "../files"

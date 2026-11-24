@@ -1,5 +1,5 @@
-import { Shell } from "@aigcfroge/schema/shell"
-import { Location } from "@aigcfroge/schema/location"
+import { Shell } from "@omnixa/schema/shell"
+import { Location } from "@omnixa/schema/location"
 import { Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "effect/http-api"
 import { ShellNotFoundError } from "../errors.js"

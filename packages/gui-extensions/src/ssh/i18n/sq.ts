@@ -20,14 +20,8 @@ export default {
   "error.input":
     "Fut një komandë lidhjeje host ose SSH. Komandat në distancë dhe opsionet e pambështetura SSH nuk lejohen.",
   "error.connection": "Lidhja SSH nuk mund të vendosej. Kontrolloni rrjetin tuaj dhe konfigurimin SSH.",
-  "error.platform":
-    "Kjo platformë në distancë nuk mbështetet. Konfigurimi automatik aktualisht kërkon Linux ose macOS në x64 ose arm64.",
   "error.version": "Shërbimi në distancë duhet të përputhet me këtë version të desktopit përpara se të lidhet.",
-  "error.install":
-    "Serveri në distancë nuk mund të instalohej. Kontrolloni lidhjen, hapësirën në disk dhe nëse tar është instaluar.",
-  "error.unpublished":
-    "Ky version i desktopit nuk ka asnjë server të publikuar në distancë. Për ndërtimet e zhvillimit, instaloni dhe nisni V2 në host, më pas riprovoni.",
-  "error.service": "SSH u lidh, por serveri AigcForge nuk u bë gati.",
+  "error.service": "SSH u lidh, por serveri Omnixa nuk u bë gati.",
   "error.host-key":
     "Identiteti i hostit nuk mund të verifikohej. Verifiko gjurmën e gishtit të tij përpara se të përditësosh hostet e njohur SSH.",
   "error.ssh-missing":

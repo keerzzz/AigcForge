@@ -1,5 +1,5 @@
-import { Composition } from "@aigcfroge/schema/composition"
-import { CustomProfile } from "@aigcfroge/schema/custom-profile"
+import { Composition } from "@omnixa/schema/composition"
+import { CustomProfile } from "@omnixa/schema/custom-profile"
 import { Schema } from "effect"
 import { CustomCompositionFixture } from "./custom-composition"
 

@@ -3,18 +3,18 @@ import { mkdir } from "node:fs/promises"
 import { createServer } from "node:http"
 import { expect } from "bun:test"
 import { NodeFileSystem, NodeHttpServer } from "@effect/platform-node"
-import { AigcForge } from "@aigcfroge/client/effect"
-import { Session } from "@aigcfroge/core/session"
-import { SessionRunnerModel } from "@aigcfroge/core/session/runner/model"
-import { Agent } from "@aigcfroge/schema/agent"
-import { Model } from "@aigcfroge/schema/model"
-import { ModelGroup } from "@aigcfroge/schema/model-group"
-import { Money } from "@aigcfroge/schema/money"
-import { Provider } from "@aigcfroge/schema/provider"
-import { ProviderDefinition } from "@aigcfroge/schema/provider-definition"
-import { PromptInput } from "@aigcfroge/schema/prompt-input"
-import { AbsolutePath } from "@aigcfroge/schema/schema"
-import { Global } from "@aigcfroge/util/global"
+import { Omnixa } from "@omnixa/client/effect"
+import { Session } from "@omnixa/core/session"
+import { SessionRunnerModel } from "@omnixa/core/session/runner/model"
+import { Agent } from "@omnixa/schema/agent"
+import { Model } from "@omnixa/schema/model"
+import { ModelGroup } from "@omnixa/schema/model-group"
+import { Money } from "@omnixa/schema/money"
+import { Provider } from "@omnixa/schema/provider"
+import { ProviderDefinition } from "@omnixa/schema/provider-definition"
+import { PromptInput } from "@omnixa/schema/prompt-input"
+import { AbsolutePath } from "@omnixa/schema/schema"
+import { Global } from "@omnixa/util/global"
 import { Cause, Context, Deferred, Effect, Exit, Fiber, FileSystem, Layer, Schema, Scope, Stream } from "effect"
 import { FetchHttpClient, HttpClient, HttpClientRequest, HttpRouter, HttpServer } from "effect/http"
 import { tmpdirScoped } from "../../core/test/fixture/tmpdir"
@@ -26,7 +26,7 @@ const it = testEffect(Layer.mergeAll(FetchHttpClient.layer, NodeHttpServer.layer
 const providers = [
   {
     id: Provider.ID.make("keeper-chat"),
-    package: "@aigcfroge/ai/providers/openai-compatible",
+    package: "@omnixa/ai/providers/openai-compatible",
     prefix: "/gateway-chat/v1",
     apiModelID: Model.ID.make("upstream-chat"),
     key: "fixture-key-chat",
@@ -34,7 +34,7 @@ const providers = [
   },
   {
     id: Provider.ID.make("keeper-messages"),
-    package: "@aigcfroge/ai/providers/anthropic-compatible",
+    package: "@omnixa/ai/providers/anthropic-compatible",
     prefix: "/gateway-messages/v1",
     apiModelID: Model.ID.make("upstream-messages"),
     key: "fixture-key-messages",
@@ -189,12 +189,12 @@ const boot = Effect.fnUntraced(function* (directory: string) {
       .serve(Context.get(context, HttpRouter.HttpRouter).asHttpEffect())
       .pipe(Effect.provide(NodeHttpServer.layerHttpServices))
     const http = yield* HttpClient.HttpClient
-    const client = yield* AigcForge.make({ baseUrl: HttpServer.formatAddress(server.address) }).pipe(
+    const client = yield* Omnixa.make({ baseUrl: HttpServer.formatAddress(server.address) }).pipe(
       Effect.provideService(
         HttpClient.HttpClient,
         http.pipe(
           HttpClient.mapRequest((request) =>
-            HttpClientRequest.setHeader(request, "authorization", "Basic " + btoa("aigcfroge:secret")),
+            HttpClientRequest.setHeader(request, "authorization", "Basic " + btoa("omnixa:secret")),
           ),
         ),
       ),
@@ -265,7 +265,7 @@ const boot = Effect.fnUntraced(function* (directory: string) {
   }).pipe(Effect.provideService(Scope.Scope, scope))
 })
 
-const observeUpdates = Effect.fnUntraced(function* (client: Effect.Success<ReturnType<typeof AigcForge.make>>) {
+const observeUpdates = Effect.fnUntraced(function* (client: Effect.Success<ReturnType<typeof Omnixa.make>>) {
   const connected = yield* Deferred.make<void>()
   const updates: string[] = []
   const attempts: Stream.Success<ReturnType<typeof client.event.subscribe>>[] = []
@@ -296,11 +296,11 @@ it.live(
   "P3 persists native groups through HTTP and SSE, falls back to the actual member, and reopens the same logical selection",
   () =>
     Effect.gen(function* () {
-      const tmp = yield* tmpdirScoped("aigcfroge-model-group-http-")
+      const tmp = yield* tmpdirScoped("omnixa-model-group-http-")
       const fs = yield* FileSystem.FileSystem
       yield* fs.makeDirectory(path.join(tmp.path, "config"), { recursive: true })
       yield* fs.writeFileString(
-        path.join(tmp.path, "config", "aigcfroge.jsonc"),
+        path.join(tmp.path, "config", "omnixa.jsonc"),
         '{\n// retained group configuration\n"model": "group:fallback"\n}\n',
       )
       const recorder = yield* generationServer
@@ -433,7 +433,7 @@ it.live(
       expect(info.model).toEqual(selection)
       expect(info.cost).toBe(Money.USD.zero)
       expect(info.tokens).toMatchObject({ input: 7, output: 3 })
-      const file = yield* fs.readFileString(path.join(tmp.path, "config", "aigcfroge.jsonc"))
+      const file = yield* fs.readFileString(path.join(tmp.path, "config", "omnixa.jsonc"))
       expect(file).toContain("// retained group configuration")
       yield* Fiber.interrupt(updated.fiber)
       yield* host.close
@@ -466,7 +466,7 @@ it.live(
   "P1 saves same-template Chat and Messages instances through HTTP, reopens their original request chain, and rejects disabled execution",
   () =>
     Effect.gen(function* () {
-      const tmp = yield* tmpdirScoped("aigcfroge-provider-definition-")
+      const tmp = yield* tmpdirScoped("omnixa-provider-definition-")
       const fixture = yield* generationServer
       const first = yield* boot(tmp.path)
       const updates = yield* observeUpdates(first.client)
@@ -597,7 +597,7 @@ it.live(
   "P1 suspends both cached Locations before switching a global Chat endpoint and credential",
   () =>
     Effect.gen(function* () {
-      const tmp = yield* tmpdirScoped("aigcfroge-provider-definition-locations-")
+      const tmp = yield* tmpdirScoped("omnixa-provider-definition-locations-")
       const fixture = yield* generationServer
       const host = yield* boot(tmp.path)
       const saved = yield* host.save(

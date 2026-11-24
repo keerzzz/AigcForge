@@ -93,10 +93,10 @@ describe("Composition Schema", () => {
       agents: [agentRef],
       bindings: {
         orchestrator: {
-          prompts: [{ ...promptRef, target: { scope: "project" as const, root: "/project/.aigcfroge/prompts" } }],
+          prompts: [{ ...promptRef, target: { scope: "project" as const, root: "/project/.omnixa/prompts" } }],
           skills: [{ ...skillRef, target: { scope: "global" as const, root: "/global/skills" } }],
           commands: [
-            { ...commandRef, target: { scope: "location" as const, root: "/project/child/.aigcfroge/commands" } },
+            { ...commandRef, target: { scope: "location" as const, root: "/project/child/.omnixa/commands" } },
           ],
         },
       },
@@ -111,7 +111,7 @@ describe("Composition Schema", () => {
   })
 
   test("unsupported reference sources fail before runtime and JSON codecs can discard the target", () => {
-    const target = { scope: "project", root: "/project/.aigcfroge/assets" }
+    const target = { scope: "project", root: "/project/.omnixa/assets" }
     const refs = [agentRef, workflowRef, { kind: "mcp", relativePath: "search.md", revision: "f".repeat(64) }]
     const codec = Schema.toCodecJson(Composition.AssetRef)
     refs.forEach((ref) => {
@@ -174,7 +174,7 @@ describe("Composition Schema", () => {
       relativePath: promptRef.relativePath,
       revision: promptRef.revision,
       content: "Captured prompt",
-      target: { scope: "project" as const, root: "/project/.aigcfroge/prompts" },
+      target: { scope: "project" as const, root: "/project/.omnixa/prompts" },
     }
     const skill = {
       name: "checklist",
@@ -191,7 +191,7 @@ describe("Composition Schema", () => {
       revision: commandRef.revision,
       invocation: "lint",
       source: "Captured command body",
-      target: { scope: "location" as const, root: "/project/child/.aigcfroge/commands" },
+      target: { scope: "location" as const, root: "/project/child/.omnixa/commands" },
     }
     const raw = {
       version: 2 as const,

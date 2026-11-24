@@ -1,10 +1,15 @@
 #!/usr/bin/env bun
-import { Script } from "@aigcfroge/script"
-import { $ } from "bun"
 import { mkdir, rm } from "node:fs/promises"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
-import { UpdateArtifact } from "../../../script/update-artifact"
+
+if (!process.argv.includes("--dry-run")) {
+  throw new Error(
+    "Omnixa Homebrew publication is disabled: no project-owned tap is configured. Use --dry-run to prepare a formula.",
+  )
+}
+
+const { Script } = await import("@omnixa/script")
 
 if (Script.channel !== "beta" && Script.channel !== "latest") {
   throw new Error("Homebrew publishing requires the beta or latest channel")
@@ -16,11 +21,10 @@ const valid =
 if (!valid) throw new Error(`Expected a ${Script.channel} release version`)
 
 const dir = fileURLToPath(new URL("..", import.meta.url))
-const root = path.resolve(process.env.AIGCFROGE_CLI_DIST ?? path.join(dir, "dist"))
+const root = path.resolve(process.env.OMNIXA_CLI_DIST ?? path.join(dir, "dist"))
 const outdir = path.join(root, "homebrew-tap")
-const dryRun = process.argv.includes("--dry-run")
-const name = Script.channel === "beta" ? "aigcfroge-beta" : "aigcfroge-v2"
-const formulaClass = Script.channel === "beta" ? "AigcfrogeBeta" : "AigcfrogeV2"
+const name = Script.channel === "beta" ? "omnixa-beta" : "omnixa-v2"
+const formulaClass = Script.channel === "beta" ? "OmnixaBeta" : "OmnixaV2"
 
 const targets = await Promise.all(
   [
@@ -29,27 +33,21 @@ const targets = await Promise.all(
     { name: "linux-arm64", archive: "tar.gz" },
     { name: "linux-x64-baseline", archive: "tar.gz" },
   ].map(async (target) => {
-    const filename = `aigcfroge-${target.name}.${target.archive}`
+    const filename = `omnixa-${target.name}.${target.archive}`
     const file = Bun.file(path.join(root, filename))
     if (!(await file.exists()) || !file.size) throw new Error(`Missing Homebrew archive: ${filename}`)
     const sha256 = new Bun.CryptoHasher("sha256")
     for await (const chunk of file.stream()) sha256.update(chunk)
     return {
       ...target,
-      url: `https://aigcfroge.ai/files/bin/${encodeURIComponent(Script.version)}/${filename}`,
+      url: `https://github.com/keerzzz/AigcForge/releases/download/v${encodeURIComponent(Script.version)}/${filename}`,
       sha256: sha256.digest("hex"),
     }
   }),
 )
 
 await rm(outdir, { recursive: true, force: true })
-if (dryRun) await mkdir(outdir, { recursive: true })
-if (!dryRun) {
-  const token = process.env.GITHUB_TOKEN
-  if (!token) throw new Error("GITHUB_TOKEN is required to update the Homebrew tap")
-  await $`git clone ${`https://x-access-token:${token}@github.com/anomalyco/homebrew-tap.git`} ${outdir}`
-  await $`git checkout -B master`.cwd(outdir)
-}
+await mkdir(outdir, { recursive: true })
 
 const target = (name: string) => {
   const result = targets.find((item) => item.name === name)
@@ -68,13 +66,13 @@ await Bun.write(
     "# frozen_string_literal: true",
     "",
     `class ${formulaClass} < Formula`,
-    `  desc "AigcForge V2${Script.channel === "beta" ? " beta" : ""} - the AI coding agent for the terminal"`,
-    '  homepage "https://github.com/anomalyco/aigcfroge"',
+    `  desc "Omnixa V2${Script.channel === "beta" ? " beta" : ""} - the AI coding agent for the terminal"`,
+    '  homepage "https://github.com/keerzzz/AigcForge"',
     `  version "${Script.version}"`,
     '  license "MIT"',
     "",
     '  depends_on "ripgrep"',
-    '  conflicts_with "aigcfroge", because: "both install an aigcfroge binary"',
+    '  conflicts_with "omnixa", because: "both install an omnixa binary"',
     "",
     "  on_macos do",
     "    if Hardware::CPU.arm?",
@@ -97,24 +95,10 @@ await Bun.write(
     "  end",
     "",
     "  def install",
-    '    bin.install "aigcfroge"',
+    '    bin.install "omnixa"',
     "  end",
     "end",
     "",
   ].join("\n"),
 )
 console.log(`Prepared ${name} ${Script.version} in ${outdir}`)
-if (dryRun) process.exit(0)
-
-await $`git add ${name + ".rb"}`.cwd(outdir)
-if ((await $`git diff --cached --quiet`.cwd(outdir).nothrow()).exitCode !== 0) {
-  await $`git commit -m ${`chore: update ${name} to ${Script.version}`}`.cwd(outdir)
-  await $`git push origin master`.cwd(outdir)
-}
-await UpdateArtifact.publish({
-  channel: Script.channel,
-  name: "cli",
-  distribution: "homebrew",
-  version: Script.version,
-  metadata: { package: `anomalyco/tap/${name}` },
-})

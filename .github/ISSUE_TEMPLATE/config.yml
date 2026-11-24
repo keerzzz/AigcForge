@@ -1,5 +1,5 @@
 blank_issues_enabled: false
 contact_links:
-  - name: 💬 Discord Community
-    url: https://discord.gg/aigcfroge
-    about: For support, troubleshooting, how-to questions, and real-time discussion.
+  - name: 💬 Project support
+    url: https://github.com/keerzzz/AigcForge/issues
+    about: Search existing issues for troubleshooting and usage guidance.

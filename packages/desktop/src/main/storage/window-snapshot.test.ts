@@ -14,7 +14,7 @@ afterEach(() =>
 )
 
 test.each(["missing", "unreadable"])("a $s database distinguishes default enable state from unknown", async (input) => {
-  const root = await mkdtemp(path.join(tmpdir(), "aigcfroge-window-snapshot-"))
+  const root = await mkdtemp(path.join(tmpdir(), "omnixa-window-snapshot-"))
   roots.push(root)
 
   if (input === "unreadable") await Bun.write(path.join(root, "drafts.sqlite"), "not a SQLite database")
@@ -27,7 +27,7 @@ test.each(["missing", "unreadable"])("a $s database distinguishes default enable
 test.each([{ invalidID: false }, { invalidID: true }])(
   "the early snapshot keeps valid rows with invalid id $invalidID",
   async (input) => {
-    const root = await mkdtemp(path.join(tmpdir(), "aigcfroge-window-snapshot-"))
+    const root = await mkdtemp(path.join(tmpdir(), "omnixa-window-snapshot-"))
     roots.push(root)
     const db = new DatabaseSync(path.join(root, "drafts.sqlite"))
     migrateDatabase(db)
@@ -46,3 +46,19 @@ test.each([{ invalidID: false }, { invalidID: true }])(
     })
   },
 )
+
+test.each([
+  { field: "key", key: new Uint8Array([1]), value: "dark" },
+  { field: "value", key: "theme", value: new Uint8Array([2]) },
+])("a non-text state $field returns the failed-read snapshot", async (input) => {
+  const root = await mkdtemp(path.join(tmpdir(), "omnixa-window-snapshot-"))
+  roots.push(root)
+  const db = new DatabaseSync(path.join(root, "drafts.sqlite"))
+  migrateDatabase(db)
+  const rows = db.prepare("INSERT INTO state (name, key, value, updated_at) VALUES (?, ?, ?, 0)")
+  rows.run("shell", "valid", "retained")
+  rows.run("shell", input.key, input.value)
+  db.close()
+
+  expect(readWindowSnapshot(root, ["shell"])).toEqual({ storage: {} })
+})

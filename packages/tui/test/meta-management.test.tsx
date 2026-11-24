@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 import { InputRenderable, TextareaRenderable } from "@opentui/core"
-import { SessionCommunication } from "@aigcfroge/schema/session-communication"
+import { SessionCommunication } from "@omnixa/schema/session-communication"
 import { createAppFixture } from "./fixture/app"
 import { directory, json } from "./fixture/tui-client"
 

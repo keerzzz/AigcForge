@@ -69,17 +69,6 @@ export const dict = {
   "ui.sessionTurn.retry.attempt": "próba nr {{attempt}}",
   "ui.sessionTurn.retry.attemptLine": "{{line}} - próba nr {{attempt}}",
   "ui.sessionTurn.retry.geminiHot": "Gemini jest teraz mocno przeciążony",
-  "ui.sessionTurn.error.freeUsageExceeded": "Przekroczono limit darmowego użytkowania",
-  "ui.sessionTurn.error.addCredits": "Dodaj środki",
-
-  "dialog.usageExceeded.freeTier.title": "Osiągnięto limit darmowy",
-  "dialog.usageExceeded.freeTier.description":
-    "Subskrybuj AigcForge Go za $10/miesiąc, aby uzyskać niezawodny dostęp do najlepszych modeli open source.",
-  "dialog.usageExceeded.freeTier.actionLabel": "Subskrybuj",
-  "dialog.usageExceeded.accountRateLimit.title": "Osiągnięto limit Go",
-  "dialog.usageExceeded.accountRateLimit.description":
-    "Osiągnięto limit użycia. Aby kontynuować korzystanie z tego modelu teraz, włącz użycie z dostępnego salda",
-  "dialog.usageExceeded.accountRateLimit.actionLabel": "Otwórz ustawienia",
 
   "ui.sessionTurn.status.delegating": "Delegowanie pracy",
   "ui.sessionTurn.status.planning": "Planowanie kolejnych kroków",

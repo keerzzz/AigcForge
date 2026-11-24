@@ -1,8 +1,8 @@
-# @aigcfroge/httpapi-codegen
+# @omnixa/httpapi-codegen
 
 Build-time source generation for domain-oriented Promise and Effect APIs derived directly from `HttpApi` and Effect Schema contracts.
 
-The package is private while its API is explored. Its tests are the executable specification for the generator. It must remain independent of AigcForge Core and use synthetic `HttpApi` fixtures.
+The package is private while its API is explored. Its tests are the executable specification for the generator. It must remain independent of Omnixa Core and use synthetic `HttpApi` fixtures.
 
 ## Settled rules
 
@@ -31,9 +31,9 @@ The package is private while its API is explored. Its tests are the executable s
 
 ## Boundary
 
-This package generates only client APIs derived from `HttpApi`. It does not generate embedded-only capabilities. Networked and embedded AigcForge use the same generated Effect client against network and in-memory `HttpClient` transports respectively; the embedded host structurally extends that client with same-process capabilities.
+This package generates only client APIs derived from `HttpApi`. It does not generate embedded-only capabilities. Networked and embedded Omnixa use the same generated Effect client against network and in-memory `HttpClient` transports respectively; the embedded host structurally extends that client with same-process capabilities.
 
-Codegen generates every endpoint in the `HttpApi` it receives. AigcForge owns the product decision by composing the exact remote API before invoking the generator; the generic package has no endpoint filtering policy.
+Codegen generates every endpoint in the `HttpApi` it receives. Omnixa owns the product decision by composing the exact remote API before invoking the generator; the generic package has no endpoint filtering policy.
 
 The existing public `generate(Api, { directory })` operation writes the rich Effect output and remains an Effect requiring `FileSystem`. The staged API uses pure `compile(Api)`, `emitEffect(contract)`, and `emitPromise(contract)` phases before `write(output, directory)`. Compiler tests inspect virtual files directly; writer tests use `FileSystem.makeNoop`.
 

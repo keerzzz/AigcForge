@@ -1,7 +1,7 @@
 export * as DelegationDigest from "./digest"
 
 import { createHash } from "node:crypto"
-import type { ChangeKind } from "@aigcfroge/schema/delegation"
+import type { ChangeKind } from "@omnixa/schema/delegation"
 
 export interface RevisionDigestInput {
   commitSha: string

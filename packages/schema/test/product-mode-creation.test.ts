@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { ProductMode } from "@aigcfroge/schema/product-mode"
+import { ProductMode } from "@omnixa/schema/product-mode"
 
 /**
  * S7 — which modes an ordinary "new session" can create.

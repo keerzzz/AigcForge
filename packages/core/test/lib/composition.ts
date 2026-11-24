@@ -1,11 +1,11 @@
 export * as CompositionFixture from "./composition"
 
 import { Effect } from "effect"
-import { Agent } from "@aigcfroge/core/agent"
-import { CompositionDigest } from "@aigcfroge/core/composition/digest"
-import { Session } from "@aigcfroge/core/session"
-import { SessionComposition } from "@aigcfroge/core/session/composition"
-import { Composition } from "@aigcfroge/schema/composition"
+import { Agent } from "@omnixa/core/agent"
+import { CompositionDigest } from "@omnixa/core/composition/digest"
+import { Session } from "@omnixa/core/session"
+import { SessionComposition } from "@omnixa/core/session/composition"
+import { Composition } from "@omnixa/schema/composition"
 
 /** Persist a runnable frozen policy without replacing any permission owner. */
 export const attach = Effect.fn("CompositionFixture.attach")(function* (

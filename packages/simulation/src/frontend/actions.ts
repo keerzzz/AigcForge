@@ -141,7 +141,7 @@ export function snapshot(harness: Harness): SimulationProtocol.Frontend.Semantic
     return [...node, ...children(renderable).flatMap((child) => visit(child, ancestor))]
   }
   return Schema.decodeUnknownSync(SimulationProtocol.Frontend.SemanticSnapshot)({
-    format: "aigcfroge-ui-snapshot-v1",
+    format: "omnixa-ui-snapshot-v1",
     nodes: visit(harness.renderer.root),
   })
 }

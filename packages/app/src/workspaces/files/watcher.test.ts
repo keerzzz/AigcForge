@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test"
-import type { AigcForgeEvent } from "@aigcfroge/client/promise"
+import type { OmnixaEvent } from "@omnixa/client/promise"
 import { invalidateFromWatcher } from "./watcher"
 
-type FilesystemEvent = Extract<AigcForgeEvent, { type: "filesystem.changed" }>
+type FilesystemEvent = Extract<OmnixaEvent, { type: "filesystem.changed" }>
 
 const filesystemEvent = (file: string, event: FilesystemEvent["data"]["event"]): FilesystemEvent => ({
   id: `evt_${file}`,

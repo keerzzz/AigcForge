@@ -1,4 +1,4 @@
-import type { Definition } from "@aigcfroge/gui-extensions/sdk"
+import type { Definition } from "@omnixa/gui-extensions/sdk"
 import { expect, sourceURL, story } from "../../storybook/playwright/story"
 
 const source = (path: string) => sourceURL(new URL(path, import.meta.url))

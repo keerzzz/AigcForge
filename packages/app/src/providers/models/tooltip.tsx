@@ -1,4 +1,4 @@
-import type { ModelSourceMetadata, ModelSourceOrigins } from "@aigcfroge/client/promise"
+import type { ModelSourceMetadata, ModelSourceOrigins } from "@omnixa/client/promise"
 import { For, Show, type Component, type JSX } from "solid-js"
 import { useLanguage } from "@/runtime/i18n/language"
 

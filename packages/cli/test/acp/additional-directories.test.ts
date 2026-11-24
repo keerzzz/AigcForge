@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test"
 import path from "node:path"
-import type { Permission } from "@aigcfroge/schema/permission"
+import type { Permission } from "@omnixa/schema/permission"
 import { makeSession, rpcError, startWire, type Wire } from "./wire-fixture"
 
-const key = "aigcfroge.acp.additionalDirectories"
+const key = "omnixa.acp.additionalDirectories"
 
 const grant = (directory: string): Permission.Rule => ({
   action: "external_directory",

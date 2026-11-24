@@ -5,12 +5,12 @@ import path from "path"
 import { Config } from "../src/config"
 import { location } from "./fixture/location"
 import { NodeFileSystem } from "@effect/platform-node"
-import { Document, Info } from "@aigcfroge/schema/config"
+import { Document, Info } from "@omnixa/schema/config"
 import { ConfigMeta } from "../src/config/meta"
 import { CorrectionStore } from "../src/session/correction-store"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { FSUtil } from "@omnixa/util/fs-util"
 import { AppNodeBuilder } from "../src/effect/app-node-builder"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
 import { Location } from "../src/location"
 import { Permission } from "../src/permission"
 import { ReferenceChecker } from "../src/session/reference-checker"
@@ -23,7 +23,7 @@ import { ProjectTable } from "../src/project/sql"
 import { SessionEvent } from "../src/session/event"
 import { SessionProjector } from "../src/session/projector"
 import { SessionStore } from "../src/session/store"
-import { Project } from "@aigcfroge/schema/project"
+import { Project } from "@omnixa/schema/project"
 import { it } from "./lib/effect"
 
 const fsLayer = FSUtil.layer.pipe(Layer.provide(NodeFileSystem.layer))
@@ -113,7 +113,7 @@ const withFixture = (
 ) =>
   Effect.gen(function* () {
     const fs = yield* FSUtil.Service
-    const tmpDir = yield* fs.makeTempDirectory({ directory: os.tmpdir(), prefix: "aigcfroge-refcheck-" })
+    const tmpDir = yield* fs.makeTempDirectory({ directory: os.tmpdir(), prefix: "omnixa-refcheck-" })
     for (const [name, content] of Object.entries(files)) {
       yield* fs.writeWithDirs(path.join(tmpDir, name), content)
     }

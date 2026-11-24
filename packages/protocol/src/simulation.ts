@@ -312,7 +312,7 @@ export namespace Frontend {
   export interface SemanticNode extends Schema.Schema.Type<typeof SemanticNode> {}
 
   export const SemanticSnapshot = Schema.Struct({
-    format: Schema.Literal("aigcfroge-ui-snapshot-v1"),
+    format: Schema.Literal("omnixa-ui-snapshot-v1"),
     nodes: Schema.Array(SemanticNode).check(
       Schema.makeFilter((nodes) => {
         const ids = new Set(nodes.map((node) => node.id))

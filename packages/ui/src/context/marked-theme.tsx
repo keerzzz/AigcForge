@@ -1,7 +1,7 @@
-import type { ThemeRegistrationResolved } from "@pierre/diffs"
+import type { ThemeRegistration } from "@pierre/diffs"
 
-export const AigcForgeTheme = {
-  name: "AigcForge",
+export const OmnixaTheme = {
+  name: "Omnixa",
   bg: "var(--color-background-stronger)",
   fg: "var(--text-base)",
   colors: {
@@ -369,4 +369,4 @@ export const AigcForgeTheme = {
     "variable.constant": "var(--syntax-constant)",
     "variable.defaultLibrary": "var(--syntax-unknown)",
   },
-} as unknown as ThemeRegistrationResolved
+} satisfies ThemeRegistration

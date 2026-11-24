@@ -1,12 +1,12 @@
 import { describe, expect, test } from "bun:test"
 import { createHash } from "node:crypto"
-import { Hash } from "@aigcfroge/util/hash"
+import { Hash } from "@omnixa/util/hash"
 
 // Parity test carried over from the fork's core/util/hash.ts (sha1/sha256 via
-// @noble/hashes) after consolidating on the upstream @aigcfroge/util/hash module.
+// @noble/hashes) after consolidating on the upstream @omnixa/util/hash module.
 describe("util.hash", () => {
   test("matches the Node digest for strings and byte buffers", () => {
-    const input = "AigcForge 哈希"
+    const input = "Omnixa 哈希"
     const bytes = Buffer.from(new TextEncoder().encode(input))
 
     expect(Hash.fast(input)).toBe(createHash("sha1").update(input).digest("hex"))

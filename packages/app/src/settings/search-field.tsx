@@ -2,8 +2,8 @@ import { createEffect, on, onMount } from "solid-js"
 import { createStore } from "solid-js/store"
 import { makeEventListener } from "@solid-primitives/event-listener"
 import { createResizeObserver } from "@solid-primitives/resize-observer"
-import { Icon } from "@aigcfroge/ui/icon"
-import { TextInput } from "@aigcfroge/ui/text-input"
+import { Icon } from "@omnixa/ui/icon"
+import { TextInput } from "@omnixa/ui/text-input"
 import "@/settings/search.css"
 
 export function SettingsSearchField(props: {

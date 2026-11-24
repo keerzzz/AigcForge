@@ -1,6 +1,6 @@
 import { lazy, onCleanup, Show, Suspense } from "solid-js"
 import { Command, MenuItem, onIdle, Panel, SettingsPage, Slot, usePanel, type PanelTab, type Setup } from "../sdk"
-import { Switch } from "@aigcfroge/ui/switch"
+import { Switch } from "@omnixa/ui/switch"
 import type definition from "./index"
 import { SessionContextUsage } from "./indicator"
 

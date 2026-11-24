@@ -1,5 +1,5 @@
-import type { AigcForgeEvent } from "@aigcfroge/client/promise"
-import { createClientConnection, createPtyClient, type ClientConnectionStatus } from "@aigcfroge/client/solid"
+import type { OmnixaEvent } from "@omnixa/client/promise"
+import { createClientConnection, createPtyClient, type ClientConnectionStatus } from "@omnixa/client/solid"
 import { createGlobalEmitter } from "@solid-primitives/event-bus"
 import { type Accessor, batch, createEffect, createSignal, on, onCleanup } from "solid-js"
 import { createApiForServer, type ServerApi } from "@/runtime/server/api"
@@ -10,21 +10,21 @@ import { createRequestQueue } from "@/runtime/server/request-queue"
 import { ServerScope } from "@/runtime/server/scope"
 import { useServer } from "./current"
 
-type AigcForgeEventMap = { [Type in AigcForgeEvent["type"]]: Extract<AigcForgeEvent, { type: Type }> }
+type OmnixaEventMap = { [Type in OmnixaEvent["type"]]: Extract<OmnixaEvent, { type: Type }> }
 
-export type AigcForgeEventStream = {
-  on<Type extends AigcForgeEvent["type"]>(type: Type, handler: (event: AigcForgeEventMap[Type]) => void): VoidFunction
-  listen(handler: (event: AigcForgeEvent) => void): VoidFunction
+export type OmnixaEventStream = {
+  on<Type extends OmnixaEvent["type"]>(type: Type, handler: (event: OmnixaEventMap[Type]) => void): VoidFunction
+  listen(handler: (event: OmnixaEvent) => void): VoidFunction
 }
 
-type AigcForgeEventSource = AigcForgeEventStream & {
-  location(directory: string): AigcForgeEventStream
+type OmnixaEventSource = OmnixaEventStream & {
+  location(directory: string): OmnixaEventStream
 }
 
-export function createAigcForgeEventSource() {
-  const emitter = createGlobalEmitter<AigcForgeEventMap>()
+export function createOmnixaEventSource() {
+  const emitter = createGlobalEmitter<OmnixaEventMap>()
 
-  function stream(directory?: string): AigcForgeEventStream {
+  function stream(directory?: string): OmnixaEventStream {
     return {
       on(type, handler) {
         return emitter.on(type, (event) => {
@@ -41,7 +41,7 @@ export function createAigcForgeEventSource() {
     }
   }
 
-  const event: AigcForgeEventSource = {
+  const event: OmnixaEventSource = {
     ...stream(),
     location: (directory) => stream(directory),
   }
@@ -50,7 +50,7 @@ export function createAigcForgeEventSource() {
 
   return {
     event,
-    publish(event: AigcForgeEvent) {
+    publish(event: OmnixaEvent) {
       emitter.emit(event.type, event)
     },
   }
@@ -69,14 +69,14 @@ type ServerSDKBase = {
     attempt: Accessor<number>
     error: Accessor<string | undefined>
   }
-  event: AigcForgeEventSource
+  event: OmnixaEventSource
 }
 
 function createServerSdkContextBase(server: ServerConnection.Any, scope: ServerScope): ServerSDKBase {
   const platform = usePlatform()
   const transport = createServerTransport({ http: server.http, fetch: platform.fetch })
 
-  const events = createAigcForgeEventSource()
+  const events = createOmnixaEventSource()
   const reconnect = server.type === "extension" || server.type === "sidecar" ? server.reconnect : undefined
 
   const connection = createClientConnection(transport.api, {
@@ -186,7 +186,7 @@ export const useServerSDK = () => {
 
 export type LocationContext = {
   directory: string
-  event: AigcForgeEventStream
+  event: OmnixaEventStream
 }
 
 function createDirSdkContext(directory: string, serverSDK: ServerSDKBase): LocationContext {

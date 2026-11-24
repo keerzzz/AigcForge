@@ -1,6 +1,6 @@
 import type { ContentBlock } from "@agentclientprotocol/sdk"
-import type { Command } from "@aigcfroge/schema/command"
-import { SessionMessage } from "@aigcfroge/schema/session-message"
+import type { Command } from "@omnixa/schema/command"
+import { SessionMessage } from "@omnixa/schema/session-message"
 import { Effect } from "effect"
 import { access, constants } from "node:fs/promises"
 import { fileURLToPath } from "node:url"

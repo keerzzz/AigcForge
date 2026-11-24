@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 import { InputRenderable, TextareaRenderable } from "@opentui/core"
-import type { SessionCreateInput, SessionInfo } from "@aigcfroge/client/promise"
+import type { SessionCreateInput, SessionInfo } from "@omnixa/client/promise"
 import { createAppFixture } from "./fixture/app"
 import { json } from "./fixture/tui-client"
 import { Cause, Effect, Exit } from "effect"
@@ -15,8 +15,8 @@ import { it, awaitWithTimeout } from "../../core/test/lib/effect"
 type SessionInput = { id?: string; location?: { directory: string } }
 
 const location = {
-  directory: "/tmp/aigcfroge/packages/tui",
-  project: { id: "project", directory: "/tmp/aigcfroge", canonical: "/tmp/aigcfroge" },
+  directory: "/tmp/omnixa/packages/tui",
+  project: { id: "project", directory: "/tmp/omnixa", canonical: "/tmp/omnixa" },
 }
 
 function sessionInfo(record: SessionInput) {
@@ -118,8 +118,8 @@ test("a failed first create keeps the launch session ID for the retry", async ()
   expect(run.attempts).toEqual(["ses_chosen", "ses_chosen"])
 })
 
-test("ordinary TUI creates typed CPU sessions from both picker domains and consumes the launch ID once", async () => {
-  const cpu = { providerID: "demo", id: "cpu", variant: "default" }
+test("ordinary TUI creates Meta sessions with delegation preferences and consumes the launch ID once", async () => {
+  const metaModel = { providerID: "demo", id: "meta", variant: "default" }
   const build = { agent: "build", model: { providerID: "demo", id: "build", variant: "low" } }
   const explore = { agent: "explore", model: { providerID: "demo", id: "explore", variant: "high" } }
   const attempts: SessionCreateInput[] = []
@@ -139,18 +139,18 @@ test("ordinary TUI creates typed CPU sessions from both picker domains and consu
           location,
           data: [
             {
-              id: "meta",
-              mode: "primary",
-              hidden: false,
-              permissions: [],
-              model: { providerID: "demo", id: "cpu", variant: "high" },
-            },
-            {
               id: "build",
               mode: "all",
               hidden: false,
               permissions: [],
               model: { providerID: "demo", id: "build", variant: "high" },
+            },
+            {
+              id: "meta",
+              mode: "primary",
+              hidden: false,
+              permissions: [],
+              model: { providerID: "demo", id: "meta", variant: "high" },
             },
             { id: "plan", mode: "primary", hidden: false, permissions: [] },
             {
@@ -166,7 +166,7 @@ test("ordinary TUI creates typed CPU sessions from both picker domains and consu
       if (url.pathname === "/api/model")
         return json({
           location,
-          data: ["cpu", "build", "explore"].map((id) => ({
+          data: ["meta", "build", "explore"].map((id) => ({
             id,
             providerID: "demo",
             name: id + " model",
@@ -186,17 +186,16 @@ test("ordinary TUI creates typed CPU sessions from both picker domains and consu
           id: record.id,
           location: { directory: location.directory },
           agent: "meta",
-          control: "meta",
-          model: cpu,
+          model: metaModel,
           executorPreference: created.length === 0 ? build : explore,
         })
         // Predetermined canonical facts follow the request assertions.
         const info: SessionInfo = {
           ...sessionInfo({ id: record.id }),
           id: record.id,
-          title: "Typed CPU creation " + (created.length + 1),
+          title: "Meta creation " + (created.length + 1),
           agent: "meta",
-          model: cpu,
+          model: metaModel,
           executorPreference: created.length === 0 ? build : explore,
           controller: { kind: "root", metaAgentID: "mag_creation_" + (created.length + 1), rootSessionID: record.id },
         }
@@ -222,8 +221,33 @@ test("ordinary TUI creates typed CPU sessions from both picker domains and consu
   })
 
   await setup.ready
-  await setup.waitForFrame((frame) => frame.includes("CPU · cpu model Demo · high") && frame.includes("Executor Build"))
+  await setup.waitForFrame((frame) => frame.includes("Build · build model Demo · high"))
   setup.mockInput.pressKey("F10")
+  await setup.waitForFrame(
+    (frame) =>
+      frame.includes("Select agent") &&
+      frame.includes("meta") &&
+      frame.includes("plan") &&
+      setup.renderer.currentFocusedRenderable instanceof InputRenderable,
+  )
+  await setup.mockInput.typeText("meta")
+  await setup.renderOnce()
+  setup.mockInput.pressEnter()
+  await setup.waitForFrame(
+    (frame) =>
+      frame.includes("Meta · meta model Demo · high") &&
+      setup.renderer.currentFocusedRenderable instanceof TextareaRenderable,
+  )
+
+  setup.mockInput.pressKey("F10")
+  await setup.waitForFrame(
+    (frame) =>
+      frame.includes("Select agent") &&
+      frame.includes("Delegation preference") &&
+      setup.renderer.currentFocusedRenderable instanceof InputRenderable,
+  )
+  setup.mockInput.pressTab()
+  setup.mockInput.pressEnter()
   await setup.waitForFrame(
     (frame) => frame.includes("Select executor") && setup.renderer.currentFocusedRenderable instanceof InputRenderable,
   )
@@ -243,7 +267,31 @@ test("ordinary TUI creates typed CPU sessions from both picker domains and consu
   await setup.mockInput.typeText("low")
   await setup.renderOnce()
   setup.mockInput.pressEnter()
-  await setup.waitForFrame((frame) => frame.includes("Executor Build · build model Demo · low"))
+  await setup.waitForFrame(
+    (frame) =>
+      frame.includes("Meta · meta model Demo · high") &&
+      setup.renderer.currentFocusedRenderable instanceof TextareaRenderable,
+  )
+
+  // Read the saved executor marker without selecting another sorted model.
+  setup.mockInput.pressKey("F10")
+  await setup.waitForFrame(
+    (frame) => frame.includes("Select agent") && setup.renderer.currentFocusedRenderable instanceof InputRenderable,
+  )
+  setup.mockInput.pressTab()
+  setup.mockInput.pressEnter()
+  await setup.waitForFrame(
+    (frame) =>
+      frame.includes("Select executor") &&
+      frame.split("\n").some((line) => /●\s+build(?:\s|$)/.test(line)) &&
+      setup.renderer.currentFocusedRenderable instanceof InputRenderable,
+  )
+  setup.mockInput.pressEscape()
+  await setup.waitForFrame(
+    (frame) =>
+      frame.includes("Meta · meta model Demo · high") &&
+      setup.renderer.currentFocusedRenderable instanceof TextareaRenderable,
+  )
 
   // F9 uses the unchanged direct app entry; the unfiltered second row is the literal catalog ID.
   setup.mockInput.pressKey("F9")
@@ -258,8 +306,7 @@ test("ordinary TUI creates typed CPU sessions from both picker domains and consu
   setup.mockInput.pressEnter()
   await setup.waitForFrame(
     (frame) =>
-      frame.includes("CPU · cpu model Demo · default") &&
-      frame.includes("Executor Build · build model Demo · low") &&
+      frame.includes("Meta · meta model Demo · default") &&
       setup.renderer.currentFocusedRenderable instanceof TextareaRenderable,
   )
   await setup.mockInput.typeText("hello")
@@ -267,19 +314,23 @@ test("ordinary TUI creates typed CPU sessions from both picker domains and consu
   await setup.waitForFrame(() => created.length === 1 && prompts.length === 1)
   expect(prompts).toEqual(["ses_chosen"])
   expect(created[0]?.controller).toEqual({ kind: "root", metaAgentID: "mag_creation_1", rootSessionID: "ses_chosen" })
-  await setup.waitForFrame(
-    (frame) =>
-      frame.includes("CPU · cpu model Demo · default") && frame.includes("Executor Build · build model Demo · low"),
-  )
+  await setup.waitForFrame((frame) => frame.includes("Meta · meta model Demo · default"))
 
   setup.mockInput.pressKey("F6")
   await setup.waitForFrame(
     (frame) =>
-      frame.includes("CPU · cpu model Demo · default") &&
-      frame.includes("Executor Build · build model Demo · low") &&
+      frame.includes("Meta · meta model Demo · default") &&
       setup.renderer.currentFocusedRenderable instanceof TextareaRenderable,
   )
   setup.mockInput.pressKey("F10")
+  await setup.waitForFrame(
+    (frame) =>
+      frame.includes("Select agent") &&
+      frame.includes("Delegation preference") &&
+      setup.renderer.currentFocusedRenderable instanceof InputRenderable,
+  )
+  setup.mockInput.pressTab()
+  setup.mockInput.pressEnter()
   await setup.waitForFrame(
     (frame) => frame.includes("Select executor") && setup.renderer.currentFocusedRenderable instanceof InputRenderable,
   )
@@ -301,8 +352,27 @@ test("ordinary TUI creates typed CPU sessions from both picker domains and consu
   setup.mockInput.pressEnter()
   await setup.waitForFrame(
     (frame) =>
-      frame.includes("CPU · cpu model Demo · default") &&
-      frame.includes("Executor Explore · explore model Demo · high"),
+      frame.includes("Meta · meta model Demo · default") &&
+      setup.renderer.currentFocusedRenderable instanceof TextareaRenderable,
+  )
+
+  setup.mockInput.pressKey("F10")
+  await setup.waitForFrame(
+    (frame) => frame.includes("Select agent") && setup.renderer.currentFocusedRenderable instanceof InputRenderable,
+  )
+  setup.mockInput.pressTab()
+  setup.mockInput.pressEnter()
+  await setup.waitForFrame(
+    (frame) =>
+      frame.includes("Select executor") &&
+      frame.split("\n").some((line) => /●\s+explore(?:\s|$)/.test(line)) &&
+      setup.renderer.currentFocusedRenderable instanceof InputRenderable,
+  )
+  setup.mockInput.pressEscape()
+  await setup.waitForFrame(
+    (frame) =>
+      frame.includes("Meta · meta model Demo · default") &&
+      setup.renderer.currentFocusedRenderable instanceof TextareaRenderable,
   )
   await setup.mockInput.typeText("again")
   setup.mockInput.pressEnter()
@@ -311,7 +381,7 @@ test("ordinary TUI creates typed CPU sessions from both picker domains and consu
   expect(created[1]?.id).not.toBe("ses_chosen")
   expect(attempts.filter((item) => item.id === "ses_chosen")).toHaveLength(1)
   expect(prompts).toEqual(created.map((item) => item.id))
-  expect(created.map((item) => item.model)).toEqual([cpu, cpu])
+  expect(created.map((item) => item.model)).toEqual([metaModel, metaModel])
   expect(created.map((item) => item.executorPreference)).toEqual([build, explore])
   expect(created[1]?.controller).toEqual({
     kind: "root",
@@ -319,11 +389,7 @@ test("ordinary TUI creates typed CPU sessions from both picker domains and consu
     rootSessionID: created[1]?.id,
   })
   expect(selectionMutations).toEqual([])
-  await setup.waitForFrame(
-    (frame) =>
-      frame.includes("CPU · cpu model Demo · default") &&
-      frame.includes("Executor Explore · explore model Demo · high"),
-  )
+  await setup.waitForFrame((frame) => frame.includes("Meta · meta model Demo · default"))
 })
 
 it.live("real Tui.run finishes tab persistence and lease release before fixture disposal", () =>
@@ -485,7 +551,7 @@ it.live("real Tui.run retains its epilogue and full Scope failure when renderer 
     expect(Exit.hasDies(exit)).toBe(true)
     if (Exit.isSuccess(exit)) return yield* Effect.die(new Error("App cleanup failure became success"))
     expect(exit.cause.reasons.some((reason) => reason._tag === "Die" && reason.defect === failure)).toBe(true)
-    expect(output.join("")).toContain("aigcfroge -s ses_chosen")
+    expect(output.join("")).toContain("omnixa -s ses_chosen")
     expect(run.setup[Symbol.asyncDispose]()).toBe(disposal)
     yield* Effect.promise(async () => {
       await expect(access(run.setup.directory)).rejects.toMatchObject({ code: "ENOENT" })

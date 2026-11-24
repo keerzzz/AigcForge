@@ -1,1 +1,1 @@
-export * as ConfigCliAgent from "@aigcfroge/schema/config/cli-agent"
+export * as ConfigCliAgent from "@omnixa/schema/config/cli-agent"

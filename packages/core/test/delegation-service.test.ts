@@ -2,36 +2,36 @@ import { describe, expect } from "bun:test"
 import { asc, eq } from "drizzle-orm"
 import { Cause, Context, Deferred, Effect, Exit, Fiber, Layer, Option } from "effect"
 import { TestClock } from "effect/testing"
-import { Bus } from "@aigcfroge/core/bus"
-import { Database } from "@aigcfroge/core/database/database"
-import { KV } from "@aigcfroge/core/kv"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { DelegationEvent } from "@aigcfroge/core/delegation/event"
-import { DelegationProjector } from "@aigcfroge/core/delegation/projector"
-import { DelegationPresentation } from "@aigcfroge/core/delegation/presentation"
-import { DelegationService } from "@aigcfroge/core/delegation/service"
-import { MetaAgentService } from "@aigcfroge/core/meta-agent/service"
-import { MetaAgentTable, MetaAgentSessionTable } from "@aigcfroge/core/meta-agent/sql"
-import { DelegationParticipantTable, DelegationTable, DelegationTurnTable } from "@aigcfroge/core/delegation/sql"
-import { EventSequenceTable, EventTable } from "@aigcfroge/core/event/sql"
-import { Project } from "@aigcfroge/core/project"
-import { Agent } from "@aigcfroge/core/agent"
-import { Location } from "@aigcfroge/core/location"
-import { LocationServiceMap } from "@aigcfroge/core/location-service-map"
-import { Model } from "@aigcfroge/core/model"
-import { Provider } from "@aigcfroge/core/provider"
-import { SessionComposition } from "@aigcfroge/core/session/composition"
-import { ProjectTable } from "@aigcfroge/core/project/sql"
-import { AbsolutePath } from "@aigcfroge/core/schema"
-import { SessionTable } from "@aigcfroge/core/session/sql"
-import { CliAdapter } from "@aigcfroge/core/tool/cli-adapter"
-import { Delegation } from "@aigcfroge/schema/delegation"
-import { DelegationID, ParticipantID } from "@aigcfroge/schema/delegation-id"
-import { Event } from "@aigcfroge/schema/event"
-import { Session } from "@aigcfroge/core/session"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { Global } from "@aigcfroge/util/global"
-import { MetaAgent } from "@aigcfroge/schema/meta-agent"
+import { Bus } from "@omnixa/core/bus"
+import { Database } from "@omnixa/core/database/database"
+import { KV } from "@omnixa/core/kv"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { DelegationEvent } from "@omnixa/core/delegation/event"
+import { DelegationProjector } from "@omnixa/core/delegation/projector"
+import { DelegationPresentation } from "@omnixa/core/delegation/presentation"
+import { DelegationService } from "@omnixa/core/delegation/service"
+import { MetaAgentService } from "@omnixa/core/meta-agent/service"
+import { MetaAgentTable, MetaAgentSessionTable } from "@omnixa/core/meta-agent/sql"
+import { DelegationParticipantTable, DelegationTable, DelegationTurnTable } from "@omnixa/core/delegation/sql"
+import { EventSequenceTable, EventTable } from "@omnixa/core/event/sql"
+import { Project } from "@omnixa/core/project"
+import { Agent } from "@omnixa/core/agent"
+import { Location } from "@omnixa/core/location"
+import { LocationServiceMap } from "@omnixa/core/location-service-map"
+import { Model } from "@omnixa/core/model"
+import { Provider } from "@omnixa/core/provider"
+import { SessionComposition } from "@omnixa/core/session/composition"
+import { ProjectTable } from "@omnixa/core/project/sql"
+import { AbsolutePath } from "@omnixa/core/schema"
+import { SessionTable } from "@omnixa/core/session/sql"
+import { CliAdapter } from "@omnixa/core/tool/cli-adapter"
+import { Delegation } from "@omnixa/schema/delegation"
+import { DelegationID, ParticipantID } from "@omnixa/schema/delegation-id"
+import { Event } from "@omnixa/schema/event"
+import { Session } from "@omnixa/core/session"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { Global } from "@omnixa/util/global"
+import { MetaAgent } from "@omnixa/schema/meta-agent"
 import { tempGlobalLayer } from "./fixture/global"
 import { offlineModels, useOfflineCatalog } from "./fixture/models"
 import { withEnv } from "./fixture/env"
@@ -83,7 +83,7 @@ const metaForkFixture = Effect.gen(function* () {
       info: Provider.Info.make({
         ...Provider.Info.empty(providerID),
         activation: "enabled",
-        package: "@aigcfroge/ai/providers/openai/responses",
+        package: "@omnixa/ai/providers/openai/responses",
       }),
       models: [metaModel, workerModel, reviewerModel]
         .filter((model) => model.providerID === providerID)
@@ -1779,7 +1779,7 @@ describe("DelegationService retained Bus owner", () => {
   )
 
   it.effect("uses the same exact soft expiry threshold as the public presentation", () =>
-    withEnv({ AIGCFROGE_DELEGATION_SOFT_EXPIRY_DAYS: "1" }, () =>
+    withEnv({ OMNIXA_DELEGATION_SOFT_EXPIRY_DAYS: "1" }, () =>
       Effect.gen(function* () {
         const seed = yield* setup
         yield* TestClock.adjust("23 hours")

@@ -8,8 +8,8 @@ import { useSettings } from "@/settings/model"
 import { useTabs } from "@/shell/tabs/tabs"
 import { ServerConnection } from "@/runtime/server/registry"
 import { normalizeProjectInfo } from "@/runtime/server/global-sync/utils"
-import { sameDirectory } from "@aigcfroge/util/path"
-import type { LocationRef } from "@aigcfroge/client/promise"
+import { sameDirectory } from "@omnixa/util/path"
+import type { LocationRef } from "@omnixa/client/promise"
 import {
   isWorkspaceDirectory,
   isWorkspaceSelection,

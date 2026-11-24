@@ -1,6 +1,6 @@
-import type { AgentApi } from "@aigcfroge/client/effect/api"
-import type { Agent } from "@aigcfroge/schema/agent"
-import type { Session } from "@aigcfroge/schema/session"
+import type { AgentApi } from "@omnixa/client/effect/api"
+import type { Agent } from "@omnixa/schema/agent"
+import type { Session } from "@omnixa/schema/session"
 import type { Effect, Types } from "effect"
 import type { Transform } from "./registration.js"
 

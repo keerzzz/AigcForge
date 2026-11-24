@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import type { PromptFileAttachment } from "@aigcfroge/client/promise"
+import type { PromptFileAttachment } from "@omnixa/client/promise"
 import { attached, typeLabel } from "./message-file"
 
 function file(source: PromptFileAttachment["source"], mention = false): PromptFileAttachment {

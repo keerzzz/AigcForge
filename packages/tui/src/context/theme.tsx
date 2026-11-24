@@ -6,7 +6,7 @@ import {
   themeModes,
   type ResolvedTheme,
   type SurfaceName,
-} from "@aigcfroge/theme/tui"
+} from "@omnixa/theme/tui"
 import {
   allThemes,
   hasTheme,
@@ -112,7 +112,7 @@ type ThemeContextValue = {
 const [store, setStore] = createStore<State>({
   mode: "dark",
   lock: undefined,
-  active: "aigcfroge",
+  active: "omnixa",
   ready: false,
 })
 const [themeSources, setThemeSources] = createSignal(allThemes())
@@ -134,7 +134,7 @@ const themeContext = createSimpleContext({
         const mode = lock ?? renderer.themeMode ?? props.mode
         draft.mode = mode
         draft.lock = lock
-        draft.active = config.theme?.name ?? "aigcfroge"
+        draft.active = config.theme?.name ?? "omnixa"
         draft.ready = false
       }),
     )
@@ -161,7 +161,7 @@ const themeContext = createSimpleContext({
         .then((themes) => {
           setCustomThemes(themes)
         })
-        .catch(() => setStore("active", "aigcfroge"))
+        .catch(() => setStore("active", "omnixa"))
     }
 
     onMount(() => {
@@ -289,14 +289,14 @@ const themeContext = createSimpleContext({
     const initStarted = performance.now()
     const selected = createMemo(() => {
       const sources = themeSources()
-      const name = sources[store.active] ? store.active : "aigcfroge"
+      const name = sources[store.active] ? store.active : "omnixa"
       try {
         return loadTheme(sources[name], name, store.mode)
       } catch (error) {
-        if (name === "aigcfroge") throw error
+        if (name === "omnixa") throw error
         themeErrors.emit(name, error)
-        setStore("active", "aigcfroge")
-        return loadTheme(sources.aigcfroge, "aigcfroge", store.mode)
+        setStore("active", "omnixa")
+        return loadTheme(sources.omnixa, "omnixa", store.mode)
       }
     })
     const modes = () => selected().modes

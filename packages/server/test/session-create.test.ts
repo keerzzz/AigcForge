@@ -1,33 +1,33 @@
 import { expect } from "bun:test"
-import { Session } from "@aigcfroge/schema/session"
-import { SessionConsultation } from "@aigcfroge/schema/session-consultation"
-import { SessionEvent } from "@aigcfroge/schema/session-event"
-import { SessionMessage } from "@aigcfroge/schema/session-message"
-import { Agent } from "@aigcfroge/schema/agent"
-import { SessionsCursor } from "@aigcfroge/protocol/groups/session"
-import { AigcForge } from "@aigcfroge/client/promise"
+import { Session } from "@omnixa/schema/session"
+import { SessionConsultation } from "@omnixa/schema/session-consultation"
+import { SessionEvent } from "@omnixa/schema/session-event"
+import { SessionMessage } from "@omnixa/schema/session-message"
+import { Agent } from "@omnixa/schema/agent"
+import { SessionsCursor } from "@omnixa/protocol/groups/session"
+import { Omnixa } from "@omnixa/client/promise"
 import { Context, Effect, Layer, Schema } from "effect"
 import { it } from "../../core/test/lib/effect"
 import path from "node:path"
-import { Database } from "@aigcfroge/core/database/database"
-import { Bus } from "@aigcfroge/core/bus"
-import { Location } from "@aigcfroge/core/location"
-import { LocationServiceMap } from "@aigcfroge/core/location-service-map"
-import { Model } from "@aigcfroge/core/model"
-import { Provider } from "@aigcfroge/core/provider"
-import { Project } from "@aigcfroge/core/project"
-import { SessionInbox } from "@aigcfroge/core/session/inbox"
+import { Database } from "@omnixa/core/database/database"
+import { Bus } from "@omnixa/core/bus"
+import { Location } from "@omnixa/core/location"
+import { LocationServiceMap } from "@omnixa/core/location-service-map"
+import { Model } from "@omnixa/core/model"
+import { Provider } from "@omnixa/core/provider"
+import { Project } from "@omnixa/core/project"
+import { SessionInbox } from "@omnixa/core/session/inbox"
 import {
   SessionConsultationTable,
   SessionInboxTable,
   SessionMessageTable,
   SessionTable,
-} from "@aigcfroge/core/session/sql"
-import { MetaAgentTable, MetaAgentSessionTable } from "@aigcfroge/core/meta-agent/sql"
-import { EventTable } from "@aigcfroge/core/event/sql"
-import { AbsolutePath } from "@aigcfroge/schema/schema"
-import { Global } from "@aigcfroge/util/global"
-import { Hash } from "@aigcfroge/util/hash"
+} from "@omnixa/core/session/sql"
+import { MetaAgentTable, MetaAgentSessionTable } from "@omnixa/core/meta-agent/sql"
+import { EventTable } from "@omnixa/core/event/sql"
+import { AbsolutePath } from "@omnixa/schema/schema"
+import { Global } from "@omnixa/util/global"
+import { Hash } from "@omnixa/util/hash"
 import { HttpEffect, HttpRouter, HttpServer } from "effect/http"
 import { tempGlobalLayer } from "../../core/test/fixture/global"
 import { createLegacySession, useOfflineCatalog } from "../../core/test/fixture/models"
@@ -48,7 +48,7 @@ const SessionsResponse = Schema.Struct({
 
 const setup = (config = "{}") =>
   Effect.gen(function* () {
-    const directory = (yield* tmpdirScoped("aigcfroge-server-create-")).path
+    const directory = (yield* tmpdirScoped("omnixa-server-create-")).path
     const location = Location.Ref.make({ directory: AbsolutePath.make(directory) })
     const context = yield* Layer.build(
       createRoutes(
@@ -71,7 +71,7 @@ const setup = (config = "{}") =>
           info: Provider.Info.make({
             ...Provider.Info.empty(model.providerID),
             activation: "enabled",
-            package: "@aigcfroge/ai/providers/openai/responses",
+            package: "@omnixa/ai/providers/openai/responses",
           }),
           models: [
             Model.Info.make({
@@ -88,15 +88,15 @@ const setup = (config = "{}") =>
     const consult = (sourceSessionID: string, payload: unknown) =>
       Effect.promise(() =>
         handler(
-          new Request(`http://aigcfroge.local/api/session/${sourceSessionID}/consultation`, {
+          new Request(`http://omnixa.local/api/session/${sourceSessionID}/consultation`, {
             method: "POST",
             headers: { "content-type": "application/json" },
             body: JSON.stringify(payload),
           }),
         ),
       )
-    const client = AigcForge.make({
-      baseUrl: "http://aigcfroge.local",
+    const client = Omnixa.make({
+      baseUrl: "http://omnixa.local",
       fetch: Object.assign(
         (...args: Parameters<typeof fetch>) => handler(args[0] instanceof Request ? args[0] : new Request(...args)),
         { preconnect: fetch.preconnect },
@@ -154,7 +154,7 @@ it.live("forks through a selected HTTP boundary and rejects combined boundaries 
     const fork = (payload: unknown) =>
       Effect.promise(() =>
         test.handler(
-          new Request(`http://aigcfroge.local/api/session/${source.id}/fork`, {
+          new Request(`http://omnixa.local/api/session/${source.id}/fork`, {
             method: "POST",
             headers: { "content-type": "application/json" },
             body: JSON.stringify(payload),
@@ -303,7 +303,7 @@ it.live("SC07 reads a consultation reference and first state without admitting w
 
     const created = Schema.decodeUnknownSync(ConsultationResponse)(yield* Effect.promise(() => response.json())).data
     const read = (sessionID: string) =>
-      Effect.promise(() => test.handler(new Request(`http://aigcfroge.local/api/session/${sessionID}/consultation`)))
+      Effect.promise(() => test.handler(new Request(`http://omnixa.local/api/session/${sessionID}/consultation`)))
     const snapshot = Effect.all({
       state: test.snapshot,
       consultation: test.db.select().from(SessionConsultationTable),
@@ -381,7 +381,7 @@ for (const sourceState of ["deleted", "moved"] as const)
       if (sourceState === "deleted") yield* Effect.promise(() => test.client.session.remove({ sessionID: source.id }))
       if (sourceState === "moved") {
         const destination = Location.Ref.make({
-          directory: AbsolutePath.make((yield* tmpdirScoped("aigcfroge-consultation-moved-")).path),
+          directory: AbsolutePath.make((yield* tmpdirScoped("omnixa-consultation-moved-")).path),
         })
         const project = yield* test.projects.resolve(destination.directory)
         yield* test.bus.publish(SessionEvent.Moved, {
@@ -566,7 +566,7 @@ it.live("creates a child at its parent's location and lists it under the parent"
     const create = (body: Record<string, unknown>) =>
       Effect.promise(async () => {
         const response = await handler(
-          new Request("http://aigcfroge.local/api/session", {
+          new Request("http://omnixa.local/api/session", {
             method: "POST",
             headers: { "content-type": "application/json" },
             body: JSON.stringify({ location: test.location, model: test.model, ...body }),
@@ -579,7 +579,7 @@ it.live("creates a child at its parent's location and lists it under the parent"
     expect(parent.mode).toBe("coding")
     const child = yield* create({ parentID: parent.id, title: "Child", location: { directory: "/unused" } })
     const response = yield* Effect.promise(() =>
-      handler(new Request(`http://aigcfroge.local/api/session?parentID=${parent.id}`)),
+      handler(new Request(`http://omnixa.local/api/session?parentID=${parent.id}`)),
     )
     expect(response.status).toBe(200)
     const children = Schema.decodeUnknownSync(SessionsResponse)(yield* Effect.promise(() => response.json()))
@@ -596,7 +596,7 @@ it.live("returns not found when creating a child of a missing session", () =>
     const parentID = Session.ID.create()
     const response = yield* Effect.promise(() =>
       handler(
-        new Request("http://aigcfroge.local/api/session", {
+        new Request("http://omnixa.local/api/session", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ parentID, title: "Child" }),
@@ -758,7 +758,7 @@ it.live("preserves a stored directory alias when creating and reading a Meta roo
     yield* test.configureModels(location)
     const response = yield* Effect.promise(() =>
       test.handler(
-        new Request("http://aigcfroge.local/api/session", {
+        new Request("http://omnixa.local/api/session", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
@@ -788,9 +788,7 @@ it.live("preserves a stored directory alias when creating and reading a Meta roo
         controller: { kind: "root", rootSessionID: created.id },
       },
     ])
-    const read = yield* Effect.promise(() =>
-      test.handler(new Request(`http://aigcfroge.local/api/session/${created.id}`)),
-    )
+    const read = yield* Effect.promise(() => test.handler(new Request(`http://omnixa.local/api/session/${created.id}`)))
     expect(read.status).toBe(200)
     expect(Schema.decodeUnknownSync(SessionResponse)(yield* Effect.promise(() => read.json())).data).toEqual(created)
   }).pipe(Effect.scoped),
@@ -803,7 +801,7 @@ for (const mode of ["unknown-mode", "custom"] as const)
       const handler = test.handler
       const response = yield* Effect.promise(() =>
         handler(
-          new Request("http://aigcfroge.local/api/session", {
+          new Request("http://omnixa.local/api/session", {
             method: "POST",
             headers: { "content-type": "application/json" },
             body: JSON.stringify({ mode, title: "Rejected mode" }),
@@ -811,7 +809,7 @@ for (const mode of ["unknown-mode", "custom"] as const)
         ),
       )
       expect(response.status).toBe(400)
-      const read = yield* Effect.promise(() => handler(new Request("http://aigcfroge.local/api/session")))
+      const read = yield* Effect.promise(() => handler(new Request("http://omnixa.local/api/session")))
       expect(read.status).toBe(200)
       expect(Schema.decodeUnknownSync(SessionsResponse)(yield* Effect.promise(() => read.json())).data).toEqual([])
     }).pipe(Effect.scoped),
@@ -824,7 +822,7 @@ it.live("inherits the parent's mode and adopts an existing ID without reclassifi
     const create = (body: Record<string, unknown>) =>
       Effect.promise(async () => {
         const response = await handler(
-          new Request("http://aigcfroge.local/api/session", {
+          new Request("http://omnixa.local/api/session", {
             method: "POST",
             headers: { "content-type": "application/json" },
             body: JSON.stringify({ location: test.location, model: test.model, ...body }),
@@ -838,7 +836,7 @@ it.live("inherits the parent's mode and adopts an existing ID without reclassifi
     const child = yield* create({ parentID: parent.id, mode: "chat", agent: "plan" })
     expect(child).toMatchObject({ parentID: parent.id, mode: "work", agent: "plan", location: parent.location })
     expect(yield* create({ id: parent.id, mode: "assistant", agent: "plan" })).toEqual(parent)
-    const read = yield* Effect.promise(() => handler(new Request(`http://aigcfroge.local/api/session/${parent.id}`)))
+    const read = yield* Effect.promise(() => handler(new Request(`http://omnixa.local/api/session/${parent.id}`)))
     expect(Schema.decodeUnknownSync(SessionResponse)(yield* Effect.promise(() => read.json())).data).toEqual(parent)
   }).pipe(Effect.scoped),
 )
@@ -851,7 +849,7 @@ it.live("routes Session.list mode through cursors without narrowing omitted or e
     const create = (body: Record<string, unknown>) =>
       Effect.promise(async () => {
         const response = await handler(
-          new Request("http://aigcfroge.local/api/session", {
+          new Request("http://omnixa.local/api/session", {
             method: "POST",
             headers: { "content-type": "application/json" },
             body: JSON.stringify({ location: test.location, model: test.model, ...body }),
@@ -865,7 +863,7 @@ it.live("routes Session.list mode through cursors without narrowing omitted or e
 
     const list = (query: URLSearchParams) =>
       Effect.promise(async () => {
-        const response = await handler(new Request("http://aigcfroge.local/api/session?" + query.toString()))
+        const response = await handler(new Request("http://omnixa.local/api/session?" + query.toString()))
 
         expect(response.status).toBe(200)
 
@@ -944,9 +942,7 @@ it.live("routes Session.list mode through cursors without narrowing omitted or e
     ])
     expect((yield* list(new URLSearchParams({ mode: "custom" }))).data).toEqual([])
 
-    const exact = yield* Effect.promise(() =>
-      handler(new Request("http://aigcfroge.local/api/session/ses_list_coding")),
-    )
+    const exact = yield* Effect.promise(() => handler(new Request("http://omnixa.local/api/session/ses_list_coding")))
 
     expect(exact.status).toBe(200)
     expect(Schema.decodeUnknownSync(SessionResponse)(yield* Effect.promise(() => exact.json())).data).toMatchObject({
@@ -955,13 +951,13 @@ it.live("routes Session.list mode through cursors without narrowing omitted or e
     })
 
     const invalid = yield* Effect.promise(() =>
-      handler(new Request("http://aigcfroge.local/api/session?mode=unknown-mode")),
+      handler(new Request("http://omnixa.local/api/session?mode=unknown-mode")),
     )
 
     expect(invalid.status).toBe(400)
 
-    const client = AigcForge.make({
-      baseUrl: "http://aigcfroge.local",
+    const client = Omnixa.make({
+      baseUrl: "http://omnixa.local",
       fetch: Object.assign(
         (...args: Parameters<typeof fetch>) => handler(args[0] instanceof Request ? args[0] : new Request(...args)),
         { preconnect: fetch.preconnect },
@@ -992,7 +988,7 @@ it.live("rejects a raw Meta child and preserves ordinary Build creation with an 
     const test = yield* setup()
     const parentResponse = yield* Effect.promise(() =>
       test.handler(
-        new Request("http://aigcfroge.local/api/session", {
+        new Request("http://omnixa.local/api/session", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ location: test.location, model: test.model, agent: "meta" }),
@@ -1004,7 +1000,7 @@ it.live("rejects a raw Meta child and preserves ordinary Build creation with an 
     const before = yield* test.snapshot
     const response = yield* Effect.promise(() =>
       test.handler(
-        new Request("http://aigcfroge.local/api/session", {
+        new Request("http://omnixa.local/api/session", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ parentID: parent.id }),
@@ -1020,7 +1016,7 @@ it.live("rejects a raw Meta child and preserves ordinary Build creation with an 
     expect(yield* test.snapshot).toEqual(before)
     const ordinaryResponse = yield* Effect.promise(() =>
       test.handler(
-        new Request("http://aigcfroge.local/api/session", {
+        new Request("http://omnixa.local/api/session", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({

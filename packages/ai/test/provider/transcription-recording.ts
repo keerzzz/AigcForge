@@ -1,4 +1,4 @@
-import type { HttpRecorder } from "@aigcfroge/http-recorder"
+import type { HttpRecorder } from "@omnixa/http-recorder"
 import { Effect } from "effect"
 import { Media } from "../../src/index.js"
 
@@ -7,13 +7,13 @@ const fixture = (name: string) =>
     Effect.map((bytes) => Media.bytes(bytes, "audio/mpeg")),
   )
 
-/** "Hello from AigcForge." spoken by Deepgram Aura (`aura-2-thalia-en`, 32 kbps MP3). */
+/** "Hello from Omnixa." spoken by Deepgram Aura (`aura-2-thalia-en`, 32 kbps MP3). */
 export const audio = fixture("hello.mp3")
 
 /** "Did the release ship?" (`aura-2-thalia-en`), then "Yes, it shipped this morning." (`aura-2-orion-en`). */
 export const dialog = fixture("dialog.mp3")
 
-/** Providers disagree on "AigcForge" versus "Open Code" and on the final punctuation. */
+/** Providers disagree on "Omnixa" versus "Open Code" and on the final punctuation. */
 export const TRANSCRIPT = /^hello,? from aigc ?forge[.!]?$/i
 
 /**

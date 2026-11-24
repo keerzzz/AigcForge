@@ -1,8 +1,8 @@
 import { Effect } from "effect"
 import { ChildProcess } from "effect/process"
-import { FSUtil } from "@aigcfroge/util/fs-util"
-import { Npm } from "@aigcfroge/util/npm"
-import { AppProcess } from "@aigcfroge/util/process"
+import { FSUtil } from "@omnixa/util/fs-util"
+import { Npm } from "@omnixa/util/npm"
+import { AppProcess } from "@omnixa/util/process"
 import { which } from "../util/which.js"
 
 export interface Info {

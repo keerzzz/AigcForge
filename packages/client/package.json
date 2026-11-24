@@ -1,12 +1,12 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "name": "@aigcfroge/client",
+  "name": "@omnixa/client",
   "version": "0.0.9",
   "type": "module",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/anomalyco/aigcfroge.git",
+    "url": "git+https://github.com/keerzzz/AigcForge.git",
     "directory": "packages/client"
   },
   "publishConfig": {
@@ -33,8 +33,8 @@
     "typecheck": "tsgo --noEmit"
   },
   "dependencies": {
-    "@aigcfroge/schema": "workspace:*",
-    "@aigcfroge/protocol": "workspace:*"
+    "@omnixa/schema": "workspace:*",
+    "@omnixa/protocol": "workspace:*"
   },
   "peerDependencies": {
     "effect": "catalog:",
@@ -50,7 +50,7 @@
   },
   "devDependencies": {
     "@effect/platform-node": "catalog:",
-    "@aigcfroge/httpapi-codegen": "workspace:*",
+    "@omnixa/httpapi-codegen": "workspace:*",
     "@tsconfig/bun": "catalog:",
     "@types/bun": "catalog:",
     "@typescript/native-preview": "catalog:",

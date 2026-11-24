@@ -1,12 +1,12 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "name": "@aigcfroge/simulation",
+  "name": "@omnixa/simulation",
   "version": "0.0.9",
   "type": "module",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/anomalyco/aigcfroge.git",
+    "url": "git+https://github.com/keerzzz/AigcForge.git",
     "directory": "packages/simulation"
   },
   "publishConfig": {
@@ -29,11 +29,11 @@
     "typecheck": "tsgo -b"
   },
   "dependencies": {
-    "@aigcfroge/core": "workspace:*",
-    "@aigcfroge/ai": "workspace:*",
-    "@aigcfroge/plugin": "workspace:*",
-    "@aigcfroge/protocol": "workspace:*",
-    "@aigcfroge/util": "workspace:*",
+    "@omnixa/core": "workspace:*",
+    "@omnixa/ai": "workspace:*",
+    "@omnixa/plugin": "workspace:*",
+    "@omnixa/protocol": "workspace:*",
+    "@omnixa/util": "workspace:*",
     "@opentui/core": "catalog:",
     "effect": "catalog:",
     "ws": "8.21.0"

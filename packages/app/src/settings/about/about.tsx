@@ -1,5 +1,5 @@
-import { Wordmark } from "@aigcfroge/ui/wordmark"
-import { useDialog } from "@aigcfroge/ui/context/dialog"
+import { Wordmark } from "@omnixa/ui/wordmark"
+import { useDialog } from "@omnixa/ui/context/dialog"
 import { useLanguage } from "@/runtime/i18n/language"
 import { usePlatform } from "@/runtime/platform/platform"
 import { ExternalLink } from "@/runtime/platform/external-link"

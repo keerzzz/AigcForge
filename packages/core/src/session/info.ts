@@ -1,14 +1,14 @@
 import { DateTime, Schema } from "effect"
-import { Agent } from "@aigcfroge/schema/agent"
-import { Location } from "@aigcfroge/schema/location"
-import { Model } from "@aigcfroge/schema/model"
-import { Project } from "@aigcfroge/schema/project"
+import { Agent } from "@omnixa/schema/agent"
+import { Location } from "@omnixa/schema/location"
+import { Model } from "@omnixa/schema/model"
+import { Project } from "@omnixa/schema/project"
 import { AbsolutePath, RelativePath } from "../schema.js"
-import { Workspace } from "@aigcfroge/schema/workspace"
+import { Workspace } from "@omnixa/schema/workspace"
 import { SessionSchema } from "./schema.js"
 import type { SessionTable } from "./sql.js"
-import { PersistedRevert } from "@aigcfroge/schema/session-revert"
-import { Money } from "@aigcfroge/schema/money"
+import { PersistedRevert } from "@omnixa/schema/session-revert"
+import { Money } from "@omnixa/schema/money"
 
 const decodeRevert = Schema.decodeUnknownSync(PersistedRevert)
 

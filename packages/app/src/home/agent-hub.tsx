@@ -1,5 +1,5 @@
 import type { ServerCtx } from "@/runtime/server/runtime"
-import { Button } from "@aigcfroge/ui/button"
+import { Button } from "@omnixa/ui/button"
 import { createEffect, createMemo, on, onCleanup, For, Show } from "solid-js"
 import { createStore } from "solid-js/store"
 import { useLanguage } from "@/runtime/i18n/language"

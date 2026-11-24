@@ -3,7 +3,7 @@
 export default $config({
   app(input) {
     return {
-      name: "aigcfroge",
+      name: "omnixa",
       removal: input?.stage === "production" ? "retain" : "remove",
       protect: ["production"].includes(input?.stage),
       home: "cloudflare",
@@ -17,8 +17,8 @@ export default $config({
                 profile: process.env.GITHUB_ACTIONS
                   ? undefined
                   : input.stage === "production"
-                    ? "aigcfroge-production"
-                    : "aigcfroge-dev",
+                    ? "omnixa-production"
+                    : "omnixa-dev",
               },
               stripe: {
                 version: "0.0.28",
@@ -33,7 +33,7 @@ export default $config({
   async run() {
     if ($app.stage === "beta") {
       const { createWebApp } = await import("./infra/webapp.js")
-      return { WebAppUrl: createWebApp("beta.aigcfroge.ai").url }
+      return { WebAppUrl: createWebApp("beta.omnixa.ai").url }
     }
 
     const stage = await import("./infra/stage.js")

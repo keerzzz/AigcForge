@@ -1,4 +1,4 @@
-import { encodeFilePath } from "@aigcfroge/util/path"
+import { encodeFilePath } from "@omnixa/util/path"
 import type { Files } from "../sdk"
 
 /** The file:// URL of a workspace-relative path. */

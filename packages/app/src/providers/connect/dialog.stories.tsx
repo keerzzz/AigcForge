@@ -1,6 +1,6 @@
 // @ts-nocheck
-import { Button } from "@aigcfroge/ui/button"
-import { useDialog } from "@aigcfroge/ui/context/dialog"
+import { Button } from "@omnixa/ui/button"
+import { useDialog } from "@omnixa/ui/context/dialog"
 import { QueryClient, QueryClientProvider } from "@tanstack/solid-query"
 import { mockProviderAuth } from "@/runtime/server/sync"
 import { onCleanup, onMount } from "solid-js"
@@ -60,8 +60,8 @@ export const ApiKey = {
   render: renderConnection("openrouter", [{ type: "key", label: "API key" }]),
 }
 
-export const AigcForgeZen = {
-  render: renderConnection("aigcfroge", [{ type: "key", label: "API key" }]),
+export const OmnixaZen = {
+  render: renderConnection("omnixa", [{ type: "key", label: "API key" }]),
 }
 
 export const LoginMethods = {

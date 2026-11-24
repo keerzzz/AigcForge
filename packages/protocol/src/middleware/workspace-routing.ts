@@ -25,7 +25,7 @@ export class WorkspaceRouteContext extends Context.Service<
     readonly directory: string
     readonly workspaceID?: string
   }
->()("@aigcfroge/HttpApiWorkspaceRouteContext") {}
+>()("@omnixa/HttpApiWorkspaceRouteContext") {}
 
 /**
  * Routes a request to the owning workspace instance (local session or remote
@@ -37,7 +37,7 @@ export class WorkspaceRouting extends HttpApiMiddleware.Service<
   {
     provides: WorkspaceRouteContext
   }
->()("@aigcfroge/HttpApiWorkspaceRouting", { error: InvalidRequestError }) {}
+>()("@omnixa/HttpApiWorkspaceRouting", { error: InvalidRequestError }) {}
 
 /**
  * Resolves the target project instance from the routed workspace context and
@@ -48,4 +48,4 @@ export class InstanceContext extends HttpApiMiddleware.Service<
   {
     requires: WorkspaceRouteContext
   }
->()("@aigcfroge/HttpApiInstanceContext", { error: ApiNotFoundError }) {}
+>()("@omnixa/HttpApiInstanceContext", { error: ApiNotFoundError }) {}

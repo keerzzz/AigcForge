@@ -1,8 +1,8 @@
 export * as WebSearchTool from "./websearch.js"
 
-import type { Context } from "@aigcfroge/plugin/effect/plugin"
-import type { SessionHooks } from "@aigcfroge/plugin/effect/session"
-import { ToolFailure } from "@aigcfroge/ai"
+import type { Context } from "@omnixa/plugin/effect/plugin"
+import type { SessionHooks } from "@omnixa/plugin/effect/session"
+import { ToolFailure } from "@omnixa/ai"
 import { Effect, Schema, Semaphore } from "effect"
 import { HttpClientError } from "effect/http"
 import { Form } from "../../form.js"
@@ -30,7 +30,7 @@ const Output = Schema.Struct({
   results: Schema.Array(WebSearch.Result),
 })
 export const Plugin = {
-  id: "aigcfroge.tool.websearch",
+  id: "omnixa.tool.websearch",
   effect: Effect.fn("WebSearchTool.Plugin")(function* (ctx: Context) {
     const permission = yield* Permission.Service
     const forms = yield* Form.Service
@@ -79,7 +79,7 @@ export const Plugin = {
                           fields: [
                             {
                               key: "choice",
-                              description: "Allow AigcForge to search the web for up-to-date information?",
+                              description: "Allow Omnixa to search the web for up-to-date information?",
                               type: "string",
                               required: true,
                               custom: false,

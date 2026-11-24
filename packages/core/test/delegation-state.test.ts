@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { Effect, Exit, Schema } from "effect"
-import { DelegationID } from "@aigcfroge/schema/delegation-id"
-import { DelegationStatus } from "@aigcfroge/schema/delegation"
+import { DelegationID } from "@omnixa/schema/delegation-id"
+import { DelegationStatus } from "@omnixa/schema/delegation"
 import { canTransition, assertTransition, canAdvancePhase, isTerminalPhase } from "../src/delegation/state"
 
 describe("Delegation State Machine (Phase 1)", () => {

@@ -1,6 +1,6 @@
 import { Buffer } from "node:buffer"
 import { Effect, Option, Schema, SchemaGetter } from "effect"
-import { Tool } from "@aigcfroge/schema/tool"
+import { Tool } from "@omnixa/schema/tool"
 import { Route } from "../route/client.js"
 import { Auth } from "../route/auth.js"
 import { Endpoint } from "../route/endpoint.js"

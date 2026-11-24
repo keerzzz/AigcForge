@@ -4,20 +4,20 @@ import { Context, Deferred, Effect, Fiber, Layer, Scope } from "effect"
 import { systemError } from "effect/PlatformError"
 import os from "os"
 import path from "path"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { FSUtil } from "@omnixa/util/fs-util"
 import { Location } from "../src/location"
 import { LocationMutation } from "../src/location-mutation"
 import { PromptAsset } from "../src/prompt-asset"
 import { SkillAsset } from "../src/skill-asset"
 import { SkillAssetService } from "../src/skill-asset-service"
 import { AssetPlacement } from "../src/asset-placement"
-import { Candidate, Revision } from "@aigcfroge/schema/skill-asset"
+import { Candidate, Revision } from "@omnixa/schema/skill-asset"
 import { FileMutation } from "../src/file-mutation"
 import { Environment } from "../src/environment/index"
 import { Project } from "../src/project"
 import { AppNodeBuilder } from "../src/effect/app-node-builder"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { Global } from "@aigcfroge/util/global"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { Global } from "@omnixa/util/global"
 import { AssetKind } from "../src/asset-kind"
 import { AbsolutePath } from "../src/schema"
 import { NodeFileSystem } from "@effect/platform-node"
@@ -39,7 +39,7 @@ describe("SkillAsset", () => {
   it.live("loads skills and isolates from prompts with same filename", () =>
     Effect.gen(function* () {
       const fs = yield* FSUtil.Service
-      const tmpDir = yield* fs.makeTempDirectory({ directory: os.tmpdir(), prefix: "aigcfroge-skill-test-" })
+      const tmpDir = yield* fs.makeTempDirectory({ directory: os.tmpdir(), prefix: "omnixa-skill-test-" })
       yield* Effect.addFinalizer(() => fs.remove(tmpDir, { recursive: true }).pipe(Effect.orDie))
       const locationDir = AbsolutePath.make(tmpDir)
 
@@ -68,8 +68,8 @@ describe("SkillAsset", () => {
         const skillService = yield* SkillAsset.Service
         const promptService = yield* PromptAsset.Service
 
-        const skillDir = path.resolve(tmpDir, ".aigcfroge/skills")
-        const promptDir = path.resolve(tmpDir, ".aigcfroge/prompts")
+        const skillDir = path.resolve(tmpDir, ".omnixa/skills")
+        const promptDir = path.resolve(tmpDir, ".omnixa/prompts")
 
         yield* fs.makeDirectory(skillDir, { recursive: true })
         yield* fs.makeDirectory(promptDir, { recursive: true })
@@ -210,7 +210,7 @@ describe("Skill selected owner", () => {
         revision: null,
         nameConflict: false,
         pathConflict: false,
-        target: { scope: "project", root: AbsolutePath.make(path.join(tmp.path, ".aigcfroge/skills")) },
+        target: { scope: "project", root: AbsolutePath.make(path.join(tmp.path, ".omnixa/skills")) },
       })
       expect(view.target).toEqual(facts.target)
       expect(yield* fs.exists(view.target.root)).toBe(false)
@@ -226,7 +226,7 @@ describe("Skill selected owner", () => {
       expect(saved.tags).toEqual(candidate().tags)
       expect(yield* view.getByPath("review.md")).toEqual(saved)
       expect(yield* graph.registry.list()).toEqual([])
-      expect(yield* fs.exists(path.join(child, ".aigcfroge/skills/review.md"))).toBe(false)
+      expect(yield* fs.exists(path.join(child, ".omnixa/skills/review.md"))).toBe(false)
 
       expect(yield* graph.service.propose(candidate("legacy", ""))).toEqual({
         relativePath: "review.md",
@@ -261,7 +261,7 @@ describe("Skill selected owner", () => {
       expect(first.location.vcs).toBeUndefined()
       expect(first.location.project.directory).toBe(AbsolutePath.make(firstDirectory))
       expect((yield* first.registry.select("project")).target.root).toBe(
-        AbsolutePath.make(path.join(firstDirectory, ".aigcfroge/skills")),
+        AbsolutePath.make(path.join(firstDirectory, ".omnixa/skills")),
       )
       const view = yield* second.registry.select("global")
       expect(view.target.root).toBe(AbsolutePath.make(path.join(global.config, "skills")))
@@ -284,7 +284,7 @@ describe("Skill selected owner", () => {
       expect((yield* second.service.inspect({ candidate: candidate(), scope: "global" })).revision).toBe(
         Revision.make(updated.revision),
       )
-      expect(yield* fs.exists(path.join(global.config, ".aigcfroge/skills"))).toBe(false)
+      expect(yield* fs.exists(path.join(global.config, ".omnixa/skills"))).toBe(false)
       expect(yield* first.registry.list()).toEqual([])
       yield* second.service.delete({ relativePath: "review.md", target: view.target, baseRevision: updated.revision })
       expect(yield* (yield* first.registry.select("global")).list()).toEqual([])
@@ -338,7 +338,7 @@ it.live("keeps worktree and clone owners independent even when Project IDs and s
     const views = yield* Effect.forEach(graphs, (graph) => graph.registry.select("project"))
     expect(views.map((view) => view.target.root)).toEqual(
       [roots.main, roots.clone, roots.linked].map((directory) =>
-        AbsolutePath.make(path.join(directory, ".aigcfroge/skills")),
+        AbsolutePath.make(path.join(directory, ".omnixa/skills")),
       ),
     )
     const saved = yield* Effect.forEach(graphs, (graph, index) =>
@@ -396,15 +396,15 @@ it.live("accepts a configured Global base alias but rejects owner and child syml
     expect(yield* globalView.list()).toEqual([])
     expect(yield* fs.exists(globalView.target.root)).toBe(false)
 
-    yield* fs.symlink(outside, path.join(directory, ".aigcfroge"))
+    yield* fs.symlink(outside, path.join(directory, ".omnixa"))
     expect(yield* graph.registry.select("project").pipe(Effect.flip)).toBeInstanceOf(AssetPlacement.PathError)
-    yield* fs.remove(path.join(directory, ".aigcfroge"))
-    yield* fs.makeDirectory(path.join(directory, ".aigcfroge"))
-    yield* fs.symlink(outside, path.join(directory, ".aigcfroge/skills"))
+    yield* fs.remove(path.join(directory, ".omnixa"))
+    yield* fs.makeDirectory(path.join(directory, ".omnixa"))
+    yield* fs.symlink(outside, path.join(directory, ".omnixa/skills"))
     expect(yield* graph.service.inspect({ candidate: candidate(), scope: "project" }).pipe(Effect.flip)).toBeInstanceOf(
       AssetPlacement.PathError,
     )
-    yield* fs.remove(path.join(directory, ".aigcfroge/skills"))
+    yield* fs.remove(path.join(directory, ".omnixa/skills"))
     const view = yield* graph.registry.select("project")
     yield* fs.makeDirectory(view.target.root)
     const external = path.join(outside, "external.md")
@@ -458,7 +458,7 @@ it.live("validates reviewed short paths and requires an exact revision for apply
       nameConflict: false,
       pathConflict: false,
     })
-    yield* Effect.forEach(["", "different.md", "../review.md", ".aigcfroge/skills/review.md"], (relativePath) =>
+    yield* Effect.forEach(["", "different.md", "../review.md", ".omnixa/skills/review.md"], (relativePath) =>
       Effect.gen(function* () {
         expect(
           yield* graph.service

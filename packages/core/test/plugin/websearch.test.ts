@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect } from "bun:test"
 import { Effect } from "effect"
-import { Integration } from "@aigcfroge/core/integration"
-import { WebSearch } from "@aigcfroge/core/websearch"
-import { WebSearchExa } from "@aigcfroge/core/plugin/websearch/exa"
-import { WebSearchFirecrawl } from "@aigcfroge/core/plugin/websearch/firecrawl"
-import { WebSearchParallel } from "@aigcfroge/core/plugin/websearch/parallel"
-import { WebSearchTavily } from "@aigcfroge/core/plugin/websearch/tavily"
-import { WebSearchTinyFish } from "@aigcfroge/core/plugin/websearch/tinyfish"
+import { Integration } from "@omnixa/core/integration"
+import { WebSearch } from "@omnixa/core/websearch"
+import { WebSearchExa } from "@omnixa/core/plugin/websearch/exa"
+import { WebSearchFirecrawl } from "@omnixa/core/plugin/websearch/firecrawl"
+import { WebSearchParallel } from "@omnixa/core/plugin/websearch/parallel"
+import { WebSearchTavily } from "@omnixa/core/plugin/websearch/tavily"
+import { WebSearchTinyFish } from "@omnixa/core/plugin/websearch/tinyfish"
 import { host, integrationHost, webSearchHost } from "./host"
 import { requests, signals, resetWebSearchFixture, webSearchIntegrationTest } from "./websearch-fixture"
 
@@ -259,7 +259,7 @@ describe("built-in web search providers", () => {
       )
       expect(requests[0]).toMatchObject({
         url: WebSearchTavily.endpoint,
-        headers: { "x-client-name": "aigcfroge2", "x-tavily-access-mode": "keyless" },
+        headers: { "x-client-name": "omnixa2", "x-tavily-access-mode": "keyless" },
         body: {
           query: "effect typescript",
           search_depth: "basic",
@@ -275,7 +275,7 @@ describe("built-in web search providers", () => {
       })
       yield* websearch.query(query)
       expect(requests[1]).toMatchObject({
-        headers: { authorization: "Bearer tavily-secret", "x-client-name": "aigcfroge2" },
+        headers: { authorization: "Bearer tavily-secret", "x-client-name": "omnixa2" },
       })
       expect(requests[1]?.headers["x-tavily-access-mode"]).toBeUndefined()
     }),

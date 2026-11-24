@@ -1,7 +1,7 @@
 import { afterAll, beforeAll } from "bun:test"
 import { Effect } from "effect"
 
-const FLAG = "AIGCFROGE_CUSTOM_MODE"
+const FLAG = "OMNIXA_CUSTOM_MODE"
 
 /**
  * Enables the custom-mode kill switch for the whole file and restores the prior

@@ -1,23 +1,22 @@
 import { Effect, Option, Schema } from "effect"
-import { HttpClient } from "effect/http"
-import { parseTarget, quote, runSsh, sshArgs, SshFailure } from "./command"
+import { parseTarget, runSsh, sshArgs, SshFailure } from "./command"
 import { RemoteCli } from "./remote-cli"
 
 // Use commands supported by released V2 CLIs. The registration is the service's
 // complete private discovery contract; no remote Python/Node runtime is needed.
 const registrationScript = `status=$("$cli" service status) || exit 0
 if [ "$status" = stopped ]; then exit 0; fi
-printf 'AIGCFROGE_SSH_STATUS=%s\\n' "$status"
-for file in "\${XDG_STATE_HOME:-$HOME/.local/state}"/aigcfroge/service*.json; do
+printf 'OMNIXA_SSH_STATUS=%s\\n' "$status"
+for file in "\${XDG_STATE_HOME:-$HOME/.local/state}"/omnixa/service*.json; do
   if [ ! -f "$file" ]; then continue; fi
-  printf 'AIGCFROGE_SSH_REGISTRATION_BEGIN\\n'
+  printf 'OMNIXA_SSH_REGISTRATION_BEGIN\\n'
   cat "$file"
-  printf '\\nAIGCFROGE_SSH_REGISTRATION_END\\n'
+  printf '\\nOMNIXA_SSH_REGISTRATION_END\\n'
 done
 `
 
 export const discoverScript = `set -eu
-${RemoteCli.discoverScript({ fromPath: true, cache: { directory: ".aigcfroge/desktop-ssh", prefix: "0.0.0-beta-" } })}
+${RemoteCli.discoverScript({ fromPath: true, cache: { directory: ".omnixa/desktop-ssh", prefix: "0.0.0-beta-" } })}
 if [ -z "$cli" ]; then exit 0; fi
 ${registrationScript}`
 
@@ -40,13 +39,13 @@ const Registration = Schema.fromJsonString(
 export function parseRegistration(output: string) {
   const status = output
     .split(/\r?\n/)
-    .findLast((line) => line.startsWith("AIGCFROGE_SSH_STATUS="))
-    ?.slice("AIGCFROGE_SSH_STATUS=".length)
+    .findLast((line) => line.startsWith("OMNIXA_SSH_STATUS="))
+    ?.slice("OMNIXA_SSH_STATUS=".length)
 
   if (!status) return undefined
 
   for (const match of output.matchAll(
-    /AIGCFROGE_SSH_REGISTRATION_BEGIN\r?\n([\s\S]*?)\r?\nAIGCFROGE_SSH_REGISTRATION_END/g,
+    /OMNIXA_SSH_REGISTRATION_BEGIN\r?\n([\s\S]*?)\r?\nOMNIXA_SSH_REGISTRATION_END/g,
   )) {
     const result = Schema.decodeUnknownOption(Registration)(match[1])
 
@@ -57,7 +56,7 @@ export function parseRegistration(output: string) {
 }
 
 export function binaryPath(version: string) {
-  return `$HOME/.aigcfroge/desktop-ssh/${RemoteCli.requireVersion(version)}/aigcfroge`
+  return `$HOME/.omnixa/desktop-ssh/${RemoteCli.requireVersion(version)}/omnixa`
 }
 
 function connectionAddress(address: string, password: string) {
@@ -79,7 +78,7 @@ export const bootstrap = Effect.fn("Ssh.bootstrap")(function* (input: {
   development?: boolean
   env: NodeJS.ProcessEnv
   replace?: boolean
-  stage: (stage: "checking" | "downloading" | "uploading" | "starting") => Effect.Effect<void>
+  stage: (stage: "checking" | "starting") => Effect.Effect<void>
 }) {
   const run = (script: string) =>
     runSsh({
@@ -103,58 +102,11 @@ export const bootstrap = Effect.fn("Ssh.bootstrap")(function* (input: {
   if (registered && !input.replace) return yield* Effect.fail(new SshFailure("version", registered.version))
   const destination = yield* Effect.try({ try: () => binaryPath(input.version), catch: SshFailure.from })
   const existing = yield* run(RemoteCli.versionScript(`"${destination}"`))
-  const staged = RemoteCli.parseVersion(existing) === input.version
 
-  // Source worktree versions are unpublished. Use the installer's beta channel
-  // while retaining support for explicitly staged, matching development builds.
-  const version =
-    input.development && !staged ? yield* RemoteCli.latestBeta().pipe(Effect.mapError(SshFailure.from)) : input.version
-
-  const setup = { version, directory: `.aigcfroge/desktop-ssh/${version}` }
-
-  if (!staged) {
-    const output = yield* run(RemoteCli.probeScript).pipe(Effect.mapError(() => new SshFailure("platform")))
-
-    const target = output
-      .split(/\r?\n/)
-      .findLast((line) => line.startsWith("AIGCFROGE_REMOTE_TARGET="))
-      ?.split("=")[1]
-
-    const url = yield* Effect.try({ try: () => RemoteCli.archiveUrl(target ?? "", version), catch: SshFailure.from })
-    yield* input.stage("downloading")
-    yield* run(RemoteCli.installScript({ ...setup, source: { type: "download", url } })).pipe(
-      Effect.catch(
-        Effect.fnUntraced(function* (error) {
-          yield* input.stage("uploading")
-          const http = yield* HttpClient.HttpClient
-          const response = yield* http.get(url).pipe(Effect.mapError(SshFailure.from))
-
-          if (response.status < 200 || response.status >= 300)
-            return yield* Effect.fail(
-              new SshFailure(
-                response.status === 404 ? "unpublished" : "install",
-                JSON.stringify({ version, target, url, status: response.status }),
-              ),
-            )
-          const archive = new Uint8Array(yield* response.arrayBuffer.pipe(Effect.mapError(SshFailure.from)))
-
-          // The upload uses stdin; the script itself must be the remote command.
-          return yield* runSsh({
-            args: [
-              ...sshArgs(input.target),
-              input.target.host,
-              `sh -c ${quote(RemoteCli.installScript({ ...setup, source: { type: "archive" } }))}`,
-            ],
-            env: input.env,
-            stdin: archive,
-          }).pipe(Effect.mapError(() => new SshFailure("install", error.message)))
-        }),
-      ),
-    )
-  }
+  if (RemoteCli.parseVersion(existing) !== input.version) return yield* Effect.fail(new SshFailure("unpublished"))
 
   yield* input.stage("starting")
-  const registration = parseRegistration(yield* run(startScript(version, input.replace)))
+  const registration = parseRegistration(yield* run(startScript(input.version, input.replace)))
 
   if (!registration) return yield* Effect.fail(new SshFailure("service"))
 

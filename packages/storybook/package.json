@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "name": "@aigcfroge/storybook",
+  "name": "@omnixa/storybook",
   "version": "0.0.9",
   "private": true,
   "type": "module",
@@ -9,10 +9,10 @@
     "build": "storybook build"
   },
   "devDependencies": {
-    "@aigcfroge/client": "workspace:*",
+    "@omnixa/client": "workspace:*",
     "@tailwindcss/vite": "catalog:",
-    "@aigcfroge/session-ui": "workspace:*",
-    "@aigcfroge/ui": "workspace:*",
+    "@omnixa/session-ui": "workspace:*",
+    "@omnixa/ui": "workspace:*",
     "@playwright/test": "catalog:",
     "@solidjs/meta": "catalog:",
     "@storybook/addon-a11y": "10.4.4",

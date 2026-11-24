@@ -1,9 +1,9 @@
-import { AssetPlacement } from "@aigcfroge/core/asset-placement"
-import { CommandAsset } from "@aigcfroge/core/command-asset"
-import { CommandAssetService } from "@aigcfroge/core/command-asset-service"
-import { Flag } from "@aigcfroge/core/flag/flag"
-import { ConflictError, InvalidRequestError } from "@aigcfroge/protocol/errors"
-import { Info, InvalidEntry, Summary } from "@aigcfroge/schema/command-asset"
+import { AssetPlacement } from "@omnixa/core/asset-placement"
+import { CommandAsset } from "@omnixa/core/command-asset"
+import { CommandAssetService } from "@omnixa/core/command-asset-service"
+import { Flag } from "@omnixa/core/flag/flag"
+import { ConflictError, InvalidRequestError } from "@omnixa/protocol/errors"
+import { Info, InvalidEntry, Summary } from "@omnixa/schema/command-asset"
 import { HttpApiBuilder } from "effect/http-api"
 import { Effect, Schema } from "effect"
 import { Api } from "../api"
@@ -58,7 +58,7 @@ export const CommandAssetHandler = HttpApiBuilder.group(Api, "command-asset", (h
         scope.atSessionLocation(
           params.sessionID,
           Effect.gen(function* () {
-            if (!Flag.AIGCFROGE_EXPERIMENTAL_CHAT_ASSET)
+            if (!Flag.OMNIXA_EXPERIMENTAL_CHAT_ASSET)
               return yield* new InvalidRequestError({
                 message: "Command asset creation is not enabled",
                 kind: "disabled",

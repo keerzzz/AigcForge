@@ -1,5 +1,5 @@
-import { MCPAsset } from "@aigcfroge/schema/mcp-asset"
-import { Session } from "@aigcfroge/schema/session"
+import { MCPAsset } from "@omnixa/schema/mcp-asset"
+import { Session } from "@omnixa/schema/session"
 import { Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/http-api"
 import { ConflictError, InvalidRequestError } from "../errors.js"

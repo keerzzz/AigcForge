@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { onMount } from "solid-js"
 import * as mod from "./image-preview"
-import { Button } from "@aigcfroge/ui/button"
+import { Button } from "@omnixa/ui/button"
 import { useDialog } from "../context/dialog"
 
 const docs = `### Overview

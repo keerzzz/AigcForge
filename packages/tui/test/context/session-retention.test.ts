@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
-import type { AigcForgeEvent } from "@aigcfroge/client"
-import { createData } from "@aigcfroge/client/solid"
+import type { OmnixaEvent } from "@omnixa/client"
+import { createData } from "@omnixa/client/solid"
 import { createGlobalEmitter } from "@solid-primitives/event-bus"
 import { createRoot, createSignal } from "solid-js"
 import { createSessionRetention } from "../../src/context/session-retention"
@@ -9,7 +9,7 @@ import { createApi, createFetch, directory, json } from "../fixture/tui-client"
 function setup(options: { keep?: string[]; current?: string; limit?: number } = {}) {
   return createRoot((dispose) => {
     const events = createGlobalEmitter<{
-      [Type in AigcForgeEvent["type"]]: Extract<AigcForgeEvent, { type: Type }>
+      [Type in OmnixaEvent["type"]]: Extract<OmnixaEvent, { type: Type }>
     }>()
     const api = createApi(
       createFetch((url) => {

@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test"
 import path from "node:path"
 import { Result, Schema } from "effect"
-import { Composition } from "@aigcfroge/schema/composition"
-import { AssetPlacement } from "@aigcfroge/schema/asset-placement"
+import { Composition } from "@omnixa/schema/composition"
+import { AssetPlacement } from "@omnixa/schema/asset-placement"
 import { SkillFile } from "../src/config/plugin/skill-file"
 import { Skill } from "../src/skill"
 import { CompositionCatalog, createCompositionSkillCatalog } from "../src/skill/composition-catalog"
@@ -14,21 +14,21 @@ describe("createCompositionSkillCatalog", () => {
       id: Skill.ID.make("git-tools"),
       name: Skill.Name.make("git-tools"),
       description: "Git commands",
-      path: AbsolutePath.make("/project/.aigcfroge/skills/git-tools/SKILL.md"),
+      path: AbsolutePath.make("/project/.omnixa/skills/git-tools/SKILL.md"),
       content: "git skill content",
     }),
     Skill.Info.make({
       id: Skill.ID.make("global-unbound"),
       name: Skill.Name.make("global-unbound"),
       description: "Global skill not in binding",
-      path: AbsolutePath.make("/project/.aigcfroge/skills/global-unbound/SKILL.md"),
+      path: AbsolutePath.make("/project/.omnixa/skills/global-unbound/SKILL.md"),
       content: "unbound content",
     }),
     Skill.Info.make({
       id: Skill.ID.make("linter"),
       name: Skill.Name.make("linter"),
       description: "Code linting",
-      path: AbsolutePath.make("/project/.aigcfroge/skills/linter/SKILL.md"),
+      path: AbsolutePath.make("/project/.omnixa/skills/linter/SKILL.md"),
       content: "linter content",
     }),
   ]
@@ -85,7 +85,7 @@ describe("CompositionCatalog.frozenSkills", () => {
 
   test("reuses file parsing IDs and preserves frozen bodies for flat and nested assets", () => {
     const directory = path.resolve("/project")
-    const ownerRoot = path.join(directory, ".aigcfroge/skills")
+    const ownerRoot = path.join(directory, ".omnixa/skills")
     const assets = [frozen("review.md"), frozen("tools/lint/SKILL.md", "Frozen nested instructions")]
     const result = CompositionCatalog.frozenSkills(directory, assets)
     expect(Result.isSuccess(result)).toBe(true)
@@ -133,11 +133,11 @@ describe("CompositionCatalog.frozenSkills", () => {
       }),
       new AssetPlacement.Target({
         scope: "project",
-        root: AbsolutePath.make(path.resolve("/original/.aigcfroge/skills")),
+        root: AbsolutePath.make(path.resolve("/original/.omnixa/skills")),
       }),
       new AssetPlacement.Target({
         scope: "location",
-        root: AbsolutePath.make(path.resolve("/original/child/.aigcfroge/skills")),
+        root: AbsolutePath.make(path.resolve("/original/child/.omnixa/skills")),
       }),
     ]
     targets.forEach((target) => {
@@ -184,7 +184,7 @@ describe("CompositionCatalog.frozenSkills", () => {
           "Frozen project body",
           new AssetPlacement.Target({
             scope: "project",
-            root: AbsolutePath.make("/original/.aigcfroge/skills"),
+            root: AbsolutePath.make("/original/.omnixa/skills"),
           }),
         ),
       ]),

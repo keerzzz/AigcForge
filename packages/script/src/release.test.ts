@@ -37,7 +37,7 @@ afterEach(async () => {
 })
 
 async function directory() {
-  const dir = await mkdtemp(path.join(os.tmpdir(), "aigcforge-release-"))
+  const dir = await mkdtemp(path.join(os.tmpdir(), "omnixa-release-"))
   directories.push(dir)
   return dir
 }
@@ -240,7 +240,7 @@ describe("release intent", () => {
     "docs/guide.md",
     "packages/core/src/value.test.ts",
     "packages/app/e2e/app.spec.ts",
-    "packages/aigcfroge/test/session.test.ts",
+    "packages/omnixa/test/session.test.ts",
     "packages/storybook/src/story.tsx",
     ".github/workflows/test.yml",
   ])("does not release for isolated docs/test/showcase changes: %s", (file) => {
@@ -521,11 +521,11 @@ describe("GitHub release lifecycle", () => {
 async function metadataFixture() {
   const root = await directory()
   const files = [
-    "aigcfroge-desktop-win-x64.exe",
-    "aigcfroge-desktop-win-arm64.exe",
-    "aigcfroge-desktop-linux-x86_64.AppImage",
-    "aigcfroge-desktop-linux-arm64.AppImage",
-    "aigcfroge-desktop-mac-arm64.zip",
+    "omnixa-desktop-win-x64.exe",
+    "omnixa-desktop-win-arm64.exe",
+    "omnixa-desktop-linux-x86_64.AppImage",
+    "omnixa-desktop-linux-arm64.AppImage",
+    "omnixa-desktop-mac-arm64.zip",
   ]
   const entries: ReleaseMetadata.File[] = []
   for (const name of files) {

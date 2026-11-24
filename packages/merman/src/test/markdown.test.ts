@@ -88,8 +88,8 @@ flowchart TD
   repo[Organization profile repo] --> build[Build]
   build --> worker[Isolated organization Worker]
   worker --> sessions[SessionDOs]
-  sessions --> aigcfroge[AigcForge + native plugins]
-  aigcfroge --> modal[Modal workspaces]
+  sessions --> omnixa[Omnixa + native plugins]
+  omnixa --> modal[Modal workspaces]
 \`\`\``,
     syntaxStyle,
     renderNode: createMermaidMarkdownRenderer(renderer),

@@ -1,25 +1,25 @@
 import { createEffect, createMemo, createSignal, For, onCleanup, Show, type ComponentProps, type JSX } from "solid-js"
 import { createStore } from "solid-js/store"
 import { useData } from "../context"
-import { useDialog } from "@aigcfroge/ui/context/dialog"
-import { useI18n } from "@aigcfroge/ui/context/i18n"
+import { useDialog } from "@omnixa/ui/context/dialog"
+import { useI18n } from "@omnixa/ui/context/i18n"
 import { Markdown } from "../components/markdown"
-import { ImagePreview } from "@aigcfroge/ui/image-preview"
-import { getFilename } from "@aigcfroge/util/path"
+import { ImagePreview } from "@omnixa/ui/image-preview"
+import { getFilename } from "@omnixa/util/path"
 import { AttachmentCard } from "./attachment-card"
 import { CommentCard } from "./comment-card"
 import { AssistantAttemptsPopover } from "./attempt-details"
 import { TimelineSeparator } from "../components/timeline-separator"
-import { Tooltip } from "@aigcfroge/ui/tooltip"
-import { IconButton } from "@aigcfroge/ui/icon-button"
-import { Icon } from "@aigcfroge/ui/icon"
+import { Tooltip } from "@omnixa/ui/tooltip"
+import { IconButton } from "@omnixa/ui/icon-button"
+import { Icon } from "@omnixa/ui/icon"
 import { SessionProgressIndicatorV2 } from "../v2/components/session-progress-indicator-v2"
-import { Button } from "@aigcfroge/ui/button"
-import { TextReveal } from "@aigcfroge/ui/text-reveal"
-import { TextShimmer } from "@aigcfroge/ui/text-shimmer"
+import { Button } from "@omnixa/ui/button"
+import { TextReveal } from "@omnixa/ui/text-reveal"
+import { TextShimmer } from "@omnixa/ui/text-shimmer"
 import { BasicTool } from "../components/basic-tool"
 import { reasoningHeading } from "../timeline/projection"
-import { Card } from "@aigcfroge/ui/card"
+import { Card } from "@omnixa/ui/card"
 import type {
   PromptAgentAttachment,
   PromptFileAttachment,
@@ -28,8 +28,8 @@ import type {
   SessionMessageCompaction,
   SessionMessageUser,
   ModelSelection,
-} from "@aigcfroge/client/promise"
-import type { SessionReference } from "@aigcfroge/schema/session-reference"
+} from "@omnixa/client/promise"
+import type { SessionReference } from "@omnixa/schema/session-reference"
 import type {
   SessionResponseActionInput,
   SessionResponseActions,

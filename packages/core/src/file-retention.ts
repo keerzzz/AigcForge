@@ -1,7 +1,7 @@
 export * as FileRetention from "./file-retention.js"
 
 import { Duration, Effect, Option } from "effect"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { FSUtil } from "@omnixa/util/fs-util"
 
 export const cleanup = Effect.fn("FileRetention.cleanup")(function* (
   fs: FSUtil.Interface,

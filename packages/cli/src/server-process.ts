@@ -1,14 +1,14 @@
 export * as ServerProcess from "./server-process"
 
 import { NodeServices } from "@effect/platform-node"
-import { Service } from "@aigcfroge/client/effect/service"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { Global } from "@aigcfroge/util/global"
-import { AIGCFROGE_ARTIFACT, AIGCFROGE_CHANNEL, AIGCFROGE_VERSION } from "./version"
-import { AppProcess } from "@aigcfroge/util/process"
+import { Service } from "@omnixa/client/effect/service"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { Global } from "@omnixa/util/global"
+import { OMNIXA_ARTIFACT, OMNIXA_CHANNEL, OMNIXA_VERSION } from "./version"
+import { AppProcess } from "@omnixa/util/process"
 import { randomBytes, randomUUID } from "node:crypto"
 import { Effect, Option, Redacted, Schema } from "effect"
-import { PersistentPty } from "@aigcfroge/schema/persistent-pty"
+import { PersistentPty } from "@omnixa/schema/persistent-pty"
 import { HttpServer } from "effect/http"
 import { NetAddress } from "effect/net"
 import { Env } from "./env"
@@ -35,7 +35,7 @@ export const run = Effect.fnUntraced(function* (options: Options) {
       LayerNode.compile(LayerNode.group([Global.node, AppProcess.node]), {
         replacements: [
           Global.node.replace(
-            Global.layerWith(process.env.AIGCFROGE_CONFIG_DIR ? { config: process.env.AIGCFROGE_CONFIG_DIR } : {}),
+            Global.layerWith(process.env.OMNIXA_CONFIG_DIR ? { config: process.env.OMNIXA_CONFIG_DIR } : {}),
           ),
         ],
       }),
@@ -45,8 +45,8 @@ export const run = Effect.fnUntraced(function* (options: Options) {
 })
 
 const processEffect = Effect.fnUntraced(function* (options: Options) {
-  const inherited = process.env.AIGCFROGE_PTY_HANDOFF
-  delete process.env.AIGCFROGE_PTY_HANDOFF
+  const inherited = process.env.OMNIXA_PTY_HANDOFF
+  delete process.env.OMNIXA_PTY_HANDOFF
   const handoff =
     inherited === undefined
       ? undefined
@@ -74,12 +74,12 @@ const processEffect = Effect.fnUntraced(function* (options: Options) {
       // Keep a package-manager or curl install replaceable while the service runs; Desktop updates its own copy.
       if (options.mode === "service" && process.platform === "win32" && RetainedImage.installed(global.home))
         yield* RetainedImage.retain(global.cache, "service")
-      const { start } = yield* Effect.promise(() => import("@aigcfroge/server/process"))
+      const { start } = yield* Effect.promise(() => import("@omnixa/server/process"))
       const environmentPassword = yield* Env.password
       // Keep the lease credential out of the environment inherited by tools.
       if (options.mode === "stdio") {
-        delete process.env.AIGCFROGE_PASSWORD
-        delete process.env.AIGCFROGE_SERVER_PASSWORD
+        delete process.env.OMNIXA_PASSWORD
+        delete process.env.OMNIXA_SERVER_PASSWORD
       }
       const password =
         options.mode === "service"
@@ -94,43 +94,39 @@ const processEffect = Effect.fnUntraced(function* (options: Options) {
       const launch = start(
         {
           app: {
-            name: process.env.AIGCFROGE_CLIENT ?? AIGCFROGE_ARTIFACT,
-            version: AIGCFROGE_VERSION,
-            channel: AIGCFROGE_CHANNEL,
+            name: process.env.OMNIXA_CLIENT ?? OMNIXA_ARTIFACT,
+            version: OMNIXA_VERSION,
+            channel: OMNIXA_CHANNEL,
           },
           hostname,
           port,
           cors: options.cors ?? config.cors,
           password,
           pty: { handoff },
-          simulation: truthy(process.env.AIGCFROGE_SIMULATE),
+          simulation: truthy(process.env.OMNIXA_SIMULATE),
           database: {
             path: databasePath(global.data),
           },
           models: {
-            url: process.env.AIGCFROGE_MODELS_URL,
-            file: process.env.AIGCFROGE_MODELS_PATH,
-            fetch: !truthy(process.env.AIGCFROGE_DISABLE_MODELS_FETCH),
+            url: process.env.OMNIXA_MODELS_URL,
+            file: process.env.OMNIXA_MODELS_PATH,
+            fetch: !truthy(process.env.OMNIXA_DISABLE_MODELS_FETCH),
           },
           config: {
-            directory: process.env.AIGCFROGE_CONFIG_DIR,
-            project: !truthy(
-              process.env.AIGCFROGE_CONFIG_PROJECT_DISABLE ?? process.env.AIGCFROGE_DISABLE_PROJECT_CONFIG,
-            ),
-            file: process.env.AIGCFROGE_CONFIG,
-            content: process.env.AIGCFROGE_CONFIG_CONTENT,
+            directory: process.env.OMNIXA_CONFIG_DIR,
+            project: !truthy(process.env.OMNIXA_CONFIG_PROJECT_DISABLE ?? process.env.OMNIXA_DISABLE_PROJECT_CONFIG),
+            file: process.env.OMNIXA_CONFIG,
+            content: process.env.OMNIXA_CONFIG_CONTENT,
           },
           windows: {
-            gitbash: process.env.AIGCFROGE_GIT_BASH_PATH,
+            gitbash: process.env.OMNIXA_GIT_BASH_PATH,
           },
           fs: {
-            filewatcher: !truthy(
-              process.env.AIGCFROGE_FILEWATCHER_DISABLE ?? process.env.AIGCFROGE_DISABLE_FILEWATCHER,
-            ),
+            filewatcher: !truthy(process.env.OMNIXA_FILEWATCHER_DISABLE ?? process.env.OMNIXA_DISABLE_FILEWATCHER),
             fff:
-              process.env.AIGCFROGE_DISABLE_FFF === undefined
+              process.env.OMNIXA_DISABLE_FFF === undefined
                 ? process.platform !== "win32"
-                : !truthy(process.env.AIGCFROGE_DISABLE_FFF),
+                : !truthy(process.env.OMNIXA_DISABLE_FFF),
           },
         },
         serviceOptions === undefined
@@ -168,7 +164,7 @@ const processEffect = Effect.fnUntraced(function* (options: Options) {
             return yield* Effect.fail(
               new Error(
                 `Managed service port ${port} on ${hostname} is already in use by another process. ` +
-                  "Configure another port with `aigcfroge service set port <port>` and start the service again.",
+                  "Configure another port with `omnixa service set port <port>` and start the service again.",
                 { cause: error },
               ),
             )

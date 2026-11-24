@@ -5,11 +5,11 @@ import type {
   MCPAssetInfo,
   PluginAssetBridgeEntry,
   PluginInfo,
-} from "@aigcfroge/client/promise"
-import type { AssetPlacement } from "@aigcfroge/schema/asset-placement"
-import { Badge } from "@aigcfroge/ui/badge"
-import { Button } from "@aigcfroge/ui/button"
-import { Select } from "@aigcfroge/ui/select"
+} from "@omnixa/client/promise"
+import type { AssetPlacement } from "@omnixa/schema/asset-placement"
+import { Badge } from "@omnixa/ui/badge"
+import { Button } from "@omnixa/ui/button"
+import { Select } from "@omnixa/ui/select"
 import { createMediaQuery } from "@solid-primitives/media"
 import { createEffect, createMemo, For, onCleanup, Show, untrack } from "solid-js"
 import { createStore } from "solid-js/store"

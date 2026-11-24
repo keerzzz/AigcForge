@@ -1,12 +1,12 @@
-import type { AigcForgeEvent, SessionMessageInfo } from "@aigcfroge/client/promise"
+import type { OmnixaEvent, SessionMessageInfo } from "@omnixa/client/promise"
 import { expect, test, type Locator, type Page } from "@playwright/test"
-import { base64Encode } from "@aigcfroge/util/encode"
+import { base64Encode } from "@omnixa/util/encode"
 import { SERVER, holdRoute, project, provider, session, sessionHref, workspaceKey } from "../utils/app"
-import { mockAigcForgeServer } from "../utils/mock-server"
+import { mockOmnixaServer } from "../utils/mock-server"
 import { fileDiff, fileNode, openSession } from "../utils/workspace"
 import { expectSessionTitle } from "../utils/waits"
 import { openSidePanel } from "../utils/side-panel"
-import { ConflictError, FileNotFoundError } from "@aigcfroge/protocol/errors"
+import { ConflictError, FileNotFoundError } from "@omnixa/protocol/errors"
 import { Schema } from "effect"
 
 test.use({ viewport: { width: 1440, height: 900 } })
@@ -18,7 +18,7 @@ for (const stored of [
   test(`restores an active-only Review beside ${stored.all.length ? "Context" : "an empty strip"}`, async ({
     page,
   }) => {
-    const directory = "C:/AigcForge/ReviewActiveOnly"
+    const directory = "C:/Omnixa/ReviewActiveOnly"
     const id = "ses_review_active_only"
     const target = "ses_review_restored_target"
     const key = `local\u0000${base64Encode(directory)}/${id}`
@@ -33,7 +33,7 @@ for (const stored of [
       seed: {
         panes: { [id]: { review: true }, [target]: { review: true } },
         storage: {
-          "aigcfroge.global.dat:layout": {
+          "omnixa.global.dat:layout": {
             sessionTabs: {
               [key]: stored,
               [`local\u0000${base64Encode(directory)}/${target}`]: stored,
@@ -47,10 +47,7 @@ for (const stored of [
     await expect(page.locator('[data-slot="session-review-v2-file-name"]')).toHaveText("alpha.ts")
 
     const state = () =>
-      page.evaluate(
-        (key) => JSON.parse(localStorage.getItem("aigcfroge.global.dat:layout") ?? "{}").sessionTabs[key],
-        key,
-      )
+      page.evaluate((key) => JSON.parse(localStorage.getItem("omnixa.global.dat:layout") ?? "{}").sessionTabs[key], key)
 
     await expect.poll(state).toEqual({ all: [...stored.all, "review:changes"], active: "review:changes" })
     await page.locator(`[data-slot="titlebar-tabs"] a[href="${sessionHref(target)}"]`).click()
@@ -304,7 +301,7 @@ test("a rejected Git init releases its session's button without showing an error
 
 test("open file tab browses, searches, and tracks missing files", async ({ page }) => {
   const searches: { query: string; dirs?: string; limit?: number }[] = []
-  const directory = "C:/AigcForge/ReviewOpenFile"
+  const directory = "C:/Omnixa/ReviewOpenFile"
   const files = Array.from({ length: 80 }, (_, index) => `file-${String(index).padStart(2, "0")}.ts`)
 
   const workspace = await openSession(page, {
@@ -326,7 +323,7 @@ test("open file tab browses, searches, and tracks missing files", async ({ page 
     },
     seed: {
       panes: { ses_reviewopenfile: { review: true } },
-      storage: { "aigcfroge.global.dat:review-panel-v2": { sidebarOpened: false } },
+      storage: { "omnixa.global.dat:review-panel-v2": { sidebarOpened: false } },
     },
   })
 
@@ -462,7 +459,7 @@ for (const listed of [false, true]) {
   test(`the open file heading names a subfolder session ${listed ? "after its sidebar project" : "after its folder"}`, async ({
     page,
   }) => {
-    const root = "C:/AigcForge/BrowserRepo"
+    const root = "C:/Omnixa/BrowserRepo"
     const directory = `${root}/packages/app`
     await openSession(page, {
       name: "BrowserRepo",
@@ -497,9 +494,9 @@ test("context closes the side region only when its button opened it", async ({ p
     name: "ReviewContextOpener",
     seed: {
       storage: {
-        "aigcfroge.global.dat:layout": {
+        "omnixa.global.dat:layout": {
           sessionTabs: {
-            [`local\u0000${base64Encode("C:/AigcForge/ReviewContextOpener")}/ses_reviewcontextopener`]: {
+            [`local\u0000${base64Encode("C:/Omnixa/ReviewContextOpener")}/ses_reviewcontextopener`]: {
               all: ["btw"],
               active: "btw",
             },
@@ -538,7 +535,7 @@ test("context closes the side region only when its button opened it", async ({ p
 })
 
 test("file tree expands Windows paths and scrolls long names in both directions", async ({ page }) => {
-  const directory = "C:/AigcForge/OpenFileExpand"
+  const directory = "C:/Omnixa/OpenFileExpand"
   const longFilename = "a-very-long-file-name-that-must-overflow-the-file-sidebar-instead-of-being-truncated.ts"
   const longPath = `frontend/${longFilename}`
   await openSession(page, {
@@ -571,7 +568,7 @@ test("file tree expands Windows paths and scrolls long names in both directions"
     fileContent: (path) => ({ type: "text", content: `contents:${path}` }),
     seed: {
       panes: { ses_openfileexpand: { review: true } },
-      storage: { "aigcfroge.global.dat:review-panel-v2": { sidebarOpened: true } },
+      storage: { "omnixa.global.dat:review-panel-v2": { sidebarOpened: true } },
     },
   })
 
@@ -638,7 +635,7 @@ test("file tree expands Windows paths and scrolls long names in both directions"
 })
 
 test("a restored file tab keeps the file tree on Files Changed", async ({ page }) => {
-  const directory = "C:/AigcForge/TreeRestore"
+  const directory = "C:/Omnixa/TreeRestore"
   await openSession(page, {
     name: "TreeRestore",
     vcsDiff: [fileDiff("src/changed.ts")],
@@ -647,7 +644,7 @@ test("a restored file tab keeps the file tree on Files Changed", async ({ page }
     seed: {
       panes: { ses_treerestore: { review: true } },
       settings: { general: { showFileTree: true } },
-      storage: { "aigcfroge.global.dat:layout": { fileTree: { opened: true, width: 240, tab: "changes" } } },
+      storage: { "omnixa.global.dat:layout": { fileTree: { opened: true, width: 240, tab: "changes" } } },
     },
   })
   const panel = page.locator("#review-panel")
@@ -681,7 +678,7 @@ test("rereads a file each time an artifact link opens it", async ({ page }) => {
       id: "msg_reply",
       type: "assistant",
       agent: "build",
-      model: { id: "test", providerID: "aigcfroge" },
+      model: { id: "test", providerID: "omnixa" },
       content: [{ type: "text", text: "Updated [shopping.txt](shopping.txt)." }],
       time: { created: 2, completed: 3 },
     },
@@ -715,7 +712,7 @@ type ImageProbe = { problems: string[]; frames: number; running: boolean }
 
 test("image files keep the review panel painted while loading", async ({ page }) => {
   await page.setViewportSize({ width: 960, height: 900 })
-  const directory = "C:/AigcForge/ReviewImage"
+  const directory = "C:/Omnixa/ReviewImage"
   const image = "assets/preview.png"
   const read = Promise.withResolvers<void>()
   const release = Promise.withResolvers<void>()
@@ -803,7 +800,7 @@ test("restores review state and the side-panel tab per session", async ({ page }
     { id: "ses_review_state_c", title: "Gamma review state" },
   ]
 
-  const directory = "C:/AigcForge/ReviewState"
+  const directory = "C:/Omnixa/ReviewState"
   await openSession(page, {
     name: "ReviewState",
     sessions,
@@ -908,7 +905,7 @@ test("shows and restores last turn changes from the session diff", async ({ page
 })
 
 test("keeps the review state a session stored before extensions", async ({ page }) => {
-  const directory = "C:/AigcForge/ReviewLegacy"
+  const directory = "C:/Omnixa/ReviewLegacy"
   await openSession(page, {
     name: "ReviewLegacy",
     vcs: { current: "feature", default: "dev" },
@@ -916,7 +913,7 @@ test("keeps the review state a session stored before extensions", async ({ page 
       mode === "branch" ? [fileDiff("alpha.ts"), fileDiff("beta.ts")] : [fileDiff("alpha.ts"), fileDiff("gamma.ts")],
     seed: {
       storage: {
-        "aigcfroge.global.dat:layout": {
+        "omnixa.global.dat:layout": {
           sessionView: {
             [`local\u0000${base64Encode(directory)}/ses_reviewlegacy`]: {
               scroll: {},
@@ -957,10 +954,10 @@ test("keeps the review state a session stored before extensions", async ({ page 
 })
 
 test("desktop review waits for the session's stored mode before it loads changes", async ({ page }) => {
-  const directory = "C:/AigcForge/ReviewDesktop"
+  const directory = "C:/Omnixa/ReviewDesktop"
   const id = "ses_review_desktop"
   const title = "Desktop review"
-  await mockAigcForgeServer(page, {
+  await mockOmnixaServer(page, {
     directory,
     project: project({ id: "proj_review_desktop", directory }),
     provider: provider(),
@@ -1050,7 +1047,7 @@ test("a chosen mode the session stops offering shows as Git, and comes back when
 
 test("review keeps its changed-file tree and filter usable while Files are hidden", async ({ page }, testInfo) => {
   const title = "Review without Files"
-  const directory = "C:/AigcForge/ReviewWithoutFiles"
+  const directory = "C:/Omnixa/ReviewWithoutFiles"
   await openSession(page, {
     name: title,
     directory,
@@ -1220,7 +1217,7 @@ async function statusInset(status: Locator, side: "left" | "right") {
   }, side)
 }
 
-function filesystemEvent(directory: string, file: string, event: "add" | "change" | "unlink"): AigcForgeEvent {
+function filesystemEvent(directory: string, file: string, event: "add" | "change" | "unlink"): OmnixaEvent {
   return {
     id: `evt_${file}_${event}`,
     created: 1,

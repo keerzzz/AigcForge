@@ -17,81 +17,81 @@ import {
   UnknownProviderError,
   AuthenticationError,
   QuotaExceededError,
-} from "@aigcfroge/ai"
-import { OpenAIChat } from "@aigcfroge/ai/protocols/openai-chat"
-import { AnthropicMessages, OpenAIResponses } from "@aigcfroge/ai/protocols"
-import { compileRequest } from "@aigcfroge/ai/route/client"
-import { TestLLM } from "@aigcfroge/ai/testing"
-import type { SessionHooks } from "@aigcfroge/plugin/effect/session"
-import { Database } from "@aigcfroge/core/database/database"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { LayerNodePlatform } from "@aigcfroge/core/effect/app-node-platform"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { Bus } from "@aigcfroge/core/bus"
-import { Event } from "@aigcfroge/schema/event"
-import { App } from "@aigcfroge/core/app"
-import { Permission } from "@aigcfroge/core/permission"
-import { ApprovalPresence } from "@aigcfroge/core/permission/approval-presence"
-import { SessionMemoryAdmission } from "@aigcfroge/core/session/memory-admission"
-import { CorrectionStore } from "@aigcfroge/core/session/correction-store"
-import { EventSequenceTable, EventTable } from "@aigcfroge/core/event/sql"
-import { Project } from "@aigcfroge/core/project"
-import { ProjectTable } from "@aigcfroge/core/project/sql"
-import { Form } from "@aigcfroge/core/form"
-import { AbsolutePath } from "@aigcfroge/core/schema"
-import { Session } from "@aigcfroge/core/session"
-import { Snapshot } from "@aigcfroge/core/snapshot"
-import { SessionEvent } from "@aigcfroge/core/session/event"
-import { SessionCompaction } from "@aigcfroge/core/session/compaction"
-import { SessionInbox } from "@aigcfroge/core/session/inbox"
-import { SessionInputResult } from "@aigcfroge/core/session/input-result"
-import { SessionGoal } from "@aigcfroge/core/session/goal"
-import { ScheduleService } from "@aigcfroge/core/session/schedule-service"
-import { SessionMessage } from "@aigcfroge/core/session/message"
-import { SessionModelTransport } from "@aigcfroge/core/session/model-transport"
-import { SessionProviderContext } from "@aigcfroge/core/session/provider-context"
-import { Money } from "@aigcfroge/schema/money"
-import { SessionProjector } from "@aigcfroge/core/session/projector"
-import { SessionExecution } from "@aigcfroge/core/session/execution"
-import { SessionRunCoordinator } from "@aigcfroge/core/session/run-coordinator"
-import { SessionRunner } from "@aigcfroge/core/session/runner/index"
-import { SessionRunnerLLM } from "@aigcfroge/core/session/runner/llm"
-import { SessionRunnerModel } from "@aigcfroge/core/session/runner/model"
-import { SessionStep } from "@aigcfroge/core/session/runner/step"
-import { SessionUsage } from "@aigcfroge/core/session/usage"
-import { TaskOperation } from "@aigcfroge/core/session/task-operation"
-import { SessionTask } from "@aigcfroge/schema/session-task"
-import { SessionTaskEvent } from "@aigcfroge/schema/session-task-event"
-import { PluginSupervisor } from "@aigcfroge/core/plugin/supervisor"
-import { Plugin } from "@aigcfroge/core/plugin"
-import { PluginHooks } from "@aigcfroge/core/plugin/hooks"
-import { OptimizePlugin } from "@aigcfroge/core/plugin/optimize"
-import { IdentityPlugin } from "@aigcfroge/core/plugin/identity"
-import { CommandPlugin } from "@aigcfroge/core/plugin/command"
-import { Command } from "@aigcfroge/core/command"
-import { GoalTool } from "@aigcfroge/core/tool/plugin/goal"
-import { QuestionTool } from "@aigcfroge/core/tool/plugin/question"
-import { Agent } from "@aigcfroge/core/agent"
-import { Config } from "@aigcfroge/core/config"
-import { ConfigProviderPlugin } from "@aigcfroge/core/config/plugin/provider"
-import { ProviderDiscovery } from "@aigcfroge/core/provider/discovery"
-import { Integration } from "@aigcfroge/core/integration"
-import { Credential } from "@aigcfroge/core/credential"
-import { ModelGroup } from "@aigcfroge/core/model-group"
-import { ModelResolver } from "@aigcfroge/core/model-resolver"
-import { ModelSource } from "@aigcfroge/schema/model-source"
-import { SessionAttempt } from "@aigcfroge/schema/session-attempt"
-import { IntegrationConnection } from "@aigcfroge/core/integration/connection"
-import { ConfigMeta } from "@aigcfroge/core/config/meta"
-import { MetaAgentMemory } from "@aigcfroge/core/agent/meta/memory"
-import { MetaAgentService } from "@aigcfroge/core/meta-agent/service"
-import { MetaAgentMemoryTable, MetaAgentSessionTable, MetaAgentTable } from "@aigcfroge/core/meta-agent/sql"
-import { MetaAgent } from "@aigcfroge/schema/meta-agent"
-import { Document, Info } from "@aigcfroge/schema/config"
-import { ConfigCompaction } from "@aigcfroge/schema/config/compaction"
-import { Tool } from "@aigcfroge/core/tool"
-import type { Info as ToolInfo } from "@aigcfroge/schema/tool"
+} from "@omnixa/ai"
+import { OpenAIChat } from "@omnixa/ai/protocols/openai-chat"
+import { AnthropicMessages, OpenAIResponses } from "@omnixa/ai/protocols"
+import { compileRequest } from "@omnixa/ai/route/client"
+import { TestLLM } from "@omnixa/ai/testing"
+import type { SessionHooks } from "@omnixa/plugin/effect/session"
+import { Database } from "@omnixa/core/database/database"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { LayerNodePlatform } from "@omnixa/core/effect/app-node-platform"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { Bus } from "@omnixa/core/bus"
+import { Event } from "@omnixa/schema/event"
+import { App } from "@omnixa/core/app"
+import { Permission } from "@omnixa/core/permission"
+import { ApprovalPresence } from "@omnixa/core/permission/approval-presence"
+import { SessionMemoryAdmission } from "@omnixa/core/session/memory-admission"
+import { CorrectionStore } from "@omnixa/core/session/correction-store"
+import { EventSequenceTable, EventTable } from "@omnixa/core/event/sql"
+import { Project } from "@omnixa/core/project"
+import { ProjectTable } from "@omnixa/core/project/sql"
+import { Form } from "@omnixa/core/form"
+import { AbsolutePath } from "@omnixa/core/schema"
+import { Session } from "@omnixa/core/session"
+import { Snapshot } from "@omnixa/core/snapshot"
+import { SessionEvent } from "@omnixa/core/session/event"
+import { SessionCompaction } from "@omnixa/core/session/compaction"
+import { SessionInbox } from "@omnixa/core/session/inbox"
+import { SessionInputResult } from "@omnixa/core/session/input-result"
+import { SessionGoal } from "@omnixa/core/session/goal"
+import { ScheduleService } from "@omnixa/core/session/schedule-service"
+import { SessionMessage } from "@omnixa/core/session/message"
+import { SessionModelTransport } from "@omnixa/core/session/model-transport"
+import { SessionProviderContext } from "@omnixa/core/session/provider-context"
+import { Money } from "@omnixa/schema/money"
+import { SessionProjector } from "@omnixa/core/session/projector"
+import { SessionExecution } from "@omnixa/core/session/execution"
+import { SessionRunCoordinator } from "@omnixa/core/session/run-coordinator"
+import { SessionRunner } from "@omnixa/core/session/runner/index"
+import { SessionRunnerLLM } from "@omnixa/core/session/runner/llm"
+import { SessionRunnerModel } from "@omnixa/core/session/runner/model"
+import { SessionStep } from "@omnixa/core/session/runner/step"
+import { SessionUsage } from "@omnixa/core/session/usage"
+import { TaskOperation } from "@omnixa/core/session/task-operation"
+import { SessionTask } from "@omnixa/schema/session-task"
+import { SessionTaskEvent } from "@omnixa/schema/session-task-event"
+import { PluginSupervisor } from "@omnixa/core/plugin/supervisor"
+import { Plugin } from "@omnixa/core/plugin"
+import { PluginHooks } from "@omnixa/core/plugin/hooks"
+import { OptimizePlugin } from "@omnixa/core/plugin/optimize"
+import { IdentityPlugin } from "@omnixa/core/plugin/identity"
+import { CommandPlugin } from "@omnixa/core/plugin/command"
+import { Command } from "@omnixa/core/command"
+import { GoalTool } from "@omnixa/core/tool/plugin/goal"
+import { QuestionTool } from "@omnixa/core/tool/plugin/question"
+import { Agent } from "@omnixa/core/agent"
+import { Config } from "@omnixa/core/config"
+import { ConfigProviderPlugin } from "@omnixa/core/config/plugin/provider"
+import { ProviderDiscovery } from "@omnixa/core/provider/discovery"
+import { Integration } from "@omnixa/core/integration"
+import { Credential } from "@omnixa/core/credential"
+import { ModelGroup } from "@omnixa/core/model-group"
+import { ModelResolver } from "@omnixa/core/model-resolver"
+import { ModelSource } from "@omnixa/schema/model-source"
+import { SessionAttempt } from "@omnixa/schema/session-attempt"
+import { IntegrationConnection } from "@omnixa/core/integration/connection"
+import { ConfigMeta } from "@omnixa/core/config/meta"
+import { MetaAgentMemory } from "@omnixa/core/agent/meta/memory"
+import { MetaAgentService } from "@omnixa/core/meta-agent/service"
+import { MetaAgentMemoryTable, MetaAgentSessionTable, MetaAgentTable } from "@omnixa/core/meta-agent/sql"
+import { MetaAgent } from "@omnixa/schema/meta-agent"
+import { Document, Info } from "@omnixa/schema/config"
+import { ConfigCompaction } from "@omnixa/schema/config/compaction"
+import { Tool } from "@omnixa/core/tool"
+import type { Info as ToolInfo } from "@omnixa/schema/tool"
 import {
   InstructionStateTable,
   SessionInboxTable,
@@ -99,19 +99,19 @@ import {
   SessionMessageTable,
   SessionTable,
   TaskOperationTable,
-} from "@aigcfroge/core/session/sql"
-import { InstructionEntry } from "@aigcfroge/core/session/instruction-entry"
-import { SessionStore } from "@aigcfroge/core/session/store"
-import { Instructions } from "@aigcfroge/core/instructions/index"
-import { InstructionBuiltIns } from "@aigcfroge/core/instructions/builtins"
-import { InstructionDiscovery } from "@aigcfroge/core/instruction-discovery"
-import { SkillInstructions } from "@aigcfroge/core/skill/instructions"
-import { ReferenceInstructions } from "@aigcfroge/core/reference/instructions"
-import { McpInstructions } from "@aigcfroge/core/mcp/instructions"
-import { SessionSystemPrompt } from "@aigcfroge/core/session/system-prompt"
-import { ID, Model } from "@aigcfroge/core/model"
-import { Location } from "@aigcfroge/core/location"
-import { Provider } from "@aigcfroge/core/provider"
+} from "@omnixa/core/session/sql"
+import { InstructionEntry } from "@omnixa/core/session/instruction-entry"
+import { SessionStore } from "@omnixa/core/session/store"
+import { Instructions } from "@omnixa/core/instructions/index"
+import { InstructionBuiltIns } from "@omnixa/core/instructions/builtins"
+import { InstructionDiscovery } from "@omnixa/core/instruction-discovery"
+import { SkillInstructions } from "@omnixa/core/skill/instructions"
+import { ReferenceInstructions } from "@omnixa/core/reference/instructions"
+import { McpInstructions } from "@omnixa/core/mcp/instructions"
+import { SessionSystemPrompt } from "@omnixa/core/session/system-prompt"
+import { ID, Model } from "@omnixa/core/model"
+import { Location } from "@omnixa/core/location"
+import { Provider } from "@omnixa/core/provider"
 import { Cause, Context, DateTime, Deferred, Effect, Exit, Fiber, Layer, Queue, Schema, Scope, Stream } from "effect"
 import { TestClock } from "effect/testing"
 import { asc, desc, eq, sql } from "drizzle-orm"
@@ -121,10 +121,10 @@ import { promptLocationNode } from "./fixture/prompt-location"
 import { SessionWire } from "./fixture/session-wire"
 import { tmpdirScoped } from "./fixture/tmpdir"
 import { tempGlobalLayer } from "./fixture/global"
-import { LocationServiceMap } from "@aigcfroge/core/location-service-map"
+import { LocationServiceMap } from "@omnixa/core/location-service-map"
 import { Expected } from "./lib/session-message"
 import { agentHost, integrationHost, modelHost, providerHost, host, noProviders } from "./plugin/host"
-import { CodeModeInstructions } from "@aigcfroge/core/codemode/instructions"
+import { CodeModeInstructions } from "@omnixa/core/codemode/instructions"
 import { withCustomMode } from "./lib/product-mode"
 
 const emptyCodeMode = `${CodeModeInstructions.render({ total: 0, shown: 0, namespaces: [] })}\n\n`
@@ -1443,7 +1443,7 @@ const groupDocument = (definition?: ModelGroup.Definition, priced = false) =>
       modelGroups: definition === undefined ? {} : { [groupID]: definition },
       providers: {
         "p3-primary": {
-          package: "@aigcfroge/ai/providers/openai-compatible",
+          package: "@omnixa/ai/providers/openai-compatible",
           settings: { baseURL: "https://fixture.invalid/v1" },
           models: {
             a: {
@@ -1454,7 +1454,7 @@ const groupDocument = (definition?: ModelGroup.Definition, priced = false) =>
           },
         },
         "p3-backup": {
-          package: "@aigcfroge/ai/providers/openai-compatible",
+          package: "@omnixa/ai/providers/openai-compatible",
           settings: { baseURL: "https://fixture.invalid/v1" },
           models: {
             b: {
@@ -1464,7 +1464,7 @@ const groupDocument = (definition?: ModelGroup.Definition, priced = false) =>
           },
         },
         "p3-single": {
-          package: "@aigcfroge/ai/providers/openai-compatible",
+          package: "@omnixa/ai/providers/openai-compatible",
           settings: { baseURL: "https://fixture.invalid/v1" },
           models: { c: { modelID: "api-c" } },
         },
@@ -8669,13 +8669,13 @@ describe("SessionRunnerLLM", () => {
     yield* s.runPrompt("Run correlated request")
 
     expect(s.requests[0]?.http?.headers).toEqual({
-      "x-aigcfroge-session-id": sessionID,
+      "x-omnixa-session-id": sessionID,
       "x-session-affinity": sessionID,
       "X-Session-Id": sessionID,
       "User-Agent": App.useragent(App.make()),
-      "x-aigcfroge-project": Project.ID.global,
-      "x-aigcfroge-session": sessionID,
-      "x-aigcfroge-client": "aigcfroge",
+      "x-omnixa-project": Project.ID.global,
+      "x-omnixa-session": sessionID,
+      "x-omnixa-client": "omnixa",
     })
   })
 
@@ -8704,7 +8704,7 @@ describe("SessionRunnerLLM", () => {
     expect(s.requests).toHaveLength(1)
     expect(s.requests[0]?.http?.headers).toMatchObject({
       "X-Agent": "primary",
-      "x-aigcfroge-session-id": sessionID,
+      "x-omnixa-session-id": sessionID,
     })
     expect(s.requests[0]?.http?.body).toEqual(request.body)
     expect(s.requests[0]?.generation?.temperature).toBeUndefined()
@@ -8724,12 +8724,12 @@ describe("SessionRunnerLLM", () => {
     yield* s.runPrompt("Run child request")
 
     expect(s.requests[0]?.http?.headers).toMatchObject({
-      "x-aigcfroge-session-id": sessionID,
-      "x-aigcfroge-parent-session-id": parentID,
+      "x-omnixa-session-id": sessionID,
+      "x-omnixa-parent-session-id": parentID,
       "x-session-affinity": parentID,
       "X-Session-Id": parentID,
       "x-parent-session-id": parentID,
-      "x-aigcfroge-session": parentID,
+      "x-omnixa-session": parentID,
     })
     expect(s.requests[0]?.promptCacheKey).toBe(parentID)
   })

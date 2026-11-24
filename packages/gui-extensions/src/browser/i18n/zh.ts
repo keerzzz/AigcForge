@@ -33,7 +33,7 @@ export default {
   "site.insecure": "连接不安全",
   "site.insecure.description": "请勿在此页面输入密码或其他私人信息。",
   "site.local": "本地服务器",
-  "site.local.description": "本地地址在运行AigcForge服务器的计算机上打开。",
+  "site.local.description": "本地地址在运行Omnixa服务器的计算机上打开。",
   "site.file": "工作区文件",
   "site.file.description": "此处只能打开此会话工作区内的文件。",
   "site.network": "页面通过 {{server}} 的网络加载。",

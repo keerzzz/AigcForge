@@ -1,53 +1,53 @@
-import { Database } from "@aigcfroge/core/database/database"
-import { V1Migration } from "@aigcfroge/core/database/v1-migration"
-import { App } from "@aigcfroge/core/app"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { Node } from "@aigcfroge/util/effect/app-node"
-import { httpClient } from "@aigcfroge/util/effect/app-node-platform"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { Bus } from "@aigcfroge/core/bus"
-import { DelegationService } from "@aigcfroge/core/delegation/service"
-import { DelegationExecution } from "@aigcfroge/core/delegation/execution"
-import { MetaAgentMemory } from "@aigcfroge/core/agent/meta/memory"
-import { MetaAgentService } from "@aigcfroge/core/meta-agent/service"
-import { Flag } from "@aigcfroge/core/flag/flag"
-import { EventLogger } from "@aigcfroge/core/event-logger"
-import { FileSystemSearch } from "@aigcfroge/core/filesystem/search"
-import { Credential } from "@aigcfroge/core/credential"
-import { Config } from "@aigcfroge/core/config"
-import { PermissionSaved } from "@aigcfroge/core/permission/saved"
-import { ApprovalPresence } from "@aigcfroge/core/permission/approval-presence"
-import { PtyTicket } from "@aigcfroge/core/pty/ticket"
-import { PersistentPty } from "@aigcfroge/core/persistent-pty"
-import { Project } from "@aigcfroge/core/project"
-import { Worktree } from "@aigcfroge/core/worktree"
-import { Session } from "@aigcfroge/core/session"
-import { SessionTask } from "@aigcfroge/core/session/task"
-import { SessionGoal } from "@aigcfroge/core/session/goal"
-import { SessionShareV2 } from "@aigcfroge/core/session/share-v2"
-import { SessionExecution } from "@aigcfroge/core/session/execution"
-import { ScheduleService } from "@aigcfroge/core/session/schedule-service"
-import { ScheduleExecution } from "@aigcfroge/core/session/schedule-execution"
-import { SessionTodo } from "@aigcfroge/core/session/todo"
-import { SessionComposition } from "@aigcfroge/core/session/composition"
-import { WorkflowRun } from "@aigcfroge/core/workflow/workflow-run"
-import { WorkflowExecution } from "@aigcfroge/core/workflow/execution"
-import { Instance } from "@aigcfroge/core/instance/service"
-import { SessionTransfer } from "@aigcfroge/core/session/transfer"
-import { ShellSelect } from "@aigcfroge/core/shell/select"
-import { Job } from "@aigcfroge/core/job"
-import { Mcp } from "@aigcfroge/core/mcp/index"
-import { Global } from "@aigcfroge/util/global"
-import { InstructionDiscovery } from "@aigcfroge/core/instruction-discovery"
-import { LocationServiceMap } from "@aigcfroge/core/location-service-map"
-import { LocationActivity } from "@aigcfroge/core/location-activity"
-import { ModelsDev } from "@aigcfroge/core/models-dev"
-import { SessionRestart } from "@aigcfroge/core/session/execution/restart"
-import { PluginUpdate } from "@aigcfroge/core/plugin/update"
-import { SdkPlugins } from "@aigcfroge/core/plugin/sdk"
-import { WellKnown } from "@aigcfroge/core/wellknown"
-import { Workspace } from "@aigcfroge/core/workspace"
-import { Watcher } from "@aigcfroge/core/filesystem/watcher"
+import { Database } from "@omnixa/core/database/database"
+import { V1Migration } from "@omnixa/core/database/v1-migration"
+import { App } from "@omnixa/core/app"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { Node } from "@omnixa/util/effect/app-node"
+import { httpClient } from "@omnixa/util/effect/app-node-platform"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { Bus } from "@omnixa/core/bus"
+import { DelegationService } from "@omnixa/core/delegation/service"
+import { DelegationExecution } from "@omnixa/core/delegation/execution"
+import { MetaAgentMemory } from "@omnixa/core/agent/meta/memory"
+import { MetaAgentService } from "@omnixa/core/meta-agent/service"
+import { Flag } from "@omnixa/core/flag/flag"
+import { EventLogger } from "@omnixa/core/event-logger"
+import { FileSystemSearch } from "@omnixa/core/filesystem/search"
+import { Credential } from "@omnixa/core/credential"
+import { Config } from "@omnixa/core/config"
+import { PermissionSaved } from "@omnixa/core/permission/saved"
+import { ApprovalPresence } from "@omnixa/core/permission/approval-presence"
+import { PtyTicket } from "@omnixa/core/pty/ticket"
+import { PersistentPty } from "@omnixa/core/persistent-pty"
+import { Project } from "@omnixa/core/project"
+import { Worktree } from "@omnixa/core/worktree"
+import { Session } from "@omnixa/core/session"
+import { SessionTask } from "@omnixa/core/session/task"
+import { SessionGoal } from "@omnixa/core/session/goal"
+import { SessionShareV2 } from "@omnixa/core/session/share-v2"
+import { SessionExecution } from "@omnixa/core/session/execution"
+import { ScheduleService } from "@omnixa/core/session/schedule-service"
+import { ScheduleExecution } from "@omnixa/core/session/schedule-execution"
+import { SessionTodo } from "@omnixa/core/session/todo"
+import { SessionComposition } from "@omnixa/core/session/composition"
+import { WorkflowRun } from "@omnixa/core/workflow/workflow-run"
+import { WorkflowExecution } from "@omnixa/core/workflow/execution"
+import { Instance } from "@omnixa/core/instance/service"
+import { SessionTransfer } from "@omnixa/core/session/transfer"
+import { ShellSelect } from "@omnixa/core/shell/select"
+import { Job } from "@omnixa/core/job"
+import { Mcp } from "@omnixa/core/mcp/index"
+import { Global } from "@omnixa/util/global"
+import { InstructionDiscovery } from "@omnixa/core/instruction-discovery"
+import { LocationServiceMap } from "@omnixa/core/location-service-map"
+import { LocationActivity } from "@omnixa/core/location-activity"
+import { ModelsDev } from "@omnixa/core/models-dev"
+import { SessionRestart } from "@omnixa/core/session/execution/restart"
+import { PluginUpdate } from "@omnixa/core/plugin/update"
+import { SdkPlugins } from "@omnixa/core/plugin/sdk"
+import { WellKnown } from "@omnixa/core/wellknown"
+import { Workspace } from "@omnixa/core/workspace"
+import { Watcher } from "@omnixa/core/filesystem/watcher"
 import { HttpRouter } from "effect/http"
 import { HttpApiBuilder } from "effect/http-api"
 import { Context, Effect, Layer, Option } from "effect"
@@ -150,7 +150,7 @@ function makeRoutes<AuthError, AuthServices>(
     Database.node.replace(Database.configured(options.database)),
     PersistentPty.node.replace(PersistentPty.configured(options.pty)),
     Bus.node.replace(
-      Bus.configured({ persist: options.events?.persist ?? Flag.AIGCFROGE_EXPERIMENTAL_PERSISTENT_DELEGATIONS }),
+      Bus.configured({ persist: options.events?.persist ?? Flag.OMNIXA_EXPERIMENTAL_PERSISTENT_DELEGATIONS }),
     ),
     App.node.replace(App.configured(options.app)),
     ModelsDev.node.replace(ModelsDev.configured(options.models)),
@@ -169,7 +169,7 @@ function makeRoutes<AuthError, AuthServices>(
     Mcp.node.replace(
       Mcp.configured({
         clientInfo: {
-          name: "aigcfroge",
+          name: "omnixa",
           version: options.app?.version ?? "unknown",
         },
       }),
@@ -187,7 +187,7 @@ function makeRoutes<AuthError, AuthServices>(
   const serviceLayer = options.simulation
     ? Layer.unwrap(
         Effect.gen(function* () {
-          const { simulationReplacements } = yield* Effect.promise(() => import("@aigcfroge/simulation/backend"))
+          const { simulationReplacements } = yield* Effect.promise(() => import("@omnixa/simulation/backend"))
           const simulation = yield* simulationReplacements({ version: App.make(options.app).version })
           return build([...overrides, ...simulation])
         }),

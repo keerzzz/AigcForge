@@ -1,9 +1,9 @@
 export * as ConfigSkillPlugin from "./skill.js"
 
-import { define } from "@aigcfroge/plugin/effect/plugin"
-import type { Entry } from "@aigcfroge/schema/config"
-import { FSUtil } from "@aigcfroge/util/fs-util"
-import { Global } from "@aigcfroge/util/global"
+import { define } from "@omnixa/plugin/effect/plugin"
+import type { Entry } from "@omnixa/schema/config"
+import { FSUtil } from "@omnixa/util/fs-util"
+import { Global } from "@omnixa/util/global"
 import path from "path"
 import { Effect, FiberMap, PubSub, Semaphore, Stream } from "effect"
 import { Config } from "../../config.js"
@@ -17,7 +17,7 @@ import { SkillFile } from "./skill-file.js"
 type Source = Skill.DirectorySource | Skill.UrlSource
 
 export const Plugin = define({
-  id: "aigcfroge.config.skill",
+  id: "omnixa.config.skill",
   effect: Effect.fn(function* (ctx) {
     const config = yield* Config.Service
     const discovery = yield* SkillDiscovery.Service

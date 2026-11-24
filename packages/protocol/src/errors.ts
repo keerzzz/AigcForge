@@ -1,7 +1,7 @@
 import { Schema } from "effect"
-import { Composition } from "@aigcfroge/schema/composition"
-import { Skill } from "@aigcfroge/schema/skill"
-import { Location } from "@aigcfroge/schema/location"
+import { Composition } from "@omnixa/schema/composition"
+import { Skill } from "@omnixa/schema/skill"
+import { Location } from "@omnixa/schema/location"
 
 export class LocationNotFoundError extends Schema.TaggedError<LocationNotFoundError>()(
   "LocationNotFoundError",

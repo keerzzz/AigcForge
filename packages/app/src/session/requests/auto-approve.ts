@@ -1,6 +1,6 @@
 import { createEffect, onCleanup } from "solid-js"
-import type { PermissionRequest } from "@aigcfroge/client/promise"
-import type { Data } from "@aigcfroge/client/solid"
+import type { PermissionRequest } from "@omnixa/client/promise"
+import type { Data } from "@omnixa/client/solid"
 import type { ServerSDK } from "@/runtime/server/client"
 import { useSettings } from "@/settings/model"
 

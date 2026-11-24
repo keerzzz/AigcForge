@@ -3,31 +3,31 @@ import { eq } from "drizzle-orm"
 import { Deferred, Effect, Fiber, Layer, Schema } from "effect"
 import * as TestClock from "effect/testing/TestClock"
 import { HttpClient, HttpClientError, HttpClientResponse } from "effect/http"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { Bus } from "@aigcfroge/core/bus"
-import { Credential } from "@aigcfroge/core/credential"
-import { CredentialScanner } from "@aigcfroge/core/credential-scanner"
-import { Database } from "@aigcfroge/core/database/database"
-import { Image } from "@aigcfroge/core/image"
-import { Location } from "@aigcfroge/core/location"
-import { McpConnection } from "@aigcfroge/core/mcp/connection"
-import { McpCredentialBindingStore } from "@aigcfroge/core/mcp/binding/store"
-import { McpCredentialBindingTable } from "@aigcfroge/core/mcp/binding/sql"
-import { Permission } from "@aigcfroge/core/permission"
-import { Tool } from "@aigcfroge/core/tool"
-import { Composition } from "@aigcfroge/schema/composition"
-import { Integration } from "@aigcfroge/schema/integration"
-import { McpServerBinding } from "@aigcfroge/schema/mcp-scope"
-import { Session } from "@aigcfroge/schema/session"
-import { CrossSpawnSpawner } from "@aigcfroge/util/cross-spawn-spawner"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { Bus } from "@omnixa/core/bus"
+import { Credential } from "@omnixa/core/credential"
+import { CredentialScanner } from "@omnixa/core/credential-scanner"
+import { Database } from "@omnixa/core/database/database"
+import { Image } from "@omnixa/core/image"
+import { Location } from "@omnixa/core/location"
+import { McpConnection } from "@omnixa/core/mcp/connection"
+import { McpCredentialBindingStore } from "@omnixa/core/mcp/binding/store"
+import { McpCredentialBindingTable } from "@omnixa/core/mcp/binding/sql"
+import { Permission } from "@omnixa/core/permission"
+import { Tool } from "@omnixa/core/tool"
+import { Composition } from "@omnixa/schema/composition"
+import { Integration } from "@omnixa/schema/integration"
+import { McpServerBinding } from "@omnixa/schema/mcp-scope"
+import { Session } from "@omnixa/schema/session"
+import { CrossSpawnSpawner } from "@omnixa/util/cross-spawn-spawner"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
 import os from "node:os"
 import * as path from "node:path"
 import { readFileSync } from "node:fs"
 import { randomUUID } from "node:crypto"
 import { pollWithTimeout, testEffect } from "./lib/effect"
 import { location } from "./fixture/location"
-import { AbsolutePath } from "@aigcfroge/core/schema"
+import { AbsolutePath } from "@omnixa/core/schema"
 import { withCustomModeEnabled } from "./lib/product-mode"
 import { permissionLayer } from "./lib/permission"
 import { codeModeListings, toolIdentity } from "./lib/tool"
@@ -232,9 +232,7 @@ describe("McpConnection typed stdio owner (Phase C Slice 1)", () => {
   it.live("fails typed when the executable does not exist", () =>
     Effect.gen(function* () {
       const conn = yield* McpConnection.Service
-      const result = yield* probe(
-        conn.connect({ binding: binding({ command: ["/nonexistent/aigcfroge-missing-bin"] }) }),
-      )
+      const result = yield* probe(conn.connect({ binding: binding({ command: ["/nonexistent/omnixa-missing-bin"] }) }))
       expect(result.tag).toBe("McpConnection.ProcessStartError")
       expect(yield* conn.connections()).toHaveLength(0)
     }),
@@ -311,7 +309,7 @@ describe("McpConnection typed stdio owner (Phase C Slice 1)", () => {
 
   it.live("disconnect releases a real stdio pending call with a typed close reason", () =>
     Effect.gen(function* () {
-      const marker = path.join(os.tmpdir(), `aigcfroge-mcp-pending-${randomUUID()}`)
+      const marker = path.join(os.tmpdir(), `omnixa-mcp-pending-${randomUUID()}`)
       const conn = yield* McpConnection.Service
       const info = yield* conn.connect({
         binding: binding({ serverName: "pending", command: [process.execPath, FIXTURE, "pendingcall", marker] }),
@@ -337,7 +335,7 @@ describe("McpConnection typed stdio owner (Phase C Slice 1)", () => {
 
   it.live("revoking a bound credential fails the next tool admission before the server observes it", () =>
     Effect.gen(function* () {
-      const marker = path.join(os.tmpdir(), `aigcfroge-mcp-revoked-${randomUUID()}`)
+      const marker = path.join(os.tmpdir(), `omnixa-mcp-revoked-${randomUUID()}`)
       const credential = yield* Credential.Service
       const bindings = yield* McpCredentialBindingStore.Service
       const conn = yield* McpConnection.Service
@@ -450,7 +448,7 @@ describe("McpConnection typed stdio owner (Phase C Slice 1)", () => {
 
   it.live("kill switch rejects new admission and closes an already pending call", () =>
     Effect.gen(function* () {
-      const marker = path.join(os.tmpdir(), `aigcfroge-mcp-kill-${randomUUID()}`)
+      const marker = path.join(os.tmpdir(), `omnixa-mcp-kill-${randomUUID()}`)
       const conn = yield* McpConnection.Service
       const info = yield* conn.connect({
         binding: binding({ serverName: "killswitch", command: [process.execPath, FIXTURE, "pendingcall", marker] }),
@@ -463,13 +461,13 @@ describe("McpConnection typed stdio owner (Phase C Slice 1)", () => {
         ),
         "stdio server never observed the pending tool call",
       )
-      const saved = process.env["AIGCFROGE_CUSTOM_MODE"]
-      delete process.env["AIGCFROGE_CUSTOM_MODE"]
+      const saved = process.env["OMNIXA_CUSTOM_MODE"]
+      delete process.env["OMNIXA_CUSTOM_MODE"]
       const disabled = yield* probe(conn.connect({ binding: binding({ serverName: "new-server", mode: "ok" }) })).pipe(
         Effect.ensuring(
           Effect.sync(() => {
-            if (saved === undefined) delete process.env["AIGCFROGE_CUSTOM_MODE"]
-            else process.env["AIGCFROGE_CUSTOM_MODE"] = saved
+            if (saved === undefined) delete process.env["OMNIXA_CUSTOM_MODE"]
+            else process.env["OMNIXA_CUSTOM_MODE"] = saved
           }),
         ),
       )
@@ -553,13 +551,13 @@ describe("McpConnection typed stdio owner (Phase C Slice 1)", () => {
       const conn = yield* McpConnection.Service
       const server = "rollout-on"
 
-      const saved = process.env["AIGCFROGE_CUSTOM_MODE"]
-      delete process.env["AIGCFROGE_CUSTOM_MODE"]
+      const saved = process.env["OMNIXA_CUSTOM_MODE"]
+      delete process.env["OMNIXA_CUSTOM_MODE"]
       const blocked = yield* probe(conn.connect({ binding: binding({ serverName: server }) })).pipe(
         Effect.ensuring(
           Effect.sync(() => {
-            if (saved === undefined) delete process.env["AIGCFROGE_CUSTOM_MODE"]
-            else process.env["AIGCFROGE_CUSTOM_MODE"] = saved
+            if (saved === undefined) delete process.env["OMNIXA_CUSTOM_MODE"]
+            else process.env["OMNIXA_CUSTOM_MODE"] = saved
           }),
         ),
       )
@@ -589,8 +587,8 @@ describe("McpConnection typed stdio owner (Phase C Slice 1)", () => {
       // otherwise "reaped after rollback" would hold vacuously.
       expect(yield* reaped(info.pid)).toBe(false)
 
-      const saved = process.env["AIGCFROGE_CUSTOM_MODE"]
-      delete process.env["AIGCFROGE_CUSTOM_MODE"]
+      const saved = process.env["OMNIXA_CUSTOM_MODE"]
+      delete process.env["OMNIXA_CUSTOM_MODE"]
       const result = yield* Effect.gen(function* () {
         // The mounted window, asserted so a move to eager teardown shows up here
         // instead of silently changing what the model can see.
@@ -601,8 +599,8 @@ describe("McpConnection typed stdio owner (Phase C Slice 1)", () => {
       }).pipe(
         Effect.ensuring(
           Effect.sync(() => {
-            if (saved === undefined) delete process.env["AIGCFROGE_CUSTOM_MODE"]
-            else process.env["AIGCFROGE_CUSTOM_MODE"] = saved
+            if (saved === undefined) delete process.env["OMNIXA_CUSTOM_MODE"]
+            else process.env["OMNIXA_CUSTOM_MODE"] = saved
           }),
         ),
       )
@@ -712,7 +710,7 @@ describe("McpConnection typed stdio owner (Phase C Slice 1)", () => {
    */
   it.live("fails an in-flight call with the child's exit code and leaves sibling servers usable", () =>
     Effect.gen(function* () {
-      const marker = path.join(os.tmpdir(), `aigcfroge-mcp-die-${randomUUID()}`)
+      const marker = path.join(os.tmpdir(), `omnixa-mcp-die-${randomUUID()}`)
       const conn = yield* McpConnection.Service
       yield* conn.connect({ binding: binding({ serverName: "survivor" }) })
       const dying = yield* conn.connect({
@@ -780,7 +778,7 @@ describe("McpConnection typed stdio owner (Phase C Slice 1)", () => {
     () =>
       Effect.gen(function* () {
         const calls: Permission.AssertInput[] = []
-        const marker = path.join(os.tmpdir(), `aigcfroge-mcp-permission-${randomUUID()}`)
+        const marker = path.join(os.tmpdir(), `omnixa-mcp-permission-${randomUUID()}`)
         const denied = new Permission.BlockedError({
           permission: "mcp_approved_empty",
           resources: ["*"],

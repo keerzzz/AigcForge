@@ -7,7 +7,7 @@ import { PositiveInt, statics } from "../schema.js"
 export const ID = Schema.String.pipe(
   Schema.brand("ProviderV2.ID"),
   statics((schema) => ({
-    aigcfroge: schema.make("aigcfroge"),
+    omnixa: schema.make("omnixa"),
     anthropic: schema.make("anthropic"),
     openai: schema.make("openai"),
     google: schema.make("google"),

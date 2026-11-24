@@ -2,12 +2,12 @@ export * as PersistentPty from "./index.js"
 
 import path from "node:path"
 import { Context, Effect, Layer, Schema } from "effect"
-import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
-import { Added, Handoff, PersistentPty, ReadLines, Removed, type ReadResult } from "@aigcfroge/schema/persistent-pty"
-import { Session } from "@aigcfroge/schema/session"
+import { makeGlobalNode } from "@omnixa/util/effect/app-node"
+import { Added, Handoff, PersistentPty, ReadLines, Removed, type ReadResult } from "@omnixa/schema/persistent-pty"
+import { Session } from "@omnixa/schema/session"
 import { Bus } from "../bus.js"
-import { Pty } from "@aigcfroge/schema/pty"
-import { Global } from "@aigcfroge/util/global"
+import { Pty } from "@omnixa/schema/pty"
+import { Global } from "@omnixa/util/global"
 import { ShellSelect } from "../shell/select.js"
 import {
   makeDaemonTransport,
@@ -20,7 +20,7 @@ import {
 import { resolveBinary } from "#persistent-pty-binary"
 
 export type { Role, StreamEvent } from "./daemon.js"
-export { Handoff } from "@aigcfroge/schema/persistent-pty"
+export { Handoff } from "@omnixa/schema/persistent-pty"
 export { available } from "#persistent-pty-binary"
 
 export const Options = Schema.Struct({
@@ -114,7 +114,7 @@ export interface Interface {
   ) => Effect.Effect<Attachment, NotFoundError | UnavailableError>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/PersistentPty") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/PersistentPty") {}
 
 const makeLayer = (options: Options = {}) =>
   Layer.effect(
@@ -382,7 +382,7 @@ const optionalRequest = (daemon: DaemonTransport, value: object) =>
   daemon.requestIfRunning(value).pipe(Effect.mapError(unavailable))
 
 const unexpected = (response: WireResponse) =>
-  Effect.fail(new UnavailableError({ message: `unexpected aigcfroge-pty response: ${response.type}` }))
+  Effect.fail(new UnavailableError({ message: `unexpected omnixa-pty response: ${response.type}` }))
 
 const unavailable = (error: unknown) =>
   new UnavailableError({ message: error instanceof Error ? error.message : String(error) })

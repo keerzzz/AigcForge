@@ -3,9 +3,9 @@ import { testRender } from "@opentui/solid"
 import { expect, test } from "bun:test"
 import { RGBA } from "@opentui/core"
 import { createTuiResolvedConfig } from "../../fixture/tui-runtime"
-import { getAigcForgeTheme } from "../../../src/theme"
-import aigcfrogeSource from "../../../src/theme/assets/aigcfroge.json" with { type: "json" }
-import type { ThemeV1Json } from "@aigcfroge/theme/tui/v1"
+import { getOmnixaTheme } from "../../../src/theme"
+import omnixaSource from "../../../src/theme/assets/omnixa.json" with { type: "json" }
+import type { ThemeV1Json } from "@omnixa/theme/tui/v1"
 import { ConfigProvider } from "../../../src/config"
 import { ThemeContextProvider, ThemeProvider, type ThemeError, useTheme, useThemes } from "../../../src/context/theme"
 
@@ -18,19 +18,19 @@ async function wait(fn: () => boolean) {
 }
 
 test("uses an available mode while retaining the pinned preference", async () => {
-  const aigcfrogeV1 = aigcfrogeSource as ThemeV1Json
-  const lightOnly = structuredClone(aigcfrogeV1)
+  const omnixaV1 = omnixaSource as ThemeV1Json
+  const lightOnly = structuredClone(omnixaV1)
   lightOnly.theme.background = "#eeeeee"
   lightOnly.theme.text = "#111111"
-  const dual = structuredClone(aigcfrogeV1)
+  const dual = structuredClone(omnixaV1)
   dual.theme.background = { light: "#eeeeee", dark: "#111111" }
   dual.theme.text = { light: "#111111", dark: "#eeeeee" }
-  const darkOnly = structuredClone(aigcfrogeV1)
+  const darkOnly = structuredClone(omnixaV1)
   darkOnly.theme.background = "#111111"
   darkOnly.theme.text = "#eeeeee"
   const native = {
-    base: { ...getAigcForgeTheme().base, text: { ...getAigcForgeTheme().base.text, base: "#abcdef" } },
-    dark: { hue: getAigcForgeTheme().dark.hue },
+    base: { ...getOmnixaTheme().base, text: { ...getOmnixaTheme().base.text, base: "#abcdef" } },
+    dark: { hue: getOmnixaTheme().dark.hue },
   } as const
   let themes: ReturnType<typeof useThemes> | undefined
 
@@ -89,11 +89,11 @@ test.each([
   [
     "token reference",
     {
-      base: { ...getAigcForgeTheme().base, text: { ...getAigcForgeTheme().base.text, base: "$missing" } },
-      light: getAigcForgeTheme().light,
+      base: { ...getOmnixaTheme().base, text: { ...getOmnixaTheme().base.text, base: "$missing" } },
+      light: getOmnixaTheme().light,
     },
   ],
-] as const)("falls back to AigcForge when configured V2 theme %s is invalid", async (_label, source) => {
+] as const)("falls back to Omnixa when configured V2 theme %s is invalid", async (_label, source) => {
   let themes: ReturnType<typeof useThemes> | undefined
   let failure: ThemeError | undefined
   let unsubscribe: (() => void) | undefined
@@ -121,7 +121,7 @@ test.each([
 
   try {
     await wait(() => themes?.ready === true)
-    expect(themes?.selected).toBe("aigcfroge")
+    expect(themes?.selected).toBe("omnixa")
     expect(failure?.name).toBe("invalid")
     expect(failure?.error).toBeInstanceOf(Error)
     expect(failure?.error.message.length).toBeGreaterThan(0)
@@ -153,7 +153,7 @@ test("dialog surfaces are absolute and can be inherited through the theme contex
 
   const app = await testRender(
     () => (
-      <ConfigProvider config={createTuiResolvedConfig({ theme: { name: "aigcfroge", mode: "dark" } })}>
+      <ConfigProvider config={createTuiResolvedConfig({ theme: { name: "omnixa", mode: "dark" } })}>
         <ThemeProvider mode="dark" source={{ discover: async () => ({}) }}>
           <Probe />
         </ThemeProvider>

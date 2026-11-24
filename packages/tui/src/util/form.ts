@@ -1,4 +1,4 @@
-import type { FormField, FormValue } from "@aigcfroge/client"
+import type { FormField, FormValue } from "@omnixa/client"
 
 export type FormAnswerField = Exclude<FormField, { type: "external" }>
 

@@ -1,4 +1,4 @@
-import type { JsonValue, SessionMessageAssistant, SessionMessageAssistantTool } from "@aigcfroge/client/promise"
+import type { JsonValue, SessionMessageAssistant, SessionMessageAssistantTool } from "@omnixa/client/promise"
 import { createMemo } from "solid-js"
 import { createStore } from "solid-js/store"
 import type { SessionDocument } from "../document"
@@ -17,7 +17,7 @@ import { storyDocument, storyPatchFile, storyTool } from "../storybook/current-s
 import { SessionTimeline } from "./session-timeline"
 
 export default {
-  title: "AigcForge/Work/Research and agents",
+  title: "Omnixa/Work/Research and agents",
   id: "current-session-research-agents",
   component: SessionTimeline,
   parameters: {
@@ -198,7 +198,7 @@ const LoadingSpecializedSkills = {
       description="Active and completed skills display their identifier or resolved name."
       document={storyDocument([
         storyTool("tool_skill_id", "skill", "running", { id: "frontend-design" }),
-        storyTool("tool_skill_name", "skill", "completed", { id: "aigcfroge" }, { metadata: { name: "AigcForge" } }),
+        storyTool("tool_skill_name", "skill", "completed", { id: "omnixa" }, { metadata: { name: "Omnixa" } }),
       ])}
     />
   ),

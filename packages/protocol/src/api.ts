@@ -15,7 +15,7 @@ import { CommandGroup } from "./groups/command.js"
 import { SkillGroup } from "./groups/skill.js"
 import { RpcGroup } from "./groups/rpc.js"
 import { EventGroup, makeEventGroup } from "./groups/event.js"
-import type { Definition } from "@aigcfroge/schema/event"
+import type { Definition } from "@omnixa/schema/event"
 import { AgentGroup } from "./groups/agent.js"
 import { PluginGroup } from "./groups/plugin.js"
 import { ServerGroup } from "./groups/server.js"
@@ -296,7 +296,7 @@ const makeApiFromGroup = <
     .add(SessionInstanceGroup)
     .annotateMerge(
       OpenApi.annotations({
-        title: "aigcfroge HttpApi",
+        title: "omnixa HttpApi",
         version: "0.0.1",
         description: "Experimental HttpApi surface for selected instance routes.",
       }),

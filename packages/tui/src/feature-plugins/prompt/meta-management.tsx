@@ -1,7 +1,7 @@
-import { Plugin } from "@aigcfroge/plugin/tui"
-import { SessionGoal } from "@aigcfroge/schema/session-goal"
-import { SessionID } from "@aigcfroge/schema/session-id"
-import { Schedule } from "@aigcfroge/schema/schedule"
+import { Plugin } from "@omnixa/plugin/tui"
+import { SessionGoal } from "@omnixa/schema/session-goal"
+import { SessionID } from "@omnixa/schema/session-id"
+import { Schedule } from "@omnixa/schema/schedule"
 import { Schema } from "effect"
 import { createEffect, createMemo, createSignal, onMount, Show } from "solid-js"
 import { useData } from "../../context/data"
@@ -15,7 +15,7 @@ type Goal = NonNullable<ReturnType<Data["session"]["goal"]["list"]>>[number]
 type Rule = NonNullable<ReturnType<Data["session"]["schedule"]["list"]>>[number]
 
 export default Plugin.define({
-  id: "aigcfroge.meta-management",
+  id: "omnixa.meta-management",
   setup(context) {
     context.ui.slot({
       append: "app",

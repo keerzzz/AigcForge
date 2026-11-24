@@ -38,15 +38,15 @@ test("SC03 keeps a target draft and attachments after its Shell closes and resto
   const workspace = await openSession(page, {
     name: "SC03 target memory",
     sessions: [
-      { id: sourceID, title: "Source A", model: { providerID: "aigcfroge", id: "source-model" } },
+      { id: sourceID, title: "Source A", model: { providerID: "omnixa", id: "source-model" } },
       {
         id: targetID,
         title: "Target B",
         directory: targetDirectory,
         location: targetLocation,
-        model: { providerID: "aigcfroge", id: "target-model" },
+        model: { providerID: "omnixa", id: "target-model" },
       },
-      { id: otherSourceID, title: "Source C", model: { providerID: "aigcfroge", id: "source-model" } },
+      { id: otherSourceID, title: "Source C", model: { providerID: "omnixa", id: "source-model" } },
     ],
     provider: provider({ id: "source-model", name: "Source model" }, { id: "target-model", name: "Target model" }),
     pageMessages: (id) => ({
@@ -141,7 +141,7 @@ test("SC03 keeps a target draft and attachments after its Shell closes and resto
       text: `Final target draft B\nAttached file: \`${writes[0]?.path}\``,
       metadata: {
         displayText: "Final target draft B",
-        model: { providerID: "aigcfroge", modelID: "target-model" },
+        model: { providerID: "omnixa", modelID: "target-model" },
       },
     },
   })
@@ -199,7 +199,7 @@ for (const [scheme, width] of [
       expect(prompts[0]).toMatchObject({
         body: {
           text: "Keep this draft while loading",
-          metadata: { model: { providerID: "aigcfroge", modelID: "ready-model" } },
+          metadata: { model: { providerID: "omnixa", modelID: "ready-model" } },
         },
       })
     } finally {
@@ -416,7 +416,7 @@ test("MP03 Session chips preserve mixed drafts and follow rename, deletion and c
   const sourceID = "ses_mp03_chip_source"
   const targetID = "ses_mp03_chip_target"
   const cachedID = "ses_mp03_chip_cached"
-  const directory = "C:/AigcForge/MP03SessionChips"
+  const directory = "C:/Omnixa/MP03SessionChips"
   const reads: string[] = []
   const writes: string[] = []
   page.on("request", (request) => {
@@ -459,7 +459,7 @@ test("MP03 Session chips preserve mixed drafts and follow rename, deletion and c
     .poll(async () => {
       const values = await page.evaluate(async () => {
         const database = await new Promise<IDBDatabase>((resolve, reject) => {
-          const request = indexedDB.open("aigcfroge-drafts", 1)
+          const request = indexedDB.open("omnixa-drafts", 1)
           request.onsuccess = () => resolve(request.result)
           request.onerror = () => reject(request.error)
         })
@@ -698,7 +698,7 @@ test("shows the dropzone and attaches a dropped file", async ({ page }) => {
     .toEqual([
       {
         path: expect.stringMatching(/\/uploads\/[0-9a-f-]{36}\/dropzone\.txt$/),
-        directory: "C:/AigcForge/ComposerDraft",
+        directory: "C:/Omnixa/ComposerDraft",
         body: "Dropzone fixture",
       },
     ])
@@ -805,7 +805,7 @@ test("shows thinking on hover or a non-default selection while preserving keyboa
       {
         id: "ses_composerthinking",
         title: "ComposerThinking",
-        model: { id: "thinking-model", providerID: "aigcfroge" },
+        model: { id: "thinking-model", providerID: "omnixa" },
       },
     ],
   })

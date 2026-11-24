@@ -18,14 +18,11 @@ import {
 import { OAuthMetadataSchema, OpenIdProviderDiscoveryMetadataSchema } from "@modelcontextprotocol/core"
 import { Cause, Deferred, Effect } from "effect"
 import type { ServerResponse } from "node:http"
-import { ConfigMCP } from "@aigcfroge/schema/config/mcp"
+import { ConfigMCP } from "@omnixa/schema/config/mcp"
 import { Credential } from "../credential.js"
 import { OauthCallbackPage } from "../oauth/page.js"
 import type { Integration } from "../integration.js"
 import { ErrorSummary } from "../util/error-summary.js"
-
-/** Client ID Metadata Document: servers that support CIMD accept this URL as the client_id without registration. */
-export const CLIENT_METADATA_URL = "https://aigcfroge.ai/oauth/aigcfroge/client.json"
 
 // Refresh tokens rotate, so concurrent refreshes of the same token share one request or the second gets invalid_grant.
 const refreshes = new Map<string, ReturnType<FetchLike>>()
@@ -180,8 +177,8 @@ export const provider = (options: Options): OAuthClientProvider => {
     ...(redirect ? { state: () => redirect.state } : {}),
     clientMetadata: {
       redirect_uris: [redirectUrl],
-      client_name: "aigcfroge",
-      client_uri: "https://aigcfroge.ai",
+      client_name: "omnixa",
+      client_uri: "https://github.com/keerzzz/AigcForge",
       grant_types: ["authorization_code", "refresh_token"],
       response_types: ["code"],
       token_endpoint_auth_method: client?.client_secret ? "client_secret_post" : "none",
@@ -414,7 +411,7 @@ export const authorize = (input: {
           jsonrpc: "2.0",
           id: 0,
           method: "initialize",
-          params: { protocolVersion: LATEST_PROTOCOL_VERSION, capabilities: {}, clientInfo: { name: "aigcfroge" } },
+          params: { protocolVersion: LATEST_PROTOCOL_VERSION, capabilities: {}, clientInfo: { name: "omnixa" } },
         }),
         signal,
       }),
@@ -424,29 +421,23 @@ export const authorize = (input: {
       Effect.orElseSucceed(() => ({ resourceMetadataUrl: undefined, scope: undefined })),
     )
     const resourceMetadataUrl = challenge.resourceMetadataUrl
-    // CIMD needs the server to advertise it and accept public clients, and our published document only
-    // lists the loopback redirect; a configured client_id always wins.
+    // Discover authorization server metadata; Omnixa does not host a published CIMD document yet,
+    // so authorization uses a configured static client_id or dynamic client registration (DCR).
     const discovery = yield* Effect.tryPromise({
       try: async () =>
         (await configuredDiscovery({ config: input.config, fetchFn })) ??
         discoverOAuthServerInfo(input.config.url, { resourceMetadataUrl, fetchFn }),
       catch: (error) => (error instanceof Error ? error : new Error(String(error))),
     })
-    const cimd =
-      !oauth?.client_id &&
-      !oauth?.redirect_uri &&
-      discovery.authorizationServerMetadata?.client_id_metadata_document_supported === true &&
-      (discovery.authorizationServerMetadata.token_endpoint_auth_methods_supported?.includes("none") ?? false)
     yield* Effect.logInfo("mcp oauth client registration selected", {
       ...fields,
-      registration: oauth?.client_id ? "static" : cimd ? "cimd" : "dcr",
+      registration: oauth?.client_id ? "static" : "dcr",
     })
 
     let authorizationUrl: URL | undefined
     const oauthProvider = provider({
       config: input.config,
       store,
-      clientMetadataUrl: cimd ? CLIENT_METADATA_URL : undefined,
       discovery: { ...discovery, resourceMetadataUrl: resourceMetadataUrl?.toString() },
       redirect: {
         url: oauth?.redirect_uri ?? `http://127.0.0.1:${port}${redirectPath}`,

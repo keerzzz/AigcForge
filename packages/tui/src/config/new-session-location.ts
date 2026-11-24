@@ -1,4 +1,4 @@
-import type { LocationRef } from "@aigcfroge/client/promise"
+import type { LocationRef } from "@omnixa/client/promise"
 
 export function newSessionLocation(
   mode: "launch" | "inherit",

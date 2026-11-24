@@ -2,11 +2,11 @@ import { Clock, Effect, FiberHandle, Option, Schema, Semaphore, Stream } from "e
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http"
 import { ChildProcess } from "effect/process"
 import path from "node:path"
-import { define } from "@aigcfroge/plugin/effect/plugin"
-import { Form } from "@aigcfroge/schema/form"
-import { FSUtil } from "@aigcfroge/util/fs-util"
-import { Global } from "@aigcfroge/util/global"
-import { AppProcess } from "@aigcfroge/util/process"
+import { define } from "@omnixa/plugin/effect/plugin"
+import { Form } from "@omnixa/schema/form"
+import { FSUtil } from "@omnixa/util/fs-util"
+import { Global } from "@omnixa/util/global"
+import { AppProcess } from "@omnixa/util/process"
 import { App } from "../../app.js"
 import { Bus } from "../../bus.js"
 import { Credential } from "../../credential.js"
@@ -74,7 +74,7 @@ export function make(
   },
 ) {
   return define({
-    id: "aigcfroge.provider.azure",
+    id: "omnixa.provider.azure",
     effect: Effect.fn(function* (ctx) {
       const configured = yield* configuredSettings(Provider.ID.azure)
       const processes = yield* AppProcess.Service
@@ -411,7 +411,7 @@ export function make(
         for (const item of evt.list()) {
           if (
             item.provider.id !== Provider.ID.azure &&
-            !item.provider.package.startsWith("@aigcfroge/ai/providers/azure/")
+            !item.provider.package.startsWith("@omnixa/ai/providers/azure/")
           )
             continue
           const resourceName = resourceFor(item.provider)
@@ -442,7 +442,7 @@ export function make(
         for (const item of models.provider.list()) {
           if (
             item.provider.id !== Provider.ID.azure &&
-            !item.provider.package.startsWith("@aigcfroge/ai/providers/azure/")
+            !item.provider.package.startsWith("@omnixa/ai/providers/azure/")
           )
             continue
           const resourceName = resourceFor(item.provider)
@@ -608,7 +608,7 @@ function catalogModel<T>(models: ReadonlyMap<string, T>, deployment: Deployment)
 }
 
 function responsesWebSocketCapable(provider: Provider.Info) {
-  if (provider.package !== "@aigcfroge/ai/providers/azure/responses") return false
+  if (provider.package !== "@omnixa/ai/providers/azure/responses") return false
   const settings = provider.settings
   if (settings?.useDeploymentBasedUrls === true) return false
   if (settings?.apiVersion !== undefined && settings.apiVersion !== "v1") return false

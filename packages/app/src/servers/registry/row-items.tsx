@@ -1,4 +1,4 @@
-import { Menu } from "@aigcfroge/ui/menu"
+import { Menu } from "@omnixa/ui/menu"
 import { For } from "solid-js"
 import { useServerRowItems } from "@/runtime/extension/servers"
 

@@ -187,15 +187,6 @@ export const dict = {
   "ui.sessionTurn.retry.attempt": "第 {{attempt}} 次尝试",
   "ui.sessionTurn.retry.attemptLine": "{{line}} - 第 {{attempt}} 次尝试",
   "ui.sessionTurn.retry.geminiHot": "Gemini 当前负载过高",
-  "ui.sessionTurn.error.freeUsageExceeded": "免费使用额度已用完",
-  "ui.sessionTurn.error.addCredits": "充值",
-
-  "dialog.usageExceeded.freeTier.title": "免费额度已用完",
-  "dialog.usageExceeded.freeTier.description": "每月 $10 订阅 AigcForge Go，可靠地使用最佳开源模型。",
-  "dialog.usageExceeded.freeTier.actionLabel": "订阅",
-  "dialog.usageExceeded.accountRateLimit.title": "Go 额度已用完",
-  "dialog.usageExceeded.accountRateLimit.description": "使用额度已达上限。如需立即继续使用此模型，请启用余额付费",
-  "dialog.usageExceeded.accountRateLimit.actionLabel": "打开设置",
 
   "ui.sessionTurn.status.delegating": "正在委派工作",
   "ui.sessionTurn.status.planning": "正在规划下一步",

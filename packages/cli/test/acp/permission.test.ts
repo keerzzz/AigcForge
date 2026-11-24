@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import type { AnyRequest, CreateElicitationResponse, RequestPermissionResponse } from "@agentclientprotocol/sdk"
-import type { AigcForgeEventEncoded } from "@aigcfroge/protocol/groups/event"
+import type { OmnixaEventEncoded } from "@omnixa/protocol/groups/event"
 import fs from "node:fs/promises"
 import path from "node:path"
 import { tmpdir } from "../fixture/tmpdir"
@@ -96,7 +96,7 @@ describe("acp permissions over the wire", () => {
     ])
   })
 
-  test.each<[string, string, string, (sessionID: string, id: string) => AigcForgeEventEncoded]>([
+  test.each<[string, string, string, (sessionID: string, id: string) => OmnixaEventEncoded]>([
     ["session/request_permission", "perm", "reject", (sessionID, id) => permissionAsked(sessionID, id)],
     ["elicitation/create", "frm", "cancelled", (sessionID, id) => question(sessionID, id)],
   ])(

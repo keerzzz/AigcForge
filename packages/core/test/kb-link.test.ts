@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { KBLink } from "@aigcfroge/core/kb/link"
+import { KBLink } from "@omnixa/core/kb/link"
 
 describe("KBLink.extractWikilinks", () => {
   test("extracts plain [[titles]] in order", () => {

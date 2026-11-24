@@ -1,12 +1,12 @@
 import fs from "node:fs/promises"
 import path from "node:path"
 import { expect } from "bun:test"
-import { AssetYaml } from "@aigcfroge/core/util/asset-yaml"
-import { CustomCompositionReferencesResponse } from "@aigcfroge/protocol/groups/custom-composition"
-import { CustomProfile } from "@aigcfroge/schema/custom-profile"
-import { Agent } from "@aigcfroge/schema/agent"
-import { Session } from "@aigcfroge/schema/session"
-import { AbsolutePath } from "@aigcfroge/schema/schema"
+import { AssetYaml } from "@omnixa/core/util/asset-yaml"
+import { CustomCompositionReferencesResponse } from "@omnixa/protocol/groups/custom-composition"
+import { CustomProfile } from "@omnixa/schema/custom-profile"
+import { Agent } from "@omnixa/schema/agent"
+import { Session } from "@omnixa/schema/session"
+import { AbsolutePath } from "@omnixa/schema/schema"
 import { Effect, Schema } from "effect"
 import { withEnv } from "../../core/test/fixture/env"
 import { tmpdirScoped } from "../../core/test/fixture/tmpdir"
@@ -91,7 +91,7 @@ const referenceFiles = [
     profile: {
       ...candidate.profile,
       name: "Literal prefix",
-      agents: [{ kind: "agent", relativePath: `.aigcfroge/agents/${referencePaths.agent}`, revision: "a".repeat(64) }],
+      agents: [{ kind: "agent", relativePath: `.omnixa/agents/${referencePaths.agent}`, revision: "a".repeat(64) }],
       bindings: {},
     },
   },
@@ -111,13 +111,13 @@ const referenceFiles = [
   { directory: "other", path: "other.yaml", profile: { ...referenceProfile, name: "Other Location" } },
 ].map((file) => ({
   directory: file.directory,
-  path: `.aigcfroge/custom-profiles/${file.path}`,
+  path: `.omnixa/custom-profiles/${file.path}`,
   content: AssetYaml.stringify(file.profile),
 }))
 
 const setup = (files: ReadonlyArray<{ directory: string; path: string; content: string }> = []) =>
   Effect.gen(function* () {
-    const tmp = yield* tmpdirScoped("aigcfroge-profile-%2F-http-")
+    const tmp = yield* tmpdirScoped("omnixa-profile-%2F-http-")
     const project = path.join(tmp.path, "project")
     const other = path.join(tmp.path, "other")
     yield* Effect.promise(() => Promise.all([fs.mkdir(project), fs.mkdir(other)]))
@@ -138,14 +138,14 @@ const setup = (files: ReadonlyArray<{ directory: string; path: string; content: 
     })
     const request = (route: string, options: { body?: unknown; directory?: string; authenticated?: boolean } = {}) =>
       Effect.promise(() => {
-        const url = new URL(route, "http://aigcfroge.local")
+        const url = new URL(route, "http://omnixa.local")
         url.searchParams.set("directory", options.directory ?? project)
         return handler(
           new Request(url, {
             method: options.body === undefined ? "GET" : "POST",
             headers: {
               "content-type": "application/json",
-              ...(options.authenticated === false ? {} : { authorization: `Basic ${btoa("aigcfroge:secret")}` }),
+              ...(options.authenticated === false ? {} : { authorization: `Basic ${btoa("omnixa:secret")}` }),
             },
             body: options.body === undefined ? undefined : JSON.stringify(options.body),
           }),
@@ -189,7 +189,7 @@ it.live("serves Custom Profile CRUD through the production router with revision 
     expect(profile.profile).toEqual(candidate.profile)
     expect(
       yield* Effect.promise(() =>
-        fs.readFile(path.join(test.project, ".aigcfroge/custom-profiles/team/review.yaml"), "utf8"),
+        fs.readFile(path.join(test.project, ".omnixa/custom-profiles/team/review.yaml"), "utf8"),
       ),
     ).toContain("kind: custom-profile")
 
@@ -259,7 +259,7 @@ it.live("preserves auth, the asset feature gate, and candidate path validation",
       body: { candidate, overwrite: false },
     })
     expect(denied.status).toBe(401)
-    const disabled = yield* withEnv({ AIGCFROGE_EXPERIMENTAL_CHAT_ASSET: "false" }, () =>
+    const disabled = yield* withEnv({ OMNIXA_EXPERIMENTAL_CHAT_ASSET: "false" }, () =>
       test.request(`${test.root}/apply`, { body: { candidate, overwrite: false } }),
     )
     expect(disabled.status).toBe(400)
@@ -316,12 +316,10 @@ it.live("preserves auth, the asset feature gate, and candidate path validation",
     })
     expect(
       yield* Effect.promise(() =>
-        Bun.file(path.join(test.project, ".aigcfroge/custom-profiles/team/review.yaml")).exists(),
+        Bun.file(path.join(test.project, ".omnixa/custom-profiles/team/review.yaml")).exists(),
       ),
     ).toBe(false)
-    expect(yield* Effect.promise(() => Bun.file(path.join(test.project, ".aigcfroge/escape.yaml")).exists())).toBe(
-      false,
-    )
+    expect(yield* Effect.promise(() => Bun.file(path.join(test.project, ".omnixa/escape.yaml")).exists())).toBe(false)
     const list = yield* test.request("/custom-profile")
     if (list.status !== 200) throw new Error(yield* Effect.promise(() => list.clone().text()))
     expect(list.status).toBe(200)
@@ -335,7 +333,7 @@ it.live("finds six profile reference kinds with normalized paths, deduplication,
       ...referenceFiles,
       {
         directory: "project",
-        path: `.aigcfroge/prompts/${referencePaths.prompt}`,
+        path: `.omnixa/prompts/${referencePaths.prompt}`,
         content: "---\nkind: prompt\nname: referenced-prompt\ndescription: Referenced prompt\n---\nReview carefully\n",
       },
     ])
@@ -366,7 +364,7 @@ it.live("finds six profile reference kinds with normalized paths, deduplication,
       }),
     )
     expect(
-      (yield* references(test, "agent", `.aigcfroge/agents/${referencePaths.agent}`)).map(
+      (yield* references(test, "agent", `.omnixa/agents/${referencePaths.agent}`)).map(
         (profile) => profile.relativePath,
       ),
     ).toEqual(["prefix.yaml"])
@@ -379,7 +377,7 @@ it.live("finds six profile reference kinds with normalized paths, deduplication,
     ])
     expect(yield* references(test, "agent", referencePaths.command)).toEqual([])
     const beforeDeletion = yield* references(test, "prompt", referencePaths.prompt)
-    const target = path.join(test.project, ".aigcfroge/prompts", referencePaths.prompt)
+    const target = path.join(test.project, ".omnixa/prompts", referencePaths.prompt)
     expect(yield* Effect.promise(() => Bun.file(target).exists())).toBe(true)
     yield* Effect.promise(() => fs.unlink(target))
     expect(yield* Effect.promise(() => Bun.file(target).exists())).toBe(false)
@@ -390,7 +388,7 @@ it.live("finds six profile reference kinds with normalized paths, deduplication,
 it.live("rejects unsupported reference kinds and unsafe paths with typed HTTP errors", () =>
   Effect.gen(function* () {
     const test = yield* setup(referenceFiles)
-    const target = path.join(test.project, ".aigcfroge/custom-profiles/team/alpha.yaml")
+    const target = path.join(test.project, ".omnixa/custom-profiles/team/alpha.yaml")
     const before = yield* Effect.promise(() => Bun.file(target).text())
     yield* Effect.forEach(["", "plugin", "custom-profile", "unknown"], (kind) =>
       Effect.gen(function* () {
@@ -439,7 +437,7 @@ it.live("borrows profile references by Location and distinguishes disabled compo
     })
     expect(denied.status).toBe(401)
     expect(
-      yield* withEnv({ AIGCFROGE_EXPERIMENTAL_CHAT_ASSET: "false" }, () =>
+      yield* withEnv({ OMNIXA_EXPERIMENTAL_CHAT_ASSET: "false" }, () =>
         references(test, "agent", referencePaths.agent),
       ),
     ).toEqual(own)
@@ -450,7 +448,7 @@ it.live("borrows profile references by Location and distinguishes disabled compo
       presentation: "native",
       requestedCapabilities: [],
     }
-    yield* withEnv({ AIGCFROGE_CUSTOM_MODE: "false" }, () =>
+    yield* withEnv({ OMNIXA_CUSTOM_MODE: "false" }, () =>
       Effect.gen(function* () {
         const start = yield* test.request("/custom-composition/start", { body: { composition } })
         expect(start.status).toBe(400)
@@ -498,40 +496,40 @@ it.live("deletes Custom Profiles and all seven asset kinds at Location scope wit
     const test = yield* setup([
       {
         directory: "project",
-        path: ".aigcfroge/agents/helper.md",
+        path: ".omnixa/agents/helper.md",
         content:
           "---\nkind: agent\nname: helper\ndescription: Helper agent\nconfig: |\n  mode: subagent\n---\nHelp carefully.\n",
       },
       {
         directory: "project",
-        path: ".aigcfroge/prompts/review.md",
+        path: ".omnixa/prompts/review.md",
         content: "---\nkind: prompt\nname: review\ndescription: Review prompt\n---\nReview {{CODE}}.\n",
       },
       {
         directory: "project",
-        path: ".aigcfroge/skills/check/SKILL.md",
+        path: ".omnixa/skills/check/SKILL.md",
         content: "---\nname: check\ndescription: Check skill\n---\nCheck outputs.\n",
       },
       {
         directory: "project",
-        path: ".aigcfroge/commands/audit.md",
+        path: ".omnixa/commands/audit.md",
         content: "---\nkind: command\nname: audit\ndescription: Audit command\ninvocation: /audit\n---\nRun audit.\n",
       },
       {
         directory: "project",
-        path: ".aigcfroge/workflows/flow.yaml",
+        path: ".omnixa/workflows/flow.yaml",
         content:
           'kind: workflow\nname: flow\ndescription: Review flow\nversion: "1"\ntriggers: [manual]\nsteps:\n  - id: step1\n    name: Step 1\n    agent: helper\n    next: END\n',
       },
       {
         directory: "project",
-        path: ".aigcfroge/mcps/docs.md",
+        path: ".omnixa/mcps/docs.md",
         content:
           '---\nkind: mcp\nname: docs\ndescription: Docs MCP\ncommand: npx\nargs:\n  - docs-mcp\n---\n{"transport":"stdio"}\n',
       },
       {
         directory: "project",
-        path: ".aigcfroge/plugins/lint.plugin.yaml",
+        path: ".omnixa/plugins/lint.plugin.yaml",
         content:
           'kind: plugin\nname: lint\ndescription: Lint plugin\nversion: "1.0.0"\nsource:\n  type: mcp\n  mcp:\n    name: docs\n',
       },
@@ -606,7 +604,7 @@ it.live("deletes Custom Profiles and all seven asset kinds at Location scope wit
           body: {
             relativePath: item.relativePath,
             baseRevision: item.revision,
-            target: { scope: "location", root: path.join(test.other, ".aigcfroge") },
+            target: { scope: "location", root: path.join(test.other, ".omnixa") },
           },
         })).status,
       ).toBe(400)

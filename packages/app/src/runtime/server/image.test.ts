@@ -22,11 +22,11 @@ function setup(
 describe("readLocalImage", () => {
   test.each([
     ["images/screen #1 + 50% ?.PNG", "/workspace/project", "images/screen%20%231%20%2B%2050%25%20%3F.PNG"],
-    ["C:/tmp/aigcfroge/screen #1.png", "C:/tmp/aigcfroge/", "screen%20%231.png"],
+    ["C:/tmp/omnixa/screen #1.png", "C:/tmp/omnixa/", "screen%20%231.png"],
     ["d:/screen.png", "d:/", "screen.png"],
     ["D:/charts/screen.png", "D:/charts/", "screen.png"],
     ["Z:/charts/screen.png", "Z:/charts/", "screen.png"],
-    ["/tmp/aigcfroge/screen #1.png", "/tmp/aigcfroge/", "screen%20%231.png"],
+    ["/tmp/omnixa/screen #1.png", "/tmp/omnixa/", "screen%20%231.png"],
     ["/screen.png", "/", "screen.png"],
   ])("reads %s with the correct location and authentication", async (path, directory, encoded) => {
     const { api, requests } = setup()
@@ -41,7 +41,7 @@ describe("readLocalImage", () => {
     expect(requests[0].url.pathname).toBe(`/api/fs/read/${encoded}`)
     expect([...requests[0].url.searchParams]).toEqual([["location[directory]", directory]])
     expect(requests[0].init?.method).toBe("GET")
-    expect(new Headers(requests[0].init?.headers).get("authorization")).toBe(`Basic ${btoa("aigcfroge:secret")}`)
+    expect(new Headers(requests[0].init?.headers).get("authorization")).toBe(`Basic ${btoa("omnixa:secret")}`)
     expect(requests[0].init?.signal).toBe(signal)
   })
 

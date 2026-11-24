@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import type { SessionStatsInfo } from "@aigcfroge/client"
+import type { SessionStatsInfo } from "@omnixa/client"
 import { statsMetrics, statsNumber } from "../src/feature-plugins/system/stats-data"
 
 const stats: SessionStatsInfo = {

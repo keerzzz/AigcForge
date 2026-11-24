@@ -1,18 +1,18 @@
-import { Model } from "@aigcfroge/schema/model"
+import { Model } from "@omnixa/schema/model"
 import { isDeepStrictEqual } from "node:util"
 import { Provider } from "./provider.js"
 import type { DeepMutable } from "./schema.js"
 import { Context, Effect, Layer, Option, Stream } from "effect"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
 import { Bus } from "./bus.js"
 import { State } from "./state.js"
 import { Location } from "./location.js"
 import { castDraft, freeze } from "immer"
 import { AISDKNative } from "./aisdk-native.js"
 import { ModelGroup } from "./model-group.js"
-import type { ConfigModel } from "@aigcfroge/schema/config/model"
+import type { ConfigModel } from "@omnixa/schema/config/model"
 import { Config } from "./config.js"
-import type { ModelSource } from "@aigcfroge/schema/model-source"
+import type { ModelSource } from "@omnixa/schema/model-source"
 import type { Integration } from "./integration.js"
 import type { IntegrationConnection } from "./integration/connection.js"
 
@@ -65,7 +65,7 @@ export type RuntimeInfo = Omit<Info, "settings"> & { readonly settings?: Provide
 
 export type MutableInfo = DeepMutable<Info>
 
-export { Event } from "@aigcfroge/schema/model"
+export { Event } from "@omnixa/schema/model"
 
 export interface Editor {
   readonly scope?: Provider.ConnectionInput
@@ -101,7 +101,7 @@ export interface Interface extends State.Transformable<Editor> {
   readonly small: (providerID: Provider.ID) => Effect.Effect<Info | undefined>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/Model") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/Model") {}
 
 type Data = {
   models: Map<Provider.ID, ReadonlyMap<ID, Info>>

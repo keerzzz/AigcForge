@@ -1,4 +1,4 @@
-import { Reference } from "@aigcfroge/core/reference"
+import { Reference } from "@omnixa/core/reference"
 import { HttpApiBuilder } from "effect/http-api"
 import { Api } from "../api"
 import { response } from "../location"

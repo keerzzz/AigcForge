@@ -1,6 +1,6 @@
-import type { SessionInfo, SessionMessageUser } from "@aigcfroge/client/promise"
+import type { SessionInfo, SessionMessageUser } from "@omnixa/client/promise"
 import type { ComposerSelection } from "@/composer/adapter"
-import { createSimpleContext } from "@aigcfroge/ui/context"
+import { createSimpleContext } from "@omnixa/ui/context"
 import { createStore, produce } from "solid-js/store"
 import { Persist, persisted, removePersisted, draftPersistedKeys } from "@/runtime/persistence/storage"
 import { ServerConnection, useServers } from "@/runtime/server/registry"

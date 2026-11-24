@@ -1,14 +1,17 @@
 import { describe, expect, test } from "bun:test"
+import { EmitterCore } from "@solid-primitives/event-bus"
 import Notifications from "../../../../src/feature-plugins/system/notifications"
-import type { AigcForgeEvent, PermissionAsked } from "@aigcfroge/client"
-import type { AttentionNotifyOptions, Context, Route, ToastOptions } from "@aigcfroge/plugin/tui/context"
+import type { OmnixaEvent, PermissionAsked } from "@omnixa/client"
+import type { AttentionNotifyOptions, Context, Route, ToastOptions } from "@omnixa/plugin/tui/context"
 
 type Session = { id: string; title: string; parentID?: string }
 
 async function setup(route: Route = { type: "session", sessionID: "session" }) {
   const notifications: AttentionNotifyOptions[] = []
   const toasts: ToastOptions[] = []
-  const handlers = new Map<AigcForgeEvent["type"], ((event: AigcForgeEvent) => void)[]>()
+  const handlers = new EmitterCore<{
+    [Type in OmnixaEvent["type"]]: Extract<OmnixaEvent, { type: Type }>
+  }>()
   const session = (id: string, title: string, parentID?: string): Session => ({
     id,
     title,
@@ -33,21 +36,10 @@ async function setup(route: Route = { type: "session", sessionID: "session" }) {
       },
     },
     data: {
-      on: <Type extends AigcForgeEvent["type"]>(
-        type: Type,
-        handler: (event: Extract<AigcForgeEvent, { type: Type }>) => void,
-      ) => {
-        const list = handlers.get(type) ?? []
-        const wrapped = handler as (event: AigcForgeEvent) => void
-        list.push(wrapped)
-        handlers.set(type, list)
-        return () => {
-          handlers.set(
-            type,
-            (handlers.get(type) ?? []).filter((item) => item !== wrapped),
-          )
-        }
-      },
+      on: ((type, handler) => {
+        handlers.on(type, handler)
+        return () => handlers.off(type, handler)
+      }) satisfies Context["data"]["on"],
       session: {
         get: (sessionID: string) => sessions[sessionID],
         status: () => "running" as const,
@@ -58,13 +50,13 @@ async function setup(route: Route = { type: "session", sessionID: "session" }) {
   return {
     notifications,
     toasts,
-    emit(event: AigcForgeEvent) {
-      for (const handler of handlers.get(event.type) ?? []) handler(event)
+    emit(event: OmnixaEvent) {
+      handlers.emit(event.type, event)
     },
   }
 }
 
-function form(id: string, sessionID = "session"): Extract<AigcForgeEvent, { type: "form.created" }>["data"]["form"] {
+function form(id: string, sessionID = "session"): Extract<OmnixaEvent, { type: "form.created" }>["data"]["form"] {
   return {
     id,
     sessionID,
@@ -88,7 +80,7 @@ function durable(sessionID: string): { aggregateID: string; seq: number; version
   return { aggregateID: sessionID, seq: 0, version: 1 }
 }
 
-function executionStarted(id: string, sessionID = "session"): AigcForgeEvent {
+function executionStarted(id: string, sessionID = "session"): OmnixaEvent {
   return {
     id,
     created: 0,
@@ -98,7 +90,7 @@ function executionStarted(id: string, sessionID = "session"): AigcForgeEvent {
   }
 }
 
-function executionSucceeded(id: string, sessionID = "session"): AigcForgeEvent {
+function executionSucceeded(id: string, sessionID = "session"): OmnixaEvent {
   return {
     id,
     created: 0,
@@ -108,7 +100,7 @@ function executionSucceeded(id: string, sessionID = "session"): AigcForgeEvent {
   }
 }
 
-function executionFailed(id: string, sessionID = "session"): AigcForgeEvent {
+function executionFailed(id: string, sessionID = "session"): OmnixaEvent {
   return {
     id,
     created: 0,

@@ -18,23 +18,23 @@ export {
   RevisionInput,
   ConfirmInput,
   Events,
-} from "@aigcfroge/schema/session-goal"
+} from "@omnixa/schema/session-goal"
 
 import { and, asc, eq } from "drizzle-orm"
 import { Context, DateTime, Effect, Layer, Option, Schema } from "effect"
 import path from "node:path"
 import { isDeepStrictEqual } from "node:util"
-import { SessionGoal } from "@aigcfroge/schema/session-goal"
-import { Session } from "@aigcfroge/schema/session"
-import { SessionMessage } from "@aigcfroge/schema/session-message"
-import { SessionTask } from "@aigcfroge/schema/session-task"
-import { Agent } from "@aigcfroge/schema/agent"
-import { SessionEvent } from "@aigcfroge/schema/session-event"
-import { TokenUsage } from "@aigcfroge/schema/token-usage"
-import { Shell } from "@aigcfroge/schema/shell"
-import { Event } from "@aigcfroge/schema/event"
-import { Identifier } from "@aigcfroge/schema/identifier"
-import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
+import { SessionGoal } from "@omnixa/schema/session-goal"
+import { Session } from "@omnixa/schema/session"
+import { SessionMessage } from "@omnixa/schema/session-message"
+import { SessionTask } from "@omnixa/schema/session-task"
+import { Agent } from "@omnixa/schema/agent"
+import { SessionEvent } from "@omnixa/schema/session-event"
+import { TokenUsage } from "@omnixa/schema/token-usage"
+import { Shell } from "@omnixa/schema/shell"
+import { Event } from "@omnixa/schema/event"
+import { Identifier } from "@omnixa/schema/identifier"
+import { makeGlobalNode } from "@omnixa/util/effect/app-node"
 import { Bus } from "../bus.js"
 import { CompositionDigest } from "../composition/digest.js"
 import { Database } from "../database/database.js"
@@ -74,7 +74,7 @@ type AttemptInput = {
 }
 
 export type Interface = Effect.Success<ReturnType<typeof make>>
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/SessionGoal") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/SessionGoal") {}
 
 const now = DateTime.nowAsDate.pipe(Effect.map((date) => date.getTime()))
 const encode = Schema.encodeSync(SessionGoal.Info)

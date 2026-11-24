@@ -1,5 +1,5 @@
-import { define } from "@aigcfroge/plugin/effect/plugin"
-import type { Entry } from "@aigcfroge/schema/config"
+import { define } from "@omnixa/plugin/effect/plugin"
+import type { Entry } from "@omnixa/schema/config"
 import { Duration, Effect, Option, Schedule, type Schema, Semaphore, Stream } from "effect"
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http"
 import { shellParserWasm } from "#shell-parser-wasm"
@@ -66,7 +66,7 @@ export function createLocalProviderPlugin<Discovered>(input: {
           providers.update(input.providerID, (provider) => {
             provider.name = input.name
             provider.activation = "enabled"
-            provider.package = "@aigcfroge/ai/providers/openai-compatible"
+            provider.package = "@omnixa/ai/providers/openai-compatible"
             provider.settings = {
               baseURL: source.current.baseURL,
               provider: input.providerID,

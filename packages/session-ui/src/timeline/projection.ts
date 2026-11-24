@@ -6,8 +6,8 @@ import type {
   SessionMessageShell,
   SessionMessageUser,
   SessionStatus,
-} from "@aigcfroge/client/promise"
-import { SessionError } from "@aigcfroge/schema/session-error"
+} from "@omnixa/client/promise"
+import { SessionError } from "@omnixa/schema/session-error"
 import { Effect, Option, Predicate, Schema } from "effect"
 import { createMemo, mapArray, type Accessor } from "solid-js"
 import {

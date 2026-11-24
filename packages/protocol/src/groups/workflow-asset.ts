@@ -1,5 +1,5 @@
-import { WorkflowAsset } from "@aigcfroge/schema/workflow-asset"
-import { Session } from "@aigcfroge/schema/session"
+import { WorkflowAsset } from "@omnixa/schema/workflow-asset"
+import { Session } from "@omnixa/schema/session"
 import { Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/http-api"
 import { ConflictError, InvalidRequestError } from "../errors.js"

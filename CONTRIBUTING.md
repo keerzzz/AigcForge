@@ -1,4 +1,4 @@
-# Contributing to AigcForge
+# Contributing to Omnixa
 
 The changes most likely to be accepted are:
 
@@ -9,7 +9,7 @@ The changes most likely to be accepted are:
 - Missing standard behavior
 - Documentation improvements
 
-UI and core product features require design review before implementation. If you are unsure whether a change fits, ask a maintainer or choose an issue labeled [`help wanted`](https://github.com/anomalyco/aigcfroge/issues?q=is%3Aissue%20state%3Aopen%20label%3Ahelp-wanted), [`good first issue`](https://github.com/anomalyco/aigcfroge/issues?q=is%3Aissue%20state%3Aopen%20label%3A%22good%20first%20issue%22), [`bug`](https://github.com/anomalyco/aigcfroge/issues?q=is%3Aissue%20state%3Aopen%20label%3Abug), or [`perf`](https://github.com/anomalyco/aigcfroge/issues?q=is%3Aopen%20is%3Aissue%20label%3A%22perf%22).
+UI and core product features require design review before implementation. If you are unsure whether a change fits, ask a maintainer or choose an issue labeled [`help wanted`](https://github.com/keerzzz/AigcForge/issues?q=is%3Aissue%20state%3Aopen%20label%3Ahelp-wanted), [`good first issue`](https://github.com/keerzzz/AigcForge/issues?q=is%3Aissue%20state%3Aopen%20label%3A%22good%20first%20issue%22), [`bug`](https://github.com/keerzzz/AigcForge/issues?q=is%3Aissue%20state%3Aopen%20label%3Abug), or [`perf`](https://github.com/keerzzz/AigcForge/issues?q=is%3Aopen%20is%3Aissue%20label%3A%22perf%22).
 
 Want to take on an issue? Leave a comment and a maintainer may assign it unless it is already being worked on.
 
@@ -18,11 +18,11 @@ Want to take on an issue? Leave a comment and a maintainer may assign it unless 
 
 ## Adding Providers
 
-New providers should rarely require AigcForge changes. Add the provider to [models.dev](https://github.com/anomalyco/models.dev) first.
+New providers should rarely require Omnixa changes. Add the provider to [models.dev](https://github.com/anomalyco/models.dev) first.
 
 ## Development
 
-AigcForge requires Bun 1.3 or newer. From the repository root:
+Omnixa requires Bun 1.3 or newer. From the repository root:
 
 ```bash
 bun install
@@ -31,7 +31,7 @@ bun dev [directory]
 
 `bun dev` runs the V2 CLI and TUI. Pass a directory to open another project, or `.` to open this repository.
 
-To test a development TUI against your installed AigcForge V2 background service and live sessions:
+To test a development TUI against your installed Omnixa V2 background service and live sessions:
 
 ```bash
 bun run dev:live [directory]
@@ -79,9 +79,9 @@ Follow the repository [style guide](./AGENTS.md).
 
 Bug fixes, chores, and tests must reference an existing issue. Documentation, refactor, and feature PRs are exempt from the automated linked-issue check. When required, use `Fixes #123` or `Closes #123` in the PR description.
 
-Before implementing new functionality, open a feature request describing the problem, why it belongs in AigcForge, and your proposed approach if you have one. Wait for design approval before opening the implementation PR.
+Before implementing new functionality, open a feature request describing the problem, why it belongs in Omnixa, and your proposed approach if you have one. Wait for design approval before opening the implementation PR.
 
-Base branches on `v2`, not `dev`, and complete the provided pull request template.
+Base branches on `main`, target pull requests to `main`, and complete the provided pull request template.
 
 ### Keep It Focused
 
@@ -107,6 +107,6 @@ Examples:
 
 ## Issues
 
-Bug reports and feature requests must use their issue templates. Blank issues are not allowed; ask support and how-to questions in the [Discord community](https://discord.gg/aigcfroge).
+Bug reports and feature requests must use their issue templates. Blank issues are not allowed; search [existing issues](https://github.com/keerzzz/AigcForge/issues) for troubleshooting and usage guidance.
 
 Automated checks flag missing templates, placeholder text, AI-generated walls of text, and missing meaningful content. You have two hours to correct a flagged issue before it closes automatically. Ask a maintainer if an issue was flagged incorrectly.

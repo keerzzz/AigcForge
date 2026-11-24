@@ -24,7 +24,7 @@ benchmark("searches a large virtualized session and reveals the first result", a
   await fixture.scrollToBottom()
   await fixture.waitForStableGeometry()
   // Chromium reserves the physical shortcut for its native find overlay, so request the same controller path directly.
-  await page.evaluate(() => document.dispatchEvent(new Event("aigcfroge:timeline-search-open")))
+  await page.evaluate(() => document.dispatchEvent(new Event("omnixa:timeline-search-open")))
 
   const search = page.locator('[data-component="timeline-search-bar"]')
   const field = search.getByRole("searchbox", { name: "Find..." })

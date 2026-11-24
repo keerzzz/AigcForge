@@ -1,10 +1,10 @@
-import { createSimpleContext } from "@aigcfroge/ui/context"
+import { createSimpleContext } from "@omnixa/ui/context"
 import { batch, createMemo } from "solid-js"
 import { type SetStoreFunction, type Store } from "solid-js/store"
 import { Persist, persisted } from "@/runtime/persistence/storage"
 import { pathKey } from "@/workspaces/path-key"
 import { ServerScope } from "@/runtime/server/scope"
-import type { ServerEntry } from "@aigcfroge/gui-extensions/sdk"
+import type { ServerEntry } from "@omnixa/gui-extensions/sdk"
 import { ServerHttp, ServerHttpBase, ServerKey, serverState } from "./persistence"
 
 type ServerState = ReturnType<typeof serverState>["current"]["Type"]

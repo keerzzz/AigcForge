@@ -1,22 +1,22 @@
 import { describe, expect } from "bun:test"
 import { DateTime, Duration, Effect, Layer, Ref } from "effect"
 import { TestClock } from "effect/testing"
-import { Database } from "@aigcfroge/core/database/database"
-import { Bus } from "@aigcfroge/core/bus"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { Global } from "@aigcfroge/util/global"
-import { Project } from "@aigcfroge/core/project"
-import { ProjectTable } from "@aigcfroge/core/project/sql"
-import { AbsolutePath } from "@aigcfroge/core/schema"
-import { Session } from "@aigcfroge/core/session"
-import { SessionTable } from "@aigcfroge/core/session/sql"
-import { ScheduleService } from "@aigcfroge/core/session/schedule-service"
+import { Database } from "@omnixa/core/database/database"
+import { Bus } from "@omnixa/core/bus"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { Global } from "@omnixa/util/global"
+import { Project } from "@omnixa/core/project"
+import { ProjectTable } from "@omnixa/core/project/sql"
+import { AbsolutePath } from "@omnixa/core/schema"
+import { Session } from "@omnixa/core/session"
+import { SessionTable } from "@omnixa/core/session/sql"
+import { ScheduleService } from "@omnixa/core/session/schedule-service"
 import { testEffect } from "./lib/effect"
 
 const globalLayer = Layer.succeed(
   Global.Service,
-  Global.Service.of(Global.make({ data: "/data", config: "/config", tmp: "/tmp/aigcfroge" })),
+  Global.Service.of(Global.make({ data: "/data", config: "/config", tmp: "/tmp/omnixa" })),
 )
 const databaseLayer = Database.layer().pipe(Layer.provide(globalLayer))
 

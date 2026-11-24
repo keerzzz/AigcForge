@@ -38,7 +38,7 @@ const RelativeAssetPath = bounded(MAX_RELATIVE_PATH).pipe(
   Schema.check(
     Schema.makeFilter<string>((input) => !input.startsWith("/"), {
       message: "MCP binding refs are location-relative; absolute paths cannot address another tree",
-      representation: { id: "aigcfroge/relativeNoLeadingSlash", payload: {} },
+      representation: { id: "omnixa/relativeNoLeadingSlash", payload: {} },
       arbitraryConstraint: {} as Record<string, unknown>,
       toCode: () => ({
         runtime:
@@ -87,7 +87,7 @@ export class McpServerBinding extends Schema.Class<McpServerBinding>("McpScope.M
           },
           {
             message: "MCP remote url must be parseable and must not embed userinfo; use credentialRef",
-            representation: { id: "aigcfroge/urlNoUserinfo", payload: {} },
+            representation: { id: "omnixa/urlNoUserinfo", payload: {} },
             arbitraryConstraint: {} as Record<string, unknown>,
             toCode: () => ({
               runtime:

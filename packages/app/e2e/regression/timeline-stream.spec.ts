@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test"
-import type { SessionMessageAssistant, SessionMessageInfo, ShellInfo } from "@aigcfroge/client/promise"
-import { timelinePresets } from "@aigcfroge/session-ui/timeline/detail"
+import type { SessionMessageAssistant, SessionMessageInfo, ShellInfo } from "@omnixa/client/promise"
+import { timelinePresets } from "@omnixa/session-ui/timeline/detail"
 import { createTwoFilesPatch } from "diff"
 import {
   assistantID,
@@ -205,7 +205,7 @@ test.describe("static projection", () => {
       toolPart("prt_skill_second", "skill", "completed", { id: "effect" }),
       toolPart("prt_skill_third", "skill", "completed", { id: "ui-pr-screenshots" }),
       toolPart("prt_skill_break", "read", "completed", { path: "src/a.ts" }),
-      toolPart("prt_skill_last", "skill", "completed", { id: "aigcfroge" }),
+      toolPart("prt_skill_last", "skill", "completed", { id: "omnixa" }),
     ]
 
     await setupTimeline(page, {
@@ -218,7 +218,7 @@ test.describe("static projection", () => {
     const loaded = group.locator('[data-component="tool-loaded-item"]')
     await expect(loaded).toHaveCount(2)
     await expect(loaded.nth(0)).toHaveAttribute("aria-label", "Loaded ocpr, effect, ui-pr-screenshots skills")
-    await expect(loaded.nth(1)).toHaveAttribute("aria-label", "Loaded aigcfroge skill")
+    await expect(loaded.nth(1)).toHaveAttribute("aria-label", "Loaded omnixa skill")
   })
 
   test("leaves tools expanded by settings outside the collapsed stack", async ({ page }) => {
@@ -565,7 +565,7 @@ test.describe("Working", () => {
     await expect(working).toBeInViewport()
     await expect(shimmer).toHaveAttribute("data-active", "false")
     await expect(shimmer).toHaveCSS("line-height", "16px")
-    await expect(working.locator("svg use")).toHaveAttribute("href", "#aigcfroge-v2-icon-settings-gear")
+    await expect(working.locator("svg use")).toHaveAttribute("href", "#omnixa-v2-icon-settings-gear")
     const centers = await working.evaluate((element) => {
       const row = element.parentElement!.getBoundingClientRect()
       const content = element.getBoundingClientRect()

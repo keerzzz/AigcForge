@@ -17,8 +17,8 @@ copy provenance.
 
 ## Local Boundary
 
-The supported local entrypoint is `@aigcfroge/core/database/drizzle`, exposed
-as the `EffectDrizzleSqlite` namespace. AigcForge's database service consumes that
+The supported local entrypoint is `@omnixa/core/database/drizzle`, exposed
+as the `EffectDrizzleSqlite` namespace. Omnixa's database service consumes that
 facade from `database/database.ts`.
 
 Material local adaptations include:

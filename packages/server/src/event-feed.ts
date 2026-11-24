@@ -1,8 +1,8 @@
 export * as EventFeed from "./event-feed"
 
-import { Bus } from "@aigcfroge/core/bus"
-import { Event } from "@aigcfroge/schema/event"
-import { isAigcForgeEvent, type AigcForgeEvent } from "@aigcfroge/protocol/groups/event"
+import { Bus } from "@omnixa/core/bus"
+import { Event } from "@omnixa/schema/event"
+import { isOmnixaEvent, type OmnixaEvent } from "@omnixa/protocol/groups/event"
 import { Cause, Context, Effect, Layer, Queue, Schema, Scope, Stream } from "effect"
 
 export const SubscriberCapacity = 4_096
@@ -24,15 +24,15 @@ export interface Interface {
   readonly subscribe: Effect.Effect<Stream.Stream<string, Error>, never, Scope.Scope>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/server/EventFeed") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/server/EventFeed") {}
 
-export function frame(event: AigcForgeEvent) {
+export function frame(event: OmnixaEvent) {
   return `data: ${JSON.stringify(event)}\n\n`
 }
 
 export const make = Effect.fn("EventFeed.make")(function* (
   observe: (subscriber: Bus.Subscriber) => Effect.Effect<Bus.Unsubscribe>,
-  options?: { readonly capacity?: number; readonly encode?: (event: AigcForgeEvent) => string },
+  options?: { readonly capacity?: number; readonly encode?: (event: OmnixaEvent) => string },
 ) {
   const capacity = options?.capacity ?? SubscriberCapacity
   const render = options?.encode ?? frame
@@ -46,7 +46,7 @@ export const make = Effect.fn("EventFeed.make")(function* (
     })
 
   const publish = Effect.fnUntraced(function* (event: Event.Payload) {
-    if (!isAigcForgeEvent(event)) return
+    if (!isOmnixaEvent(event)) return
     if (subscribers.size === 0) return
     const encoded = yield* Effect.try({
       try: () => render(event),

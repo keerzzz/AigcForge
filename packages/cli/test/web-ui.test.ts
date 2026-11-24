@@ -1,6 +1,6 @@
 import { NodeFileSystem, NodeHttpServer } from "@effect/platform-node"
-import { ServerProcess } from "@aigcfroge/server/process"
-import { AigcForge } from "@aigcfroge/client/promise"
+import { ServerProcess } from "@omnixa/server/process"
+import { Omnixa } from "@omnixa/client/promise"
 import { afterAll, describe, expect, test } from "bun:test"
 import { Effect } from "effect"
 import { HttpServer, HttpServerError, HttpServerRequest, HttpServerResponse } from "effect/http"
@@ -13,7 +13,7 @@ import { WebUi } from "../src/services/web-ui"
 import { it } from "../../core/test/lib/effect"
 import { initRepo } from "../../core/test/fixture/git"
 
-const root = await mkdtemp(path.join(tmpdir(), "aigcfroge-web-ui-"))
+const root = await mkdtemp(path.join(tmpdir(), "omnixa-web-ui-"))
 afterAll(() => rm(root, { recursive: true, force: true }))
 
 describe("web UI", () => {
@@ -106,14 +106,14 @@ describe("web UI", () => {
         }),
       )
       const response = yield* Effect.promise(() =>
-        fetch(new URL("/api/info", origin), { headers: { authorization: `Basic ${btoa("aigcfroge:secret")}` } }),
+        fetch(new URL("/api/info", origin), { headers: { authorization: `Basic ${btoa("omnixa:secret")}` } }),
       )
       expect(response.status).toBe(200)
       expect(yield* Effect.promise(() => response.json())).toHaveProperty("pid")
 
-      const client = AigcForge.make({
+      const client = Omnixa.make({
         baseUrl: origin,
-        headers: { authorization: `Basic ${btoa("aigcfroge:secret")}` },
+        headers: { authorization: `Basic ${btoa("omnixa:secret")}` },
       })
       const session = yield* Effect.promise(() =>
         client.session.create({ location: { directory: root }, mode: "chat" }),
@@ -146,13 +146,13 @@ describe("web UI", () => {
         target: inspection.target,
       })
       expect(
-        yield* Effect.promise(() => Bun.file(path.join(root, ".aigcfroge/prompts", candidate.relativePath)).exists()),
+        yield* Effect.promise(() => Bun.file(path.join(root, ".omnixa/prompts", candidate.relativePath)).exists()),
       ).toBe(true)
 
       const pairing = yield* Effect.promise(() =>
         fetch(new URL("/api/pair", origin), {
           method: "POST",
-          headers: { authorization: `Basic ${btoa("aigcfroge:secret")}` },
+          headers: { authorization: `Basic ${btoa("omnixa:secret")}` },
         }).then((response) => response.json() as Promise<{ code: string }>),
       )
       const redirect = yield* Effect.promise(() =>
@@ -241,7 +241,7 @@ describe("web UI", () => {
                     version: "test",
                     pid: 1,
                     urls: [origin],
-                    paths: { tmp: "/tmp/aigcfroge" },
+                    paths: { tmp: "/tmp/omnixa" },
                   })
                 return yield* Effect.fail(
                   new HttpServerError.HttpServerError({
@@ -258,7 +258,7 @@ describe("web UI", () => {
             version: "test",
             pid: 1,
             urls: [origin],
-            paths: { tmp: "/tmp/aigcfroge" },
+            paths: { tmp: "/tmp/omnixa" },
           })
 
           const missing = yield* Effect.promise(() => fetch(`${origin}/api/missing`))

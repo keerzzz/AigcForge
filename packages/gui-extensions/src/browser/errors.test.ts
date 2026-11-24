@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import { Browser } from "@aigcfroge/plugin-browser/rpc"
+import { Browser } from "@omnixa/plugin-browser/rpc"
 import { browserFailure, protocolError } from "./errors"
 
 const tabID = Browser.TabID.make(`tab_${crypto.randomUUID()}`)

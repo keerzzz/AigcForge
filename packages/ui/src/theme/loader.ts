@@ -4,7 +4,7 @@ import { resolveThemeVariantV2, themeV2ToCss } from "./v2/resolve"
 
 let activeTheme: DesktopTheme | null = null
 
-const THEME_STYLE_ID = "aigcfroge-theme"
+const THEME_STYLE_ID = "omnixa-theme"
 
 function ensureLoaderStyleElement(): HTMLStyleElement {
   const existing = document.getElementById(THEME_STYLE_ID) as HTMLStyleElement | null

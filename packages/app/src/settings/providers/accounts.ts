@@ -1,4 +1,4 @@
-import type { ConnectionInfo, IntegrationInfo } from "@aigcfroge/client/promise"
+import type { ConnectionInfo, IntegrationInfo } from "@omnixa/client/promise"
 
 export type ProviderAccount = Extract<ConnectionInfo, { type: "credential" }>
 

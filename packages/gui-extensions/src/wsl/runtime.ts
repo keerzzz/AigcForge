@@ -4,6 +4,7 @@ import { join } from "node:path"
 import type { MainContext } from "../sdk/main"
 import type { WslDistroProbe, WslInstalledDistro, WslOnlineDistro, WslRuntimeCheck } from "./contract"
 import { discoverScript, installScript, parseVersion, versionScript } from "./remote-cli"
+import en from "./i18n/en"
 
 export type WslCommandLine = {
   stream: "stdout" | "stderr"
@@ -47,10 +48,11 @@ export function wslArgs(args: string[], distro?: string | null, user?: string | 
   return [...(distro ? ["-d", distro] : []), ...(user ? ["--user", user] : []), "--exec", ...args]
 }
 
-export function wslCliInstallCommand(cli: WslCliBuild) {
+export function wslCliInstallCommand(cli: WslCliBuild, unavailable = en["error.installSourceUnavailable"]) {
+  if (!cli.binary) throw new Error(unavailable)
   return installScript({
     version: cli.version,
-    binary: cli.binary ? `"$(wslpath -a ${shellEscape(cli.binary)})"` : undefined,
+    binary: `"$(wslpath -a ${shellEscape(cli.binary)})"`,
   })
 }
 
@@ -299,12 +301,12 @@ export function createWslRuntime(t: MainContext["t"]) {
     async installCli(distro: string, cli: WslCliBuild, opts?: RunWslOptions) {
       const result = await runInteractiveCommand(
         system32("wsl.exe"),
-        wslArgs(["bash", "-lc", wslCliInstallCommand(cli)], distro),
+        wslArgs(["bash", "-lc", wslCliInstallCommand(cli, t("error.installSourceUnavailable"))], distro),
         withTimeout(opts, DEFAULT_WSL_INSTALL_TIMEOUT_MS),
         DEFAULT_WSL_INSTALL_TIMEOUT_MS,
       )
 
-      requireSuccess(result, t("error.installAigcfroge"))
+      requireSuccess(result, t("error.installOmnixa"))
     },
 
     async probeDistro(name: string, opts?: RunWslOptions): Promise<WslDistroProbe> {
@@ -320,21 +322,16 @@ export function createWslRuntime(t: MainContext["t"]) {
           name,
           canExecute: false,
           hasBash: false,
-          hasCurl: false,
           error: summarize(executable.stderr || executable.stdout) || t("error.executeDistro"),
         }
       }
 
-      const [bash, curl] = await Promise.all([
-        runWslSh("command -v bash >/dev/null && printf yes || printf no", name, opts),
-        runWslSh("command -v curl >/dev/null && printf yes || printf no", name, opts),
-      ])
+      const bash = await runWslSh("command -v bash >/dev/null && printf yes || printf no", name, opts)
 
       return {
         name,
         canExecute: true,
         hasBash: bash.code === 0 && summarize(bash.stdout) === "yes",
-        hasCurl: curl.code === 0 && summarize(curl.stdout) === "yes",
         error: null,
       }
     },

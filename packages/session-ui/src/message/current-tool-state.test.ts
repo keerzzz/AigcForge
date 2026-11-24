@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import type { SessionMessageAssistantTool } from "@aigcfroge/client/promise"
+import type { SessionMessageAssistantTool } from "@omnixa/client/promise"
 import { currentToolError, currentToolInput, currentToolMetadata, currentToolOutput } from "./current-tool-state"
 
 const time = { created: 1 }

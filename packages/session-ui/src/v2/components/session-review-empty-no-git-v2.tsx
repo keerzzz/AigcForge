@@ -1,6 +1,6 @@
-import { FileIcon } from "@aigcfroge/ui/file-icon"
-import { useI18n } from "@aigcfroge/ui/context/i18n"
-import { Button } from "@aigcfroge/ui/button"
+import { FileIcon } from "@omnixa/ui/file-icon"
+import { useI18n } from "@omnixa/ui/context/i18n"
+import { Button } from "@omnixa/ui/button"
 import "./session-review-v2.css"
 
 export type SessionReviewEmptyNoGitV2Props = {

@@ -1,11 +1,11 @@
 import { expect, test, type Locator, type Page } from "@playwright/test"
-import type { SessionGoalInfo, SessionMessageInfo, SessionTaskOperationInfo } from "@aigcfroge/client/promise"
-import { ConflictError, InvalidRequestError } from "@aigcfroge/protocol/errors"
-import { SessionTask } from "@aigcfroge/schema/session-task"
-import { SessionID } from "@aigcfroge/schema/session-id"
-import { SessionTaskEvent } from "@aigcfroge/schema/session-task-event"
-import { SessionStatusEvent } from "@aigcfroge/schema/session-status-event"
-import { timelinePresets } from "@aigcfroge/session-ui/timeline/detail"
+import type { SessionGoalInfo, SessionMessageInfo, SessionTaskOperationInfo } from "@omnixa/client/promise"
+import { ConflictError, InvalidRequestError } from "@omnixa/protocol/errors"
+import { SessionTask } from "@omnixa/schema/session-task"
+import { SessionID } from "@omnixa/schema/session-id"
+import { SessionTaskEvent } from "@omnixa/schema/session-task-event"
+import { SessionStatusEvent } from "@omnixa/schema/session-status-event"
+import { timelinePresets } from "@omnixa/session-ui/timeline/detail"
 import { project, provider, REMOTE_SERVER, SERVER, seed, session, sessionHref } from "../utils/app"
 import { mockServers, type MockGoalMutation } from "../utils/mock-server"
 import { installSseTransport } from "../utils/sse-transport"
@@ -13,7 +13,7 @@ import { expectSessionTitle } from "../utils/waits"
 import { mockWorkspace, type WorkspaceInput } from "../utils/workspace"
 import { attachSession, openSidePanel } from "../utils/side-panel"
 
-const directory = "C:/AigcForge/RequestDocks"
+const directory = "C:/Omnixa/RequestDocks"
 
 const sessionID = "ses_request_docks"
 
@@ -1403,7 +1403,7 @@ test("task dock reloads durable rows after SSH sign-in replaces the client", asy
       response.request().method() === "GET" &&
       new URL(response.url()).origin === REMOTE_SERVER &&
       new URL(response.url()).pathname === path &&
-      response.request().headers()["authorization"] === "Basic " + btoa("aigcfroge:ssh-1"),
+      response.request().headers()["authorization"] === "Basic " + btoa("omnixa:ssh-1"),
   )
 
   await page.goto(
@@ -1426,7 +1426,7 @@ test("task dock reloads durable rows after SSH sign-in replaces the client", asy
       new URL(response.url()).origin === REMOTE_SERVER &&
       new URL(response.url()).pathname === path &&
       new URL(response.url()).searchParams.get("directory") === directory &&
-      response.request().headers()["authorization"] === "Basic " + btoa("aigcfroge:ssh-2"),
+      response.request().headers()["authorization"] === "Basic " + btoa("omnixa:ssh-2"),
   )
 
   records.splice(0, records.length, next)
@@ -1449,7 +1449,7 @@ test("Goal dock preserves edits, confirms exact evidence and cancels without rew
   await page.setViewportSize({ width: 1440, height: 900 })
   const id = "ses_goal_dock_lifecycle"
   const goalID = "gol_goal_dock_lifecycle"
-  const location = "C:/AigcForge/GoalDock"
+  const location = "C:/Omnixa/GoalDock"
   const count = { steps: 0, attempts: 0, recordedTokens: 0, sharedTokens: 0, unknownAttempts: 0, pendingAttempts: 0 }
 
   const initial: SessionGoalInfo = {
@@ -1752,7 +1752,7 @@ test("Goal dock keeps a late edit acknowledgement in its original server and Ses
 
   const localGoals = [initial]
   const remoteGoal: SessionGoalInfo = { ...initial, objective: "Remote Goal objective" }
-  const localDirectory = "C:/AigcForge/GoalOwner"
+  const localDirectory = "C:/Omnixa/GoalOwner"
   const remoteDirectory = "/home/goal-owner"
 
   const localSession = session({

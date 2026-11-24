@@ -6,5 +6,5 @@ export {
   JsonRpc,
   SimulationRequestError,
   UiRpcs,
-} from "@aigcfroge/protocol/simulation"
-export * as SimulationProtocol from "@aigcfroge/protocol/simulation"
+} from "@omnixa/protocol/simulation"
+export * as SimulationProtocol from "@omnixa/protocol/simulation"

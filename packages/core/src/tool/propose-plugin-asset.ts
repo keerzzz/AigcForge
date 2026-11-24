@@ -1,8 +1,8 @@
 export * as ProposePluginAssetTool from "./propose-plugin-asset.js"
 
-import type { Context } from "@aigcfroge/plugin/effect/plugin"
-import { ToolFailure } from "@aigcfroge/ai"
-import { Candidate, Content, Description, Name } from "@aigcfroge/schema/plugin-asset"
+import type { Context } from "@omnixa/plugin/effect/plugin"
+import { ToolFailure } from "@omnixa/ai"
+import { Candidate, Content, Description, Name } from "@omnixa/schema/plugin-asset"
 import { Effect, Schema } from "effect"
 import { Flag } from "../flag/flag.js"
 import { PluginAsset } from "../plugin-asset.js"
@@ -51,9 +51,9 @@ export function validateContent(content: string): string | null {
 }
 
 export const Plugin = {
-  id: "aigcfroge.tool.propose_plugin_asset",
+  id: "omnixa.tool.propose_plugin_asset",
   effect: Effect.fn("ProposePluginAssetTool.Plugin")(function* (ctx: Context) {
-    if (!Flag.AIGCFROGE_EXPERIMENTAL_CHAT_ASSET) return
+    if (!Flag.OMNIXA_EXPERIMENTAL_CHAT_ASSET) return
     const service = yield* PluginAssetService.Service
 
     yield* ctx.tool

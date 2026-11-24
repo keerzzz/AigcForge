@@ -3,7 +3,7 @@ import type {
   SessionAttemptInfo,
   SessionMessageAssistant,
   SessionMessageInfo,
-} from "@aigcfroge/client/promise"
+} from "@omnixa/client/promise"
 import { expect, test, type Page } from "@playwright/test"
 import { pageMessagesFrom, seed, sessionHref } from "../utils/app"
 import { trackPageErrors } from "../utils/errors"
@@ -837,7 +837,7 @@ test.describe("timeline history", () => {
           id,
           type: "assistant",
           time: { ...time, completed: time.created + 500 },
-          model: { id: "claude-opus-4-6", providerID: "aigcfroge" },
+          model: { id: "claude-opus-4-6", providerID: "omnixa" },
           agent: "build",
           content: [{ type: "text", text: index === 60 ? "## Hydrated tail\n\n**Ready.**" : `Answer ${index}` }],
         }

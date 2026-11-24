@@ -1,7 +1,7 @@
-import type { FileDiffInfo, SessionMessageUser } from "@aigcfroge/client/promise"
+import type { FileDiffInfo, SessionMessageUser } from "@omnixa/client/promise"
 import { HoverCard } from "@kobalte/core/hover-card"
 import { ComponentProps, For, Match, Show, createMemo, createSignal, splitProps, Switch } from "solid-js"
-import { useI18n } from "@aigcfroge/ui/context/i18n"
+import { useI18n } from "@omnixa/ui/context/i18n"
 
 export function MessageNav(
   props: ComponentProps<"ul"> & {

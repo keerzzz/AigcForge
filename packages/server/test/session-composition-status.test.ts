@@ -1,22 +1,22 @@
 import path from "node:path"
 import { expect } from "bun:test"
-import { AigcForge } from "@aigcfroge/client"
-import { Agent } from "@aigcfroge/core/agent"
-import { Database } from "@aigcfroge/core/database/database"
-import { EventSequenceTable } from "@aigcfroge/core/event/sql"
-import { LocationServiceMap } from "@aigcfroge/core/location-service-map"
-import { Location } from "@aigcfroge/core/location"
-import { Session } from "@aigcfroge/core/session"
-import { SessionComposition } from "@aigcfroge/core/session/composition"
-import { SessionInboxTable, SessionMessageTable } from "@aigcfroge/core/session/sql"
-import { WorkflowRun } from "@aigcfroge/core/workflow/workflow-run"
-import { WorkflowRunTable, WorkflowStepRunTable } from "@aigcfroge/core/workflow/sql"
-import { Composition } from "@aigcfroge/schema/composition"
-import { AbsolutePath } from "@aigcfroge/schema/schema"
-import { WorkflowAsset } from "@aigcfroge/schema/workflow-asset"
+import { Omnixa } from "@omnixa/client"
+import { Agent } from "@omnixa/core/agent"
+import { Database } from "@omnixa/core/database/database"
+import { EventSequenceTable } from "@omnixa/core/event/sql"
+import { LocationServiceMap } from "@omnixa/core/location-service-map"
+import { Location } from "@omnixa/core/location"
+import { Session } from "@omnixa/core/session"
+import { SessionComposition } from "@omnixa/core/session/composition"
+import { SessionInboxTable, SessionMessageTable } from "@omnixa/core/session/sql"
+import { WorkflowRun } from "@omnixa/core/workflow/workflow-run"
+import { WorkflowRunTable, WorkflowStepRunTable } from "@omnixa/core/workflow/sql"
+import { Composition } from "@omnixa/schema/composition"
+import { AbsolutePath } from "@omnixa/schema/schema"
+import { WorkflowAsset } from "@omnixa/schema/workflow-asset"
 import { Context, Effect, Layer, Schema } from "effect"
 import { HttpEffect, HttpRouter, HttpServer } from "effect/http"
-import { Global } from "@aigcfroge/util/global"
+import { Global } from "@omnixa/util/global"
 import { tempGlobalLayer } from "../../core/test/fixture/global"
 import { createLegacySession } from "../../core/test/fixture/models"
 import { tmpdirScoped } from "../../core/test/fixture/tmpdir"
@@ -41,17 +41,17 @@ const setup = Effect.fnUntraced(function* (directory: string, filename = ":memor
   const handler = Context.get(context, HttpRouter.HttpRouter).asHttpEffect().pipe(HttpEffect.toWebHandlerWith(context))
   const request = (route: string, options: { directory?: string; authenticated?: boolean } = {}) =>
     Effect.promise(() => {
-      const url = new URL(route, "http://aigcfroge.local")
+      const url = new URL(route, "http://omnixa.local")
       url.searchParams.set("directory", options.directory ?? directory)
       return handler(
         new Request(url, {
-          headers: options.authenticated === false ? {} : { authorization: `Basic ${btoa("aigcfroge:secret")}` },
+          headers: options.authenticated === false ? {} : { authorization: `Basic ${btoa("omnixa:secret")}` },
         }),
       )
     })
-  const api = AigcForge.make({
-    baseUrl: "http://aigcfroge.local",
-    headers: { authorization: `Basic ${btoa("aigcfroge:secret")}` },
+  const api = Omnixa.make({
+    baseUrl: "http://omnixa.local",
+    headers: { authorization: `Basic ${btoa("omnixa:secret")}` },
     fetch: Object.assign((input: string | URL | Request, init?: RequestInit) => handler(new Request(input, init)), {
       preconnect: fetch.preconnect,
     }),
@@ -92,7 +92,7 @@ const workflow = new Composition.WorkflowInfo({
 
 it.live("reads frozen snapshots through the generated client without changing durable execution state", () =>
   Effect.gen(function* () {
-    const directory = (yield* tmpdirScoped("aigcfroge-composition-status-%2F-")).path
+    const directory = (yield* tmpdirScoped("omnixa-composition-status-%2F-")).path
     const test = yield* setup(directory)
     const info = yield* session(test)
     const snapshot = yield* CompositionFixture.attach(info.id, Agent.Info.empty(Agent.ID.make("coder"))).pipe(
@@ -131,7 +131,7 @@ it.live("reads frozen snapshots through the generated client without changing du
 
 it.live("maps missing and malformed snapshots and enforces Session ownership and authentication", () =>
   Effect.gen(function* () {
-    const directory = (yield* tmpdirScoped("aigcfroge-composition-errors-")).path
+    const directory = (yield* tmpdirScoped("omnixa-composition-errors-")).path
     const test = yield* setup(directory)
     const info = yield* session(test)
     const route = `/session/${info.id}/composition`
@@ -155,7 +155,7 @@ it.live("maps missing and malformed snapshots and enforces Session ownership and
 
 it.live("reads ready and dispatching workflow state without advancing its frontier", () =>
   Effect.gen(function* () {
-    const directory = (yield* tmpdirScoped("aigcfroge-workflow-status-")).path
+    const directory = (yield* tmpdirScoped("omnixa-workflow-status-")).path
     const test = yield* setup(directory)
     const info = yield* session(test)
     expect(yield* Effect.promise(() => test.api.workflow.get({ sessionID: info.id, directory }))).toEqual({
@@ -216,7 +216,7 @@ it.live("reads ready and dispatching workflow state without advancing its fronti
 
 it.live("reads persisted workflow runs and steps after an isolated database reopen", () =>
   Effect.gen(function* () {
-    const directory = (yield* tmpdirScoped("aigcfroge-workflow-reopen-")).path
+    const directory = (yield* tmpdirScoped("omnixa-workflow-reopen-")).path
     const filename = path.join(directory, "workflow.db")
     const prior = yield* Effect.gen(function* () {
       const test = yield* setup(directory, filename)

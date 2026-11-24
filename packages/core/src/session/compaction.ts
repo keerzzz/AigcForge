@@ -13,11 +13,11 @@ import {
   type ToolEntry,
   UnknownProviderError,
   type Usage,
-} from "@aigcfroge/ai"
-import type { StreamOptions } from "@aigcfroge/ai/route"
-import type { SessionCompactionResult } from "@aigcfroge/plugin/effect/session"
-import type { SessionError } from "@aigcfroge/schema/session-error"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+} from "@omnixa/ai"
+import type { StreamOptions } from "@omnixa/ai/route"
+import type { SessionCompactionResult } from "@omnixa/plugin/effect/session"
+import type { SessionError } from "@omnixa/schema/session-error"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
 import { Context, Effect, Layer, Option, Result, Stream } from "effect"
 import { HttpClientRequest } from "effect/http"
 import { Agent } from "../agent.js"
@@ -68,7 +68,7 @@ export interface Interface extends State.Transformable<Editor> {
   readonly compact: (trigger: Trigger) => Effect.Effect<Outcome>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/SessionCompaction") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/SessionCompaction") {}
 
 /** A summary fills `text` and `recent`; a native compaction fills `providerContext`. */
 type Result = {

@@ -1,6 +1,6 @@
 export * as SkillInstructions from "./instructions.js"
 
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
 import { Context, Effect, Layer, Schema } from "effect"
 import { Permission } from "../permission.js"
 import { Skill } from "../skill.js"
@@ -65,7 +65,7 @@ export interface Interface {
   ) => Effect.Effect<Instructions.List>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/SkillInstructions") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/SkillInstructions") {}
 
 const layer = Layer.effect(
   Service,

@@ -1,7 +1,7 @@
 import { Dialog as Kobalte } from "@kobalte/core/dialog"
 import { useI18n } from "../context/i18n"
-import { Icon } from "@aigcfroge/ui/icon"
-import { IconButton } from "@aigcfroge/ui/icon-button"
+import { Icon } from "@omnixa/ui/icon"
+import { IconButton } from "@omnixa/ui/icon-button"
 
 export interface ImagePreviewProps {
   src: string

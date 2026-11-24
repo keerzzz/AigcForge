@@ -1,11 +1,11 @@
 import { describe, expect } from "bun:test"
 import path from "node:path"
 import { Cause, Effect, Exit, Schema } from "effect"
-import { FSUtil } from "@aigcfroge/util/fs-util"
-import { Global } from "@aigcfroge/util/global"
-import { Hash } from "@aigcfroge/util/hash"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { Definition } from "@aigcfroge/schema/asset-publication"
+import { FSUtil } from "@omnixa/util/fs-util"
+import { Global } from "@omnixa/util/global"
+import { Hash } from "@omnixa/util/hash"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { Definition } from "@omnixa/schema/asset-publication"
 import { AssetPublication } from "../src/asset-publication"
 import { AppNodeBuilder } from "../src/effect/app-node-builder"
 import { Location } from "../src/location"
@@ -75,7 +75,7 @@ describe("shared asset publication", () => {
           ["plugins/extension.plugin.yaml", "kind: plugin\nname: Extension\ndescription: Description\nversion: '1'\n"],
         ],
         ([relativePath, content]) =>
-          f.fs.writeWithDirs(path.join(f.location.directory, ".aigcfroge", relativePath), content),
+          f.fs.writeWithDirs(path.join(f.location.directory, ".omnixa", relativePath), content),
       )
       yield* f.fs.writeWithDirs(
         path.join(f.global.config, "prompts/global.md"),
@@ -142,20 +142,20 @@ describe("shared asset publication", () => {
     Effect.gen(function* () {
       const f = yield* sources
       const command = "---\nkind: command\nname: Repeated\ndescription: Description\ninvocation: /repeated\n---\nBody"
-      yield* f.fs.writeWithDirs(path.join(f.location.directory, ".aigcfroge/commands/one.md"), command)
-      yield* f.fs.writeWithDirs(path.join(f.location.directory, ".aigcfroge/commands/two.md"), command)
+      yield* f.fs.writeWithDirs(path.join(f.location.directory, ".omnixa/commands/one.md"), command)
+      yield* f.fs.writeWithDirs(path.join(f.location.directory, ".omnixa/commands/two.md"), command)
       yield* f.fs.writeWithDirs(
-        path.join(f.location.directory, ".aigcfroge/prompts/broken.md"),
+        path.join(f.location.directory, ".omnixa/prompts/broken.md"),
         "---\nkind: prompt\nname: Broken\ndescription: Description\n---\n" + "x".repeat(100001),
       )
-      yield* f.fs.writeWithDirs(path.join(f.location.directory, ".aigcfroge/agents/coder.md"), "unread")
+      yield* f.fs.writeWithDirs(path.join(f.location.directory, ".omnixa/agents/coder.md"), "unread")
       const publication = yield* AssetPublication.read(
         {
           ...f,
           fs: FSUtil.Service.of({
             ...f.fs,
             scan: (pattern, options) =>
-              options?.cwd === path.join(f.location.directory, ".aigcfroge/agents")
+              options?.cwd === path.join(f.location.directory, ".omnixa/agents")
                 ? Effect.fail(new FSUtil.FileSystemError({ method: "scan", cause: "source unavailable" }))
                 : f.fs.scan(pattern, options),
           }),
@@ -178,31 +178,28 @@ describe("shared asset publication", () => {
       expect(publication.errors[0]).toMatchObject({
         kind: "agent",
         scope: "location",
-        target: { root: path.join(f.location.directory, ".aigcfroge/agents") },
+        target: { root: path.join(f.location.directory, ".omnixa/agents") },
         error: { reason: "reload_failed" },
       })
       expect(publication.definitions.some((source) => source.kind === "agent")).toBe(false)
       expect(AssetPublication.toModelAssets(publication).some((row) => row.kind === "Definition source errors")).toBe(
         true,
       )
-      expect(yield* f.fs.existsSafe(path.join(f.location.directory, ".aigcfroge/skills"))).toBe(false)
+      expect(yield* f.fs.existsSafe(path.join(f.location.directory, ".omnixa/skills"))).toBe(false)
     }),
   )
 
   it.live("rejects owner and discovered file redirects before reading their bodies", () =>
     Effect.gen(function* () {
       const f = yield* sources
-      yield* f.fs.makeDirectory(path.join(f.location.directory, ".aigcfroge"))
+      yield* f.fs.makeDirectory(path.join(f.location.directory, ".omnixa"))
       yield* f.fs.makeDirectory(path.join(f.location.directory, "outside"))
       yield* f.fs.writeFileString(path.join(f.location.directory, "outside/secret.md"), "PRIVATE_REDIRECT_BODY")
-      yield* f.fs.symlink(
-        path.join(f.location.directory, "outside"),
-        path.join(f.location.directory, ".aigcfroge/agents"),
-      )
-      yield* f.fs.makeDirectory(path.join(f.location.directory, ".aigcfroge/mcps"))
+      yield* f.fs.symlink(path.join(f.location.directory, "outside"), path.join(f.location.directory, ".omnixa/agents"))
+      yield* f.fs.makeDirectory(path.join(f.location.directory, ".omnixa/mcps"))
       yield* f.fs.symlink(
         path.join(f.location.directory, "outside/secret.md"),
-        path.join(f.location.directory, ".aigcfroge/mcps/redirect.md"),
+        path.join(f.location.directory, ".omnixa/mcps/redirect.md"),
       )
       const reads: string[] = []
       const publication = yield* AssetPublication.read(
@@ -231,10 +228,10 @@ describe("shared asset publication", () => {
         path.join(f.location.directory, "outside/secret.md"),
         "---\nkind: agent\nname: Redirected\ndescription: Description\n---\nPRIVATE_ALIAS_BODY",
       )
-      yield* f.fs.makeDirectory(path.join(f.location.directory, ".aigcfroge/agents"), { recursive: true })
+      yield* f.fs.makeDirectory(path.join(f.location.directory, ".omnixa/agents"), { recursive: true })
       yield* f.fs.symlink(
         path.join(f.location.directory, "outside/secret.md"),
-        path.join(f.location.directory, ".aigcfroge/agents/folder\\escape.md"),
+        path.join(f.location.directory, ".omnixa/agents/folder\\escape.md"),
       )
       const reads: string[] = []
       const publication = yield* AssetPublication.read(
@@ -261,7 +258,7 @@ describe("shared asset publication", () => {
     it.live("preserves " + scenario.name + " rather than publishing an empty source", () =>
       Effect.gen(function* () {
         const f = yield* sources
-        yield* f.fs.makeDirectory(path.join(f.location.directory, ".aigcfroge/agents"), { recursive: true })
+        yield* f.fs.makeDirectory(path.join(f.location.directory, ".omnixa/agents"), { recursive: true })
         const result = yield* Effect.exit(
           AssetPublication.read({ ...f, fs: FSUtil.Service.of({ ...f.fs, scan: () => scenario.failure }) }, []),
         )
@@ -278,7 +275,7 @@ describe("shared asset publication", () => {
       expect(JSON.stringify(publication)).not.toContain("workspaceID")
       const definition = {
         kind: "skill",
-        target: { scope: "location", root: path.join(f.location.directory, ".aigcfroge/skills") },
+        target: { scope: "location", root: path.join(f.location.directory, ".omnixa/skills") },
         assets: [],
         invalid: [{ relativePath: "bad.md", errorTag: "bad_template" }],
       }

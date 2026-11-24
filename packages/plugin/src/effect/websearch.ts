@@ -1,5 +1,5 @@
-import type { WebSearch } from "@aigcfroge/schema/websearch"
-import type { WebSearchApi } from "@aigcfroge/client/effect/api"
+import type { WebSearch } from "@omnixa/schema/websearch"
+import type { WebSearchApi } from "@omnixa/client/effect/api"
 import type { Effect } from "effect"
 import type { Transform } from "./registration.js"
 

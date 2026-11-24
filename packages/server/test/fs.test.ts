@@ -20,7 +20,7 @@ it.live(
         await fs.writeFile(path.join(tmp.path, "root", "sibling", "file.txt"), "outside")
         await fs.writeFile(starts, "")
         await fs.writeFile(
-          path.join(tmp.path, "root", "aigcfroge.json"),
+          path.join(tmp.path, "root", "omnixa.json"),
           JSON.stringify({
             mcp: {
               servers: {

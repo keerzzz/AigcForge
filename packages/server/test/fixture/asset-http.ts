@@ -1,19 +1,19 @@
 import { mkdir } from "node:fs/promises"
 import path from "node:path"
-import { LanguageModel, LLMClient } from "@aigcfroge/ai"
-import { OpenAIChat } from "@aigcfroge/ai/protocols"
-import { TestLLM } from "@aigcfroge/ai/testing"
-import { Bus } from "@aigcfroge/core/bus"
-import { Database } from "@aigcfroge/core/database/database"
-import { LayerNodePlatform } from "@aigcfroge/core/effect/app-node-platform"
-import { Watcher } from "@aigcfroge/core/filesystem/watcher"
-import { Location } from "@aigcfroge/core/location"
-import { LocationServiceMap } from "@aigcfroge/core/location-services"
-import { Model } from "@aigcfroge/core/model"
-import { Plugin } from "@aigcfroge/core/plugin"
-import { Session } from "@aigcfroge/core/session"
-import { SessionRunnerModel } from "@aigcfroge/core/session/runner/model"
-import { Global } from "@aigcfroge/util/global"
+import { LanguageModel, LLMClient } from "@omnixa/ai"
+import { OpenAIChat } from "@omnixa/ai/protocols"
+import { TestLLM } from "@omnixa/ai/testing"
+import { Bus } from "@omnixa/core/bus"
+import { Database } from "@omnixa/core/database/database"
+import { LayerNodePlatform } from "@omnixa/core/effect/app-node-platform"
+import { Watcher } from "@omnixa/core/filesystem/watcher"
+import { Location } from "@omnixa/core/location"
+import { LocationServiceMap } from "@omnixa/core/location-services"
+import { Model } from "@omnixa/core/model"
+import { Plugin } from "@omnixa/core/plugin"
+import { Session } from "@omnixa/core/session"
+import { SessionRunnerModel } from "@omnixa/core/session/runner/model"
+import { Global } from "@omnixa/util/global"
 import { Context, Effect, Layer, Option, Stream } from "effect"
 import { HttpEffect, HttpRouter, HttpServer } from "effect/http"
 import { tempGlobalLayer } from "../../../core/test/fixture/global"
@@ -92,7 +92,7 @@ export const setup = Effect.fnUntraced(function* (input: {
     } = {},
   ) =>
     Effect.promise(() => {
-      const url = new URL(route, "http://aigcfroge.local")
+      const url = new URL(route, "http://omnixa.local")
       url.searchParams.set(
         route.startsWith("/api/") ? "location[directory]" : "directory",
         options.directory ?? directory,
@@ -102,7 +102,7 @@ export const setup = Effect.fnUntraced(function* (input: {
           method: options.method ?? (options.body === undefined ? "GET" : "POST"),
           headers: {
             "content-type": "application/json",
-            ...(options.authenticated === false ? {} : { authorization: `Basic ${btoa("aigcfroge:secret")}` }),
+            ...(options.authenticated === false ? {} : { authorization: `Basic ${btoa("omnixa:secret")}` }),
           },
           body: options.body === undefined ? undefined : JSON.stringify(options.body),
         }),

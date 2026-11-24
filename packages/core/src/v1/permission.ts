@@ -4,7 +4,7 @@ import { Schema } from "effect"
 import { Project } from "../project"
 import { statics } from "../schema"
 import { SessionSchema } from "../session/schema"
-import { Identifier } from "@aigcfroge/schema/identifier"
+import { Identifier } from "@omnixa/schema/identifier"
 
 export const ID = Schema.String.check(Schema.isStartingWith("per")).pipe(
   Schema.brand("PermissionID"),

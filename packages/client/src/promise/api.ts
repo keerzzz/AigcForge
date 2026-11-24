@@ -1,6 +1,6 @@
-import type { AigcForge } from "./client.js"
+import type { Omnixa } from "./client.js"
 
-type Client = ReturnType<typeof AigcForge.make>
+type Client = ReturnType<typeof Omnixa.make>
 
 export type { RpcApi, RpcCallOptions, RpcClient, RpcEventPayload } from "./rpc.js"
 

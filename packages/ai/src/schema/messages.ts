@@ -1,6 +1,6 @@
 import { Schema } from "effect"
-import { withStatics } from "@aigcfroge/schema/schema"
-import { Tool } from "@aigcfroge/schema/tool"
+import { withStatics } from "@omnixa/schema/schema"
+import { Tool } from "@omnixa/schema/tool"
 import {
   CacheHint,
   CachePolicy,

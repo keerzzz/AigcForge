@@ -24,14 +24,14 @@ jobs:
         id: setup-git-committer
         uses: ./.github/actions/setup-git-committer
         with:
-          aigcfroge-app-id: ${{ vars.AIGCFROGE_APP_ID }}
-          aigcfroge-app-secret: ${{ secrets.AIGCFROGE_APP_SECRET }}
+          omnixa-app-id: ${{ vars.OMNIXA_APP_ID }}
+          omnixa-app-secret: ${{ secrets.OMNIXA_APP_SECRET }}
 
-      - name: Install Aigcfroge
-        run: bun i -g aigcfroge
+      - name: Install Omnixa
+        run: bun i -g omnixa
 
       - name: Sync beta branch
         env:
           GH_TOKEN: ${{ steps.setup-git-committer.outputs.token }}
-          AIGCFROGE_API_KEY: ${{ secrets.AIGCFROGE_API_KEY }}
+          OMNIXA_API_KEY: ${{ secrets.OMNIXA_API_KEY }}
         run: bun script/beta.ts

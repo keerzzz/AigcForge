@@ -1,8 +1,8 @@
 import { Effect, Layer } from "effect"
-import { Config } from "@aigcfroge/core/config"
-import { Location } from "@aigcfroge/core/location"
-import { Mcp } from "@aigcfroge/core/mcp/index"
-import { AbsolutePath } from "@aigcfroge/core/schema"
+import { Config } from "@omnixa/core/config"
+import { Location } from "@omnixa/core/location"
+import { Mcp } from "@omnixa/core/mcp/index"
+import { AbsolutePath } from "@omnixa/core/schema"
 import { location } from "./location"
 
 // Plugins may register MCP transforms at startup; with no servers there is nothing to rebuild.

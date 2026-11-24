@@ -3,11 +3,11 @@ export * as VcsHgPlugin from "./hg.js"
 import path from "path"
 import { Effect } from "effect"
 import { ChildProcess } from "effect/process"
-import { define } from "@aigcfroge/plugin/effect/plugin"
-import { FileDiff } from "@aigcfroge/schema/file-diff"
-import { FileStatus, Info, Mode } from "@aigcfroge/schema/vcs"
-import { FSUtil } from "@aigcfroge/util/fs-util"
-import { AppProcess } from "@aigcfroge/util/process"
+import { define } from "@omnixa/plugin/effect/plugin"
+import { FileDiff } from "@omnixa/schema/file-diff"
+import { FileStatus, Info, Mode } from "@omnixa/schema/vcs"
+import { FSUtil } from "@omnixa/util/fs-util"
+import { AppProcess } from "@omnixa/util/process"
 import { Location } from "../../location.js"
 import type { Adapter, DiffOptions } from "../../vcs.js"
 import { DiffError } from "../../vcs.js"
@@ -23,7 +23,7 @@ import {
 } from "../../vcs/patch.js"
 
 export const Plugin = define({
-  id: "aigcfroge.vcs.hg",
+  id: "omnixa.vcs.hg",
   effect: Effect.fn("VcsHgPlugin")(function* (ctx) {
     const location = yield* Location.Service
     // Markerless locations need this definition to initialize their first repository.

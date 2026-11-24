@@ -1,5 +1,5 @@
-import { Agent } from "@aigcfroge/schema/agent"
-import { Location } from "@aigcfroge/schema/location"
+import { Agent } from "@omnixa/schema/agent"
+import { Location } from "@omnixa/schema/location"
 import { Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/http-api"
 import { LocationQuery, locationQueryOpenApi } from "./location.js"

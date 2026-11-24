@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { Result, Schema } from "effect"
-import { Composition } from "@aigcfroge/schema/composition"
+import { Composition } from "@omnixa/schema/composition"
 import {
   captureTools,
   computeCompositionDigest,

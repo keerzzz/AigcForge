@@ -1,5 +1,5 @@
 import { expect, type Page } from "@playwright/test"
-import { ProductMode } from "@aigcfroge/schema/product-mode"
+import { ProductMode } from "@omnixa/schema/product-mode"
 import { fixture } from "./session-fixture"
 import { project, REMOTE_SERVER, seed, SERVER } from "./app"
 import { mockRemoteServer } from "./workspace"

@@ -26,9 +26,9 @@ export const preferApplicationEnvironment = Effect.gen(function* () {
     if (!shellEnv?.XDG_STATE_HOME) delete process.env.XDG_STATE_HOME
     Object.assign(process.env, {
       ...shellEnv,
-      AIGCFROGE_EXPERIMENTAL_ICON_DISCOVERY: "true",
-      AIGCFROGE_EXPERIMENTAL_FILEWATCHER: "true",
-      AIGCFROGE_CLIENT: "desktop",
+      OMNIXA_EXPERIMENTAL_ICON_DISCOVERY: "true",
+      OMNIXA_EXPERIMENTAL_FILEWATCHER: "true",
+      OMNIXA_CLIENT: "desktop",
     })
   })
 })
@@ -37,8 +37,8 @@ export const prepareDesktop = Effect.gen(function* () {
   const path = yield* Path.Path
   const paths = yield* DesktopPaths.resolve
 
-  if (app.isPackaged || process.env.AIGCFROGE_DESKTOP_DISABLE_PROTOCOL_REGISTRATION !== "1")
-    app.setAsDefaultProtocolClient("aigcfroge")
+  if (app.isPackaged || process.env.OMNIXA_DESKTOP_DISABLE_PROTOCOL_REGISTRATION !== "1")
+    app.setAsDefaultProtocolClient("omnixa")
   const runFork = Effect.runForkWith(yield* Effect.context())
   setProtocolReporter((level, message, data) =>
     runFork(scoped("protocol", level === "error" ? Effect.logError(message, data) : Effect.logWarning(message, data))),

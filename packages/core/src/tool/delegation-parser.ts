@@ -1,7 +1,7 @@
 export * as DelegationParser from "./delegation-parser"
 
 import { Effect, Option, Schema } from "effect"
-import { Delegation } from "@aigcfroge/schema/delegation"
+import { Delegation } from "@omnixa/schema/delegation"
 import type { DelegationResult } from "./cli-adapter"
 
 const TAG_PATTERNS = [

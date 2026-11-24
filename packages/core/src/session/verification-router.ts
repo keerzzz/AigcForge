@@ -5,8 +5,8 @@ import { Config } from "../config"
 import { SessionSchema } from "./schema"
 import { SessionMessage } from "./message"
 import { Verifier } from "./verifier"
-import { DelegationID } from "@aigcfroge/schema/delegation-id"
-import { Document, type Entry } from "@aigcfroge/schema/config"
+import { DelegationID } from "@omnixa/schema/delegation-id"
+import { Document, type Entry } from "@omnixa/schema/config"
 
 const settings = (documents: readonly Entry[]) =>
   documents
@@ -99,7 +99,7 @@ export interface Interface {
   readonly route: (input: Input) => Effect.Effect<Settlement>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/VerificationRouter") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/v2/VerificationRouter") {}
 
 export const layer = Layer.effect(
   Service,

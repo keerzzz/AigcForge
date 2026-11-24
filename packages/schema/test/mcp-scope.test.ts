@@ -21,7 +21,7 @@ describe("McpScope.McpConnectionHealth", () => {
 describe("McpScope.McpServerBinding", () => {
   const stdioBinding = {
     serverName: "context7",
-    ref: { relativePath: ".aigcfroge/mcp/context7.yaml", revision },
+    ref: { relativePath: ".omnixa/mcp/context7.yaml", revision },
     transport: "stdio" as const,
     command: ["bun", "run", "server.ts"],
   }
@@ -29,14 +29,14 @@ describe("McpScope.McpServerBinding", () => {
   test("decodes a stdio binding without any secret material", () => {
     const decoded = McpScope.decodeBinding(stdioBinding)
     expect(decoded.serverName).toBe("context7")
-    expect(decoded.ref.relativePath).toBe(".aigcfroge/mcp/context7.yaml")
+    expect(decoded.ref.relativePath).toBe(".omnixa/mcp/context7.yaml")
     expect(decoded.transport).toBe("stdio")
   })
 
   test("decodes a remote binding and an optional opaque credential reference", () => {
     const decoded = McpScope.decodeBinding({
       serverName: "remote-tools",
-      ref: { relativePath: ".aigcfroge/mcp/remote.yaml", revision },
+      ref: { relativePath: ".omnixa/mcp/remote.yaml", revision },
       transport: "remote",
       url: "https://mcp.example.com/v1",
       credentialRef: "cred_" + "b".repeat(32),
@@ -58,7 +58,7 @@ describe("McpScope.McpServerBinding", () => {
   test("rejects a remote url embedding userinfo instead of carrying it into errors and logs", () => {
     const remote = {
       serverName: "remote-tools",
-      ref: { relativePath: ".aigcfroge/mcp/remote.yaml", revision },
+      ref: { relativePath: ".omnixa/mcp/remote.yaml", revision },
       transport: "remote" as const,
     }
     for (const url of [
@@ -77,7 +77,7 @@ describe("McpScope.McpServerBinding", () => {
     expect(() =>
       McpScope.decodeBinding({
         serverName: "remote-tools",
-        ref: { relativePath: ".aigcfroge/mcp/remote.yaml", revision },
+        ref: { relativePath: ".omnixa/mcp/remote.yaml", revision },
         transport: "remote",
         url: "https://",
       }),
@@ -88,7 +88,7 @@ describe("McpScope.McpServerBinding", () => {
     expect(() =>
       McpScope.decodeBinding({
         ...stdioBinding,
-        ref: { relativePath: "/etc/aigcfroge/mcp.yaml", revision },
+        ref: { relativePath: "/etc/omnixa/mcp.yaml", revision },
       }),
     ).toThrow()
   })
@@ -276,7 +276,7 @@ describe("McpScope.ScopedGrant", () => {
 describe("McpScope excess-key redaction", () => {
   const binding = {
     serverName: "probe",
-    ref: { relativePath: ".aigcfroge/mcp/probe.yaml", revision },
+    ref: { relativePath: ".omnixa/mcp/probe.yaml", revision },
     transport: "remote" as const,
     url: "https://example.com/mcp",
   }

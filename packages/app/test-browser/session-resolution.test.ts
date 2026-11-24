@@ -1,11 +1,11 @@
 import { expect, test } from "bun:test"
 import { createRoot, createSignal } from "solid-js"
 import { createStore } from "solid-js/store"
-import { createClientConnection, createData } from "@aigcfroge/client/solid"
+import { createClientConnection, createData } from "@omnixa/client/solid"
 import { Match } from "effect"
-import type { AigcForgeEvent, SessionInfo } from "@aigcfroge/client/promise"
+import type { OmnixaEvent, SessionInfo } from "@omnixa/client/promise"
 import { createSessionResolution } from "@/session/session-resolution"
-import { createAigcForgeEventSource, createServerTransport } from "@/runtime/server/client"
+import { createOmnixaEventSource, createServerTransport } from "@/runtime/server/client"
 
 type Session = { id: string; directory: string }
 
@@ -92,7 +92,7 @@ test("four session resolutions share server Data and a stream through reconnect 
 
       const opened = Array.from({ length: 3 }, () =>
         Promise.withResolvers<{
-          send: (event: AigcForgeEvent) => void
+          send: (event: OmnixaEvent) => void
           connected: PromiseWithResolvers<void>
           aborted: boolean
         }>(),
@@ -124,7 +124,7 @@ test("four session resolutions share server Data and a stream through reconnect 
             let controller!: ReadableStreamDefaultController<Uint8Array>
 
             const entry = {
-              send: (event: AigcForgeEvent) =>
+              send: (event: OmnixaEvent) =>
                 controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify(event)}\n\n`)),
               connected: Promise.withResolvers<void>(),
               aborted: false,
@@ -195,7 +195,7 @@ test("four session resolutions share server Data and a stream through reconnect 
         },
       })
 
-      const events = createAigcForgeEventSource()
+      const events = createOmnixaEventSource()
 
       const connection = createClientConnection(transport.api, {
         flushInterval: 0,

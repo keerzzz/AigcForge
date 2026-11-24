@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test"
 import { Effect } from "effect"
-import { Model } from "@aigcfroge/core/model"
-import { Plugin } from "@aigcfroge/core/plugin"
-import { PluginHost } from "@aigcfroge/core/plugin/host"
-import { ProviderPlugins } from "@aigcfroge/core/plugin/provider"
-import { OpenRouterPlugin } from "@aigcfroge/core/plugin/provider/openrouter"
-import { Provider } from "@aigcfroge/core/provider"
+import { Model } from "@omnixa/core/model"
+import { Plugin } from "@omnixa/core/plugin"
+import { PluginHost } from "@omnixa/core/plugin/host"
+import { ProviderPlugins } from "@omnixa/core/plugin/provider"
+import { OpenRouterPlugin } from "@omnixa/core/plugin/provider/openrouter"
+import { Provider } from "@omnixa/core/provider"
 import { testEffect } from "../lib/effect"
 import { PluginTestLayer } from "./fixture"
 
@@ -19,7 +19,7 @@ const addPlugin = Effect.fn(function* () {
 
 describe("OpenRouterPlugin", () => {
   test("is registered so legacy OpenRouter behavior can be applied", () => {
-    expect(ProviderPlugins.map((item) => item.id)).toContain("aigcfroge.provider.openrouter")
+    expect(ProviderPlugins.map((item) => item.id)).toContain("omnixa.provider.openrouter")
   })
 
   it.effect("applies legacy referer headers only to openrouter", () =>
@@ -27,7 +27,7 @@ describe("OpenRouterPlugin", () => {
       const catalog = yield* Provider.Service
       yield* catalog.transform((catalog) => {
         catalog.update(Provider.ID.openrouter, (provider) => {
-          provider.package = "@aigcfroge/ai/providers/openrouter"
+          provider.package = "@omnixa/ai/providers/openrouter"
           provider.headers = { Existing: "value" }
         })
         catalog.update(Provider.ID.make("nvidia"), () => {})
@@ -36,8 +36,8 @@ describe("OpenRouterPlugin", () => {
 
       expect((yield* catalog.get(Provider.ID.openrouter))?.headers).toEqual({
         Existing: "value",
-        "HTTP-Referer": "https://aigcfroge.ai/",
-        "X-Title": "aigcfroge",
+        "HTTP-Referer": "https://omnixa.ai/",
+        "X-Title": "omnixa",
       })
       expect((yield* catalog.get(Provider.ID.make("nvidia")))?.headers).toBeUndefined()
     }),
@@ -49,7 +49,7 @@ describe("OpenRouterPlugin", () => {
       const models = yield* Model.Service
       yield* catalog.transform((catalog) => {
         catalog.update(Provider.ID.openrouter, (provider) => {
-          provider.package = "@aigcfroge/ai/providers/openrouter"
+          provider.package = "@omnixa/ai/providers/openrouter"
         })
         catalog.update(Provider.ID.openai, () => {})
         catalog.models.update(Provider.ID.openrouter, Model.ID.make("openai/gpt-5-chat"), () => {})

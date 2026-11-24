@@ -1,8 +1,8 @@
 import { EOL } from "node:os"
 import { Cause, Effect, Exit } from "effect"
-import { AigcForge } from "@aigcfroge/client"
-import { Service } from "@aigcfroge/client/effect/service"
-import { Npm } from "@aigcfroge/util/npm"
+import { Omnixa } from "@omnixa/client"
+import { Service } from "@omnixa/client/effect/service"
+import { Npm } from "@omnixa/util/npm"
 import { Config } from "../../../config"
 import { ServerConnection } from "../../../services/server-connection"
 
@@ -17,7 +17,7 @@ export interface Item {
 
 export const inspect = Effect.fn("cli.plugin.inspect")(function* (selected?: string) {
   const { endpoint } = yield* ServerConnection.resolve()
-  const client = AigcForge.make({ baseUrl: endpoint.url, headers: Service.headers(endpoint) })
+  const client = Omnixa.make({ baseUrl: endpoint.url, headers: Service.headers(endpoint) })
   const location = { directory: process.cwd() }
   const listed = yield* Effect.promise(() => client.plugin.list({ location }))
   const serverTargets = new Set(
@@ -48,8 +48,7 @@ export const inspect = Effect.fn("cli.plugin.inspect")(function* (selected?: str
     ...new Set(
       (info.plugins ?? []).flatMap((entry) => {
         const target = typeof entry === "string" ? entry : entry.package
-        if (target.startsWith("-") || target === "*" || target.endsWith(".*") || target.startsWith("aigcfroge."))
-          return []
+        if (target.startsWith("-") || target === "*" || target.endsWith(".*") || target.startsWith("omnixa.")) return []
         return [target]
       }),
     ),

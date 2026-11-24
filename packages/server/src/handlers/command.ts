@@ -1,4 +1,4 @@
-import { Command } from "@aigcfroge/core/command"
+import { Command } from "@omnixa/core/command"
 import { HttpApiBuilder } from "effect/http-api"
 import { Api } from "../api"
 import { response } from "../location"

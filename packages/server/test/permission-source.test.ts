@@ -1,14 +1,14 @@
 import path from "node:path"
 import { expect } from "bun:test"
-import { Bus } from "@aigcfroge/core/bus"
-import { LocationServiceMap } from "@aigcfroge/core/location-service-map"
-import { Permission } from "@aigcfroge/core/permission"
-import { Location } from "@aigcfroge/schema/location"
-import { OperationSource, ToolSource } from "@aigcfroge/schema/permission"
-import { AbsolutePath } from "@aigcfroge/schema/schema"
-import { SessionID } from "@aigcfroge/schema/session-id"
-import { SessionTask } from "@aigcfroge/schema/session-task"
-import { Global } from "@aigcfroge/util/global"
+import { Bus } from "@omnixa/core/bus"
+import { LocationServiceMap } from "@omnixa/core/location-service-map"
+import { Permission } from "@omnixa/core/permission"
+import { Location } from "@omnixa/schema/location"
+import { OperationSource, ToolSource } from "@omnixa/schema/permission"
+import { AbsolutePath } from "@omnixa/schema/schema"
+import { SessionID } from "@omnixa/schema/session-id"
+import { SessionTask } from "@omnixa/schema/session-task"
+import { Global } from "@omnixa/util/global"
 import { Context, Effect, Layer, Schema } from "effect"
 import { HttpEffect, HttpRouter, HttpServer } from "effect/http"
 import { tempGlobalLayer } from "../../core/test/fixture/global"
@@ -20,7 +20,7 @@ const requestsFromJson = Schema.decodeUnknownSync(Schema.Struct({ data: Schema.A
 
 const boot = () =>
   Effect.gen(function* () {
-    const directory = (yield* tmpdirScoped("aigcfroge-permission-source-")).path
+    const directory = (yield* tmpdirScoped("omnixa-permission-source-")).path
     const location = Location.Ref.make({ directory: AbsolutePath.make(directory) })
     const context = yield* Layer.build(
       createRoutes(
@@ -40,14 +40,14 @@ const boot = () =>
       .pipe(HttpEffect.toWebHandlerWith(context))
     const request = (route: string, body?: unknown) =>
       Effect.promise(() => {
-        const url = new URL(route, "http://aigcfroge.local")
+        const url = new URL(route, "http://omnixa.local")
         url.searchParams.set("directory", directory)
         return handler(
           new Request(url, {
             method: body === undefined ? "GET" : "POST",
             headers: {
               "content-type": "application/json",
-              authorization: `Basic ${btoa("aigcfroge:secret")}`,
+              authorization: `Basic ${btoa("omnixa:secret")}`,
             },
             body: body === undefined ? undefined : JSON.stringify(body),
           }),

@@ -1,24 +1,24 @@
 import { describe, expect, test } from "bun:test"
 import { Effect, Layer, Schema } from "effect"
 import path from "node:path"
-import { Composition } from "@aigcfroge/schema/composition"
-import { CustomProfile as SchemaCustomProfile } from "@aigcfroge/schema/custom-profile"
-import { CustomProfileService } from "@aigcfroge/core/custom-profile-service"
-import { CustomProfile } from "@aigcfroge/core/custom-profile"
-import { FileMutation } from "@aigcfroge/core/file-mutation"
-import { LocationMutation } from "@aigcfroge/core/location-mutation"
-import { FSUtil } from "@aigcfroge/util/fs-util"
-import { Hash } from "@aigcfroge/util/hash"
-import { Location } from "@aigcfroge/core/location"
-import { Bus } from "@aigcfroge/core/bus"
-import { AbsolutePath } from "@aigcfroge/core/schema"
+import { Composition } from "@omnixa/schema/composition"
+import { CustomProfile as SchemaCustomProfile } from "@omnixa/schema/custom-profile"
+import { CustomProfileService } from "@omnixa/core/custom-profile-service"
+import { CustomProfile } from "@omnixa/core/custom-profile"
+import { FileMutation } from "@omnixa/core/file-mutation"
+import { LocationMutation } from "@omnixa/core/location-mutation"
+import { FSUtil } from "@omnixa/util/fs-util"
+import { Hash } from "@omnixa/util/hash"
+import { Location } from "@omnixa/core/location"
+import { Bus } from "@omnixa/core/bus"
+import { AbsolutePath } from "@omnixa/core/schema"
 import { location } from "./fixture/location"
 import { tmpdir, tmpdirScoped } from "./fixture/tmpdir"
 import { NodeFileSystem } from "@effect/platform-node"
 import { hostEnvironmentLayer } from "./fixture/environment"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { Environment } from "@aigcfroge/core/environment/index"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { Environment } from "@omnixa/core/environment/index"
 import { AssetYaml } from "../src/util/asset-yaml"
 import { testEffect } from "./lib/effect"
 
@@ -183,7 +183,7 @@ describe("CustomProfileService", () => {
         yield* registry.reload()
         expect(yield* registry.getByPath(saved.relativePath)).toEqual(saved)
         expect((yield* service.propose(candidate)).revision).toBe(saved.revision)
-        expect(yield* fs.exists(path.join(directory.path, ".aigcfroge/agents"))).toBe(false)
+        expect(yield* fs.exists(path.join(directory.path, ".omnixa/agents"))).toBe(false)
 
         const replacement = new SchemaCustomProfile.Candidate({
           ...candidate,

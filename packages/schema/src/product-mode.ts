@@ -55,4 +55,4 @@ export function isGenericSessionMode(mode: string): mode is GenericSessionMode {
  * which reads `process.env` while the module is evaluated.
  */
 export const CAPABILITY_CUSTOM_V1 = "product-mode-custom-v1"
-export const CAPABILITIES_HEADER = "x-aigcfroge-capabilities"
+export const CAPABILITIES_HEADER = "x-omnixa-capabilities"

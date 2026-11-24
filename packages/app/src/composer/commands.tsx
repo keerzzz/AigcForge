@@ -2,7 +2,7 @@ import { useCommand, type CommandOption } from "@/shell/commands/command"
 import { useLanguage } from "@/runtime/i18n/language"
 import { DialogSelectModel } from "@/providers/models/select-dialog"
 import { useLocal, type ModelSelection } from "@/providers/models/selection"
-import { useDialog } from "@aigcfroge/ui/context/dialog"
+import { useDialog } from "@omnixa/ui/context/dialog"
 import { getCursorPosition, setCursorPosition } from "./editor/dom"
 import { useSessionLayout } from "@/session/session-layout"
 import { createSessionOwnership } from "@/session/session-ownership"
@@ -30,7 +30,7 @@ export const useComposerCommands = (
   const agentCommand = withCategory(language.t("command.category.agent"))
   const providerCommand = withCategory(language.t("command.category.provider"))
 
-  // Mirrors the TUI's `/connect`, which the Console's setup steps tell people to run.
+  // Mirrors the TUI's `/connect` for the composer's current workspace.
   const connectProvider = async () => {
     const { DialogConnectProvider } = await import("@/providers/connect/dialog")
     void dialog.show(() => <DialogConnectProvider directory={workspace().directory} />)

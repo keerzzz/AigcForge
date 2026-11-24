@@ -1,4 +1,4 @@
-import type { SessionMessageInfo } from "@aigcfroge/client/promise"
+import type { SessionMessageInfo } from "@omnixa/client/promise"
 import { fixture } from "./session-fixture"
 
 // Two long sessions (source, target) of 200 exchanges each, ending in formatted markdown answers.

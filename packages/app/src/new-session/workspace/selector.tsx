@@ -1,12 +1,12 @@
 import { createMemo, createSignal, For, Show, type JSX } from "solid-js"
 import { createStore } from "solid-js/store"
 import { createResizeObserver } from "@solid-primitives/resize-observer"
-import { Menu } from "@aigcfroge/ui/menu"
-import { Tooltip } from "@aigcfroge/ui/tooltip"
-import { Icon } from "@aigcfroge/ui/icon"
-import { IconButton } from "@aigcfroge/ui/icon-button"
-import { TextInput } from "@aigcfroge/ui/text-input"
-import { getFilename, sameDirectory } from "@aigcfroge/util/path"
+import { Menu } from "@omnixa/ui/menu"
+import { Tooltip } from "@omnixa/ui/tooltip"
+import { Icon } from "@omnixa/ui/icon"
+import { IconButton } from "@omnixa/ui/icon-button"
+import { TextInput } from "@omnixa/ui/text-input"
+import { getFilename, sameDirectory } from "@omnixa/util/path"
 import { useLanguage } from "@/runtime/i18n/language"
 
 export function PromptWorkspaceSelector(props: {

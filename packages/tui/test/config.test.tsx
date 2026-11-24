@@ -50,7 +50,7 @@ test("resolves host-neutral defaults", () => {
     notifications: true,
     sound: true,
     volume: 0.4,
-    sound_pack: "aigcfroge.default",
+    sound_pack: "omnixa.default",
     sounds: {},
   })
   expect(config.leader_timeout).toBe(LeaderTimeoutDefault)

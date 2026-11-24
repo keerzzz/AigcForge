@@ -1,11 +1,11 @@
-import { ModelsDev } from "@aigcfroge/core/models-dev"
+import { ModelsDev } from "@omnixa/core/models-dev"
 import { Effect } from "effect"
-import { Plugin } from "@aigcfroge/core/plugin"
-import { Provider } from "@aigcfroge/core/provider"
-import { Bus } from "@aigcfroge/core/bus"
-import { Project } from "@aigcfroge/core/project"
-import { Session } from "@aigcfroge/core/session"
-import { SessionEvent } from "@aigcfroge/core/session/event"
+import { Plugin } from "@omnixa/core/plugin"
+import { Provider } from "@omnixa/core/provider"
+import { Bus } from "@omnixa/core/bus"
+import { Project } from "@omnixa/core/project"
+import { Session } from "@omnixa/core/session"
+import { SessionEvent } from "@omnixa/core/session/event"
 
 // Core is env-free, so the default ModelsDev node refreshes from models.dev
 // unless the graph says otherwise. Real-Location fixtures opt out here; the

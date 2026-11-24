@@ -28,7 +28,7 @@ export function icons(channel: string): Plugin {
   ]
 
   return {
-    name: "aigcfroge-app:icons",
+    name: "omnixa-app:icons",
     generateBundle() {
       files.forEach((file) => this.emitFile({ type: "asset", fileName: file.fileName, source: file.source }))
     },
@@ -45,8 +45,8 @@ export function icons(channel: string): Plugin {
       order: "pre",
       handler(html) {
         return html
-          .replace("%AIGCFROGE_FAVICON%", `/${prefix}/favicon.ico`)
-          .replace("%AIGCFROGE_APPLE_TOUCH_ICON%", `/${prefix}/apple-touch-icon.png`)
+          .replace("%OMNIXA_FAVICON%", `/${prefix}/favicon.ico`)
+          .replace("%OMNIXA_APPLE_TOUCH_ICON%", `/${prefix}/apple-touch-icon.png`)
       },
     },
   }

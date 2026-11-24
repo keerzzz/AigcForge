@@ -98,17 +98,6 @@ export const dict: Record<string, string> = {
   "ui.sessionTurn.retry.attempt": "спроба № {{attempt}}",
   "ui.sessionTurn.retry.attemptLine": "{{line}} — спроба № {{attempt}}",
   "ui.sessionTurn.retry.geminiHot": "Gemini зараз перевантажений",
-  "ui.sessionTurn.error.freeUsageExceeded": "Перевищено ліміт безкоштовного використання",
-  "ui.sessionTurn.error.addCredits": "Додати кредити",
-
-  "dialog.usageExceeded.freeTier.title": "Безкоштовний ліміт вичерпано",
-  "dialog.usageExceeded.freeTier.description":
-    "Підпишіться на AigcForge Go за $10 на місяць для надійного доступу до найкращих моделей із відкритим кодом.",
-  "dialog.usageExceeded.freeTier.actionLabel": "Підписатися",
-  "dialog.usageExceeded.accountRateLimit.title": "Ліміт Go вичерпано",
-  "dialog.usageExceeded.accountRateLimit.description":
-    "Ліміт використання вичерпано. Щоб і надалі користуватися цією моделлю, увімкніть оплату з доступного балансу",
-  "dialog.usageExceeded.accountRateLimit.actionLabel": "Відкрити налаштування",
 
   "ui.sessionTurn.status.delegating": "Делегування роботи",
   "ui.sessionTurn.status.planning": "Планування наступних кроків",

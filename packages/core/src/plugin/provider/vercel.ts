@@ -1,16 +1,16 @@
 import { Effect } from "effect"
-import { define } from "@aigcfroge/plugin/effect/plugin"
+import { define } from "@omnixa/plugin/effect/plugin"
 import { Provider } from "../../provider.js"
 
 export const VercelPlugin = define({
-  id: "aigcfroge.provider.vercel",
+  id: "omnixa.provider.vercel",
   effect: Effect.fn(function* (ctx) {
     yield* ctx.provider.transform((evt) => {
       for (const item of evt.list()) {
         if (!Provider.isAISDK(item.provider.package)) continue
         if (Provider.packageName(item.provider.package) !== "@ai-sdk/vercel") continue
         evt.update(item.provider.id, (provider) => {
-          provider.headers = { ...provider.headers, "http-referer": "https://aigcfroge.ai/", "x-title": "aigcfroge" }
+          provider.headers = { ...provider.headers, "http-referer": "https://omnixa.ai/", "x-title": "omnixa" }
         })
       }
     })

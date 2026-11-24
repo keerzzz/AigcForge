@@ -16,7 +16,7 @@ export type DiffProps<T = {}> = FileDiffOptions<T, undefined> & {
 
 const unsafeCSS = `
 :host {
-  --diffs-bg: var(--aigcfroge-diffs-bg, var(--color-background-stronger));
+  --diffs-bg: var(--omnixa-diffs-bg, var(--color-background-stronger));
   /* Pierre mixes 15% in dark mode, which makes collapsed rows read as highlighted. */
   --diffs-bg-separator-override: light-dark(
     color-mix(in lab, var(--diffs-bg) 98%, var(--diffs-mixer)),
@@ -81,11 +81,11 @@ const unsafeCSS = `
   background-color: var(--diffs-bg-context-gutter);
 }
 
-::highlight(aigcfroge-find) {
+::highlight(omnixa-find) {
   background-color: rgb(from var(--surface-warning-base) r g b / 0.35);
 }
 
-::highlight(aigcfroge-find-current) {
+::highlight(omnixa-find-current) {
   background-color: rgb(from var(--surface-warning-strong) r g b / 0.55);
 }
 
@@ -207,7 +207,7 @@ ${lineCommentStyles}
 
 export function createDefaultOptions<T>(style: FileDiffOptions<T, undefined>["diffStyle"]) {
   return {
-    theme: "AigcForge",
+    theme: "Omnixa",
     themeType: "system",
     disableLineNumbers: false,
     overflow: "wrap",

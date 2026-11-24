@@ -1,6 +1,6 @@
 import { Platform, usePlatform } from "@/runtime/platform/platform"
 import { messageSync, type AsyncStorage, type SyncStorage } from "@solid-primitives/storage"
-import { checksum } from "@aigcfroge/util/encode"
+import { checksum } from "@omnixa/util/encode"
 import { createResource, onCleanup, type Accessor } from "solid-js"
 import { createStore, type SetStoreFunction, type Store } from "solid-js/store"
 import { Option, Predicate, Schema } from "effect"
@@ -40,11 +40,11 @@ type PickPart = (value: unknown) => unknown
 
 type CopyFrom = { key: string; storage?: string; pick?: PickPart }
 
-const GLOBAL_STORAGE = "aigcfroge.global.dat"
+const GLOBAL_STORAGE = "omnixa.global.dat"
 
-const WINDOW_STORAGE = "aigcfroge.window"
+const WINDOW_STORAGE = "omnixa.window"
 
-const LOCAL_PREFIX = "aigcfroge."
+const LOCAL_PREFIX = "omnixa."
 
 const fallback = new Map<string, boolean>()
 
@@ -338,14 +338,14 @@ function workspaceStorage(dir: string) {
   const head = (dir.slice(0, 12) || "workspace").replace(/[^a-zA-Z0-9._-]/g, "-")
   const sum = checksum(dir) ?? "0"
 
-  return `aigcfroge.workspace.${head}.${sum}.dat`
+  return `omnixa.workspace.${head}.${sum}.dat`
 }
 
 function draftStorage(draftID: string) {
   const head = (draftID.slice(0, 12) || "draft").replace(/[^a-zA-Z0-9._-]/g, "-")
   const sum = checksum(draftID) ?? "0"
 
-  return `aigcfroge.draft.${head}.${sum}.dat`
+  return `omnixa.draft.${head}.${sum}.dat`
 }
 
 function windowStorage(windowID: string) {
@@ -741,7 +741,7 @@ export function persisted<S extends Schema.ConstraintCodec<object, unknown>>(
 
   const channel =
     config.sync && typeof BroadcastChannel !== "undefined"
-      ? new BroadcastChannel(`aigcfroge.persist:${config.storage ?? "default"}:${config.key}`)
+      ? new BroadcastChannel(`omnixa.persist:${config.storage ?? "default"}:${config.key}`)
       : undefined
 
   if (channel) onCleanup(() => channel.close())

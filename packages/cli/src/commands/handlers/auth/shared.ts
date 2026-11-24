@@ -1,26 +1,24 @@
 import { Effect } from "effect"
-import { AigcForge, type IntegrationInfo, type IntegrationMethod, type AigcForgeClient } from "@aigcfroge/client"
-import { Service } from "@aigcfroge/client/effect/service"
+import { Omnixa, type IntegrationInfo, type IntegrationMethod, type OmnixaClient } from "@omnixa/client"
+import { Service } from "@omnixa/client/effect/service"
 import { ServerConnection } from "../../../services/server-connection"
 
 export const location = { directory: process.cwd() }
 
 export const createClient = Effect.fn("cli.auth.client")(function* (input: ServerConnection.Args) {
   const server = yield* ServerConnection.resolve(input)
-  return AigcForge.make({ baseUrl: server.endpoint.url, headers: Service.headers(server.endpoint) })
+  return Omnixa.make({ baseUrl: server.endpoint.url, headers: Service.headers(server.endpoint) })
 })
 
 export function request<A>(run: (signal: AbortSignal) => Promise<A>) {
   return Effect.tryPromise({ try: run, catch: (cause) => cause })
 }
 
-export const loadIntegrations = Effect.fn("cli.auth.integrations")(function* (client: AigcForgeClient) {
+export const loadIntegrations = Effect.fn("cli.auth.integrations")(function* (client: OmnixaClient) {
   // The model endpoint is the existing public readiness boundary for the initial plugin generation.
   yield* request((signal) => client.model.default({ location }, { signal }))
   return yield* request((signal) => client.integration.list({ location }, { signal })).pipe(
-    Effect.map((response) =>
-      response.data.toSorted((a, b) => Number(b.id === "aigcfroge-go") - Number(a.id === "aigcfroge-go")),
-    ),
+    Effect.map((response) => response.data),
   )
 })
 

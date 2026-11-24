@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { createSignal } from "solid-js"
-import { Field } from "@aigcfroge/ui/field"
+import { Field } from "@omnixa/ui/field"
 import { Select } from "./select"
 
 const fruits = ["Apple", "Banana", "Cherry", "Date", "Elderberry"]

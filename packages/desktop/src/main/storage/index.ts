@@ -11,7 +11,7 @@ import { readEnableState } from "../extension/enable-state"
 
 export type Interface = ReturnType<typeof make>
 
-export class Service extends Context.Service<Service, Interface>()("aigcfroge/desktop/DesktopStorage") {}
+export class Service extends Context.Service<Service, Interface>()("omnixa/desktop/DesktopStorage") {}
 
 export const layer = Layer.effect(
   Service,

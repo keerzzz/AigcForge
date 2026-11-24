@@ -6,7 +6,7 @@ import { storyDocument, storyTool } from "../storybook/current-session-scenarios
 import { type ContextGroupPart, CurrentContextToolGroup } from "./tool-renderer"
 
 export default {
-  title: "AigcForge/Work/Tool group",
+  title: "Omnixa/Work/Tool group",
   id: "current-tool-group",
   component: CurrentContextToolGroup,
 }
@@ -80,7 +80,7 @@ export const MixedReasoning = {
         id: "reasoning_first",
         text: "The renderer groups adjacent tools. Check the relevant skills before changing it.",
       },
-      storyTool("reasoning_skill_first", "skill", "completed", { id: "aigcfroge" }),
+      storyTool("reasoning_skill_first", "skill", "completed", { id: "omnixa" }),
       storyTool("reasoning_skill_second", "skill", "completed", { id: "frontend-design" }),
       {
         type: "reasoning",
@@ -156,7 +156,7 @@ const stickyParts: ContextGroupPart[] = [
             "grep",
             "completed",
             {
-              path: "C:/tmp/aigcfroge/stack/packages/plugin-review-desktop/",
+              path: "C:/tmp/omnixa/stack/packages/plugin-review-desktop/",
               pattern: 'turn"|lastTurn|session\\.diff',
             },
             { metadata: { matches: 4 } },

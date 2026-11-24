@@ -1,37 +1,37 @@
-import { Money } from "@aigcfroge/schema/money"
-import { Agent } from "@aigcfroge/schema/agent"
-import { Session } from "@aigcfroge/core/session"
-import { OpenAIResponses } from "@aigcfroge/ai/protocols/openai-responses"
-import { AIError, HttpContext, LLM, Message, RateLimitError } from "@aigcfroge/ai"
-import { classifyProviderFailure } from "@aigcfroge/ai/provider-error"
-import { compileRequest } from "@aigcfroge/ai/route/client"
+import { Money } from "@omnixa/schema/money"
+import { Agent } from "@omnixa/schema/agent"
+import { Session } from "@omnixa/core/session"
+import { OpenAIResponses } from "@omnixa/ai/protocols/openai-responses"
+import { AIError, HttpContext, LLM, Message, RateLimitError } from "@omnixa/ai"
+import { classifyProviderFailure } from "@omnixa/ai/provider-error"
+import { compileRequest } from "@omnixa/ai/route/client"
 import { describe, expect } from "bun:test"
 // import { DateTime, Deferred, Effect, Schedule } from "effect"
 import { DateTime, Effect, Schedule } from "effect"
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http"
 import { TestClock } from "effect/testing"
 import { exportJWK, generateKeyPair, SignJWT } from "jose"
-import { App } from "@aigcfroge/core/app"
-import { Credential } from "@aigcfroge/core/credential"
-import { Integration } from "@aigcfroge/core/integration"
-import { KV } from "@aigcfroge/core/kv"
-import { Location } from "@aigcfroge/core/location"
-import { Model } from "@aigcfroge/core/model"
-import { ModelResolver } from "@aigcfroge/core/model-resolver"
-import { Plugin } from "@aigcfroge/core/plugin"
-import { PluginHost } from "@aigcfroge/core/plugin/host"
-import { PluginHooks } from "@aigcfroge/core/plugin/hooks"
-import { GithubCopilotPlugin } from "@aigcfroge/core/plugin/provider/github-copilot"
-import { ChatGPTPlugin, fetchModels, verifyIDToken } from "@aigcfroge/core/plugin/provider/chatgpt"
-import { OpenAIPlugin } from "@aigcfroge/core/plugin/provider/openai"
-import { Project } from "@aigcfroge/core/project"
-import { Provider } from "@aigcfroge/core/provider"
-import { AbsolutePath } from "@aigcfroge/core/schema"
-import { SessionModelRequest } from "@aigcfroge/core/session/model-request"
-import { SessionModelTransport } from "@aigcfroge/core/session/model-transport"
-import { SessionRunnerModel } from "@aigcfroge/core/session/runner/model"
-import { SessionRunnerRetry } from "@aigcfroge/core/session/runner/retry"
-import { toSessionError } from "@aigcfroge/core/session/to-session-error"
+import { App } from "@omnixa/core/app"
+import { Credential } from "@omnixa/core/credential"
+import { Integration } from "@omnixa/core/integration"
+import { KV } from "@omnixa/core/kv"
+import { Location } from "@omnixa/core/location"
+import { Model } from "@omnixa/core/model"
+import { ModelResolver } from "@omnixa/core/model-resolver"
+import { Plugin } from "@omnixa/core/plugin"
+import { PluginHost } from "@omnixa/core/plugin/host"
+import { PluginHooks } from "@omnixa/core/plugin/hooks"
+import { GithubCopilotPlugin } from "@omnixa/core/plugin/provider/github-copilot"
+import { ChatGPTPlugin, fetchModels, verifyIDToken } from "@omnixa/core/plugin/provider/chatgpt"
+import { OpenAIPlugin } from "@omnixa/core/plugin/provider/openai"
+import { Project } from "@omnixa/core/project"
+import { Provider } from "@omnixa/core/provider"
+import { AbsolutePath } from "@omnixa/core/schema"
+import { SessionModelRequest } from "@omnixa/core/session/model-request"
+import { SessionModelTransport } from "@omnixa/core/session/model-transport"
+import { SessionRunnerModel } from "@omnixa/core/session/runner/model"
+import { SessionRunnerRetry } from "@omnixa/core/session/runner/retry"
+import { toSessionError } from "@omnixa/core/session/to-session-error"
 import { pollWithTimeout, testEffect } from "../lib/effect"
 import { PluginTestLayer } from "./fixture"
 
@@ -406,7 +406,7 @@ describe("ChatGPTPlugin", () => {
       expect(`${url.origin}${url.pathname}`).toBe("https://auth.openai.com/api/accounts/authorize")
       expect(Object.fromEntries(url.searchParams)).toMatchObject({
         client_id: "dynamic_agent_client",
-        agent_name_hint: "AigcForge",
+        agent_name_hint: "Omnixa",
         response_type: "code",
         scope: "openid profile email offline_access resource.invoke chatgpt.tokens.use.direct",
         resource: "https://api.openai.com/v1",
@@ -560,7 +560,7 @@ describe("ChatGPTPlugin", () => {
   //     const kv = yield* KV.Service
   //     yield* catalog.transform((editor) => {
   //       editor.update(Provider.ID.openai, (provider) => {
-  //         provider.package = "@aigcfroge/ai/providers/openai"
+  //         provider.package = "@omnixa/ai/providers/openai"
   //       })
   //       editor.models.update(Provider.ID.openai, Model.ID.make("gpt-5.6-sol"), (model) => {
   //         model.limit = { context: 1_050_000, input: 922_000, output: 128_000 }
@@ -622,7 +622,7 @@ describe("ChatGPTPlugin", () => {
   //     expect(sol.settings?.compaction).toEqual({ type: "summary" })
   //     const future = required(available.find((model) => model.id === "gpt-6-future"))
   //     expect(future.name).toBe("GPT-6-Future")
-  //     expect(future.package).toBe("@aigcfroge/ai/providers/openai")
+  //     expect(future.package).toBe("@omnixa/ai/providers/openai")
   //     expect(future.limit).toEqual({ context: 272_000, output: 32_000 })
   //   }),
   // )
@@ -635,7 +635,7 @@ describe("ChatGPTPlugin", () => {
   //     const kv = yield* KV.Service
   //     yield* catalog.transform((editor) => {
   //       editor.update(Provider.ID.openai, (provider) => {
-  //         provider.package = "@aigcfroge/ai/providers/openai"
+  //         provider.package = "@omnixa/ai/providers/openai"
   //       })
   //       for (const id of ["gpt-5.5", "gpt-6-astra", "gpt-6-sol"])
   //         editor.models.update(Provider.ID.openai, Model.ID.make(id), () => {})
@@ -703,7 +703,7 @@ describe("ChatGPTPlugin", () => {
       const credentials = yield* Credential.Service
       yield* catalog.transform((catalog) => {
         catalog.update(Provider.ID.openai, (draft) => {
-          draft.package = "@aigcfroge/ai/providers/openai"
+          draft.package = "@omnixa/ai/providers/openai"
           draft.settings = { transport: "websocket" }
         })
         catalog.models.update(Provider.ID.openai, Model.ID.make("gpt-5.5"), (model) => {
@@ -773,7 +773,7 @@ describe("ChatGPTPlugin", () => {
       const direct = yield* request(Provider.ID.openai, "https://api.openai.com/v1")
 
       const provider = required(yield* catalog.get(Provider.ID.openai))
-      expect(provider.package).toBe("@aigcfroge/ai/providers/openai")
+      expect(provider.package).toBe("@omnixa/ai/providers/openai")
       expect(provider.settings?.transport).toBe("http")
       expect(provider.settings?.baseURL).toBe("https://api.openai.com/v1")
       expect(provider.headers).not.toHaveProperty("x-openai-chatpass-test")
@@ -794,7 +794,7 @@ describe("ChatGPTPlugin", () => {
         "x-client-request-id": child.id,
       })
       const eligible = required(yield* models.get(Provider.ID.openai, Model.ID.make("gpt-5.5")))
-      expect(eligible.package).toBe("@aigcfroge/ai/providers/openai")
+      expect(eligible.package).toBe("@omnixa/ai/providers/openai")
       expect(eligible.headers).not.toHaveProperty("x-openai-chatpass-test")
       expect(eligible.cost).toEqual([])
       expect(eligible.limit).toEqual({ context: 1_050_000, input: 922_000, output: 128_000 })
@@ -850,7 +850,7 @@ describe("ChatGPTPlugin", () => {
       const credentials = yield* Credential.Service
       yield* catalog.transform((catalog) => {
         catalog.update(Provider.ID.openai, (draft) => {
-          draft.package = "@aigcfroge/ai/providers/openai"
+          draft.package = "@omnixa/ai/providers/openai"
         })
         catalog.models.update(Provider.ID.openai, Model.ID.make("gpt-5.5"), (model) => {
           model.limit = { context: 1_050_000, input: 922_000, output: 128_000 }
@@ -868,7 +868,7 @@ describe("ChatGPTPlugin", () => {
 
       const provider = required(yield* catalog.get(Provider.ID.openai))
       const model = required(yield* models.get(Provider.ID.openai, Model.ID.make("gpt-5.5")))
-      expect(model.package).toBe("@aigcfroge/ai/providers/openai")
+      expect(model.package).toBe("@omnixa/ai/providers/openai")
       expect(model.enabled).toBe(true)
       expect(model.limit).toEqual({ context: 1_050_000, input: 922_000, output: 128_000 })
       expect(provider.settings?.transport).toBe("websocket")
@@ -888,7 +888,7 @@ describe("ChatGPTPlugin", () => {
       const kv = yield* KV.Service
       yield* catalog.transform((editor) => {
         editor.update(Provider.ID.openai, (provider) => {
-          provider.package = "@aigcfroge/ai/providers/openai"
+          provider.package = "@omnixa/ai/providers/openai"
         })
         editor.models.update(Provider.ID.openai, Model.ID.make("gpt-5.5"), () => {})
       })
@@ -965,7 +965,7 @@ describe("ChatGPTPlugin", () => {
         const sharingID = Model.ID.make("sharing-picker")
         yield* catalog.transform((editor) => {
           editor.update(Provider.ID.openai, (provider) => {
-            provider.package = "@aigcfroge/ai/providers/openai"
+            provider.package = "@omnixa/ai/providers/openai"
           })
           editor.models.update(Provider.ID.openai, legacyID, (model) => {
             model.modelID = Model.ID.make("gpt-5.5")
@@ -1092,7 +1092,7 @@ describe("ChatGPTPlugin", () => {
           headers: {},
         })
         expect(requestA.baseURL).toBe("https://chatgpt.com/backend-api/codex")
-        expect(requestA.headers.originator).toBe("aigcfroge")
+        expect(requestA.headers.originator).toBe("omnixa")
         expect(requestB.baseURL).toBe("https://api.openai.com/v1")
         expect(requestB.headers).toEqual({
           "session-id": "ses_builtin_b",
@@ -1115,7 +1115,7 @@ describe("ChatGPTPlugin", () => {
         const id = Model.ID.make("gpt-5.5")
         yield* providers.transform((editor) => {
           editor.update(Provider.ID.openai, (provider) => {
-            provider.package = "@aigcfroge/ai/providers/openai"
+            provider.package = "@omnixa/ai/providers/openai"
           })
           editor.models.update(Provider.ID.openai, id, () => {})
         })
@@ -1246,7 +1246,7 @@ describe("ChatGPTPlugin", () => {
       const id = Model.ID.make("gpt-5.5")
       yield* providers.transform((editor) => {
         editor.update(Provider.ID.openai, (provider) => {
-          provider.package = "@aigcfroge/ai/providers/openai"
+          provider.package = "@omnixa/ai/providers/openai"
         })
         editor.models.update(Provider.ID.openai, id, () => {})
       })
@@ -1327,7 +1327,7 @@ describe("ChatGPTPlugin", () => {
         // const kv = yield* KV.Service
         yield* catalog.transform((editor) => {
           editor.update(providerID, (provider) => {
-            provider.package = "@aigcfroge/ai/providers/openai/responses"
+            provider.package = "@omnixa/ai/providers/openai/responses"
           })
           for (const id of [baseID, modelID, variantID])
             editor.models.update(providerID, id, (model) => {
@@ -1412,7 +1412,7 @@ describe("ChatGPTPlugin", () => {
         const modelID = Model.ID.make("gpt-6.1-sol")
         yield* catalog.transform((editor) => {
           editor.update(Provider.ID.openai, (provider) => {
-            provider.package = "@aigcfroge/ai/providers/openai"
+            provider.package = "@omnixa/ai/providers/openai"
           })
           editor.models.update(Provider.ID.openai, modelID, (model) => {
             model.variants = ["high", "max"].map((effort) => ({

@@ -12,11 +12,11 @@ import {
   type SeedInput,
   type TabSeed,
 } from "./app"
-import { mockAigcForgeServer, type MockServerConfig } from "./mock-server"
+import { mockOmnixaServer, type MockServerConfig } from "./mock-server"
 import { APP_READY_TIMEOUT, expectSessionTitle } from "./waits"
 
 export type WorkspaceInput = Partial<Omit<MockServerConfig, "directory" | "project" | "sessions" | "server">> & {
-  // Names the directory `C:/AigcForge/<name>`, project `proj_<slug>`, and default session `ses_<slug>`.
+  // Names the directory `C:/Omnixa/<name>`, project `proj_<slug>`, and default session `ses_<slug>`.
   name: string
   directory?: string
   // Merged over the default project.
@@ -30,14 +30,14 @@ export type WorkspaceInput = Partial<Omit<MockServerConfig, "directory" | "proje
 // One project with sessions on the default mock server, plus the storage a returning user would have.
 export async function mockWorkspace(page: Page, input: WorkspaceInput) {
   const slug = input.name.toLowerCase().replace(/[^a-z0-9]+/g, "_")
-  const directory = input.directory ?? `C:/AigcForge/${input.name}`
+  const directory = input.directory ?? `C:/Omnixa/${input.name}`
   const projectID = typeof input.project?.id === "string" ? input.project.id : `proj_${slug}`
 
   const sessions = (input.sessions ?? [{ id: `ses_${slug}`, title: input.name }]).map((item) =>
     session({ directory, projectID, ...item }),
   )
 
-  const mock = await mockAigcForgeServer(page, {
+  const mock = await mockOmnixaServer(page, {
     provider: provider(),
     pageMessages: () => ({ items: [] }),
     ...input,
@@ -73,7 +73,7 @@ export async function openSession(page: Page, input: WorkspaceInput & { sessionI
 // Opens a new-session draft (no sessions by default) and waits until its composer accepts input.
 export async function openDraft(page: Page, input: WorkspaceInput & { draftID?: string }) {
   const draftID = input.draftID ?? `draft_${input.name.toLowerCase().replace(/[^a-z0-9]+/g, "_")}`
-  const directory = input.directory ?? `C:/AigcForge/${input.name}`
+  const directory = input.directory ?? `C:/Omnixa/${input.name}`
   const sessions = input.sessions ?? []
   const tabs: TabSeed[] = [...sessions.map((item) => item.id), { draft: draftID, directory }]
   const workspace = await mockWorkspace(page, { ...input, directory, sessions, seed: { tabs, ...input.seed } })
@@ -107,7 +107,7 @@ export async function openWorktreeDraft(page: Page, input: WorkspaceInput & { dr
     if (/^\/api\/session\/[^/]+\/prompt$/.test(url.pathname)) calls.push("prompt")
   })
   const draftID = input.draftID ?? `draft_${input.name.toLowerCase().replace(/[^a-z0-9]+/g, "_")}`
-  const directory = input.directory ?? `C:/AigcForge/${input.name}`
+  const directory = input.directory ?? `C:/Omnixa/${input.name}`
   const sessions = input.sessions ?? []
 
   const workspace = await mockWorkspace(page, {
@@ -151,7 +151,7 @@ export async function mockRemoteServer(
   const server = input.server ?? REMOTE_SERVER
   const directory = input.directory ?? "/remote/project"
 
-  const mock = await mockAigcForgeServer(page, {
+  const mock = await mockOmnixaServer(page, {
     project: project({ id: "proj_remote", directory }),
     provider: NO_PROVIDER,
     sessions: [],

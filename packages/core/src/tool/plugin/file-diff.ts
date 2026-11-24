@@ -1,4 +1,4 @@
-import { FileDiff } from "@aigcfroge/schema/file-diff"
+import { FileDiff } from "@omnixa/schema/file-diff"
 import { createTwoFilesPatch, diffLines } from "diff"
 
 export function fileDiff(

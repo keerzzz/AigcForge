@@ -1,11 +1,11 @@
 import { APICallError } from "@ai-sdk/provider"
 import type { LanguageModelV3, LanguageModelV3StreamPart } from "@ai-sdk/provider"
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible"
-import { AISDK } from "@aigcfroge/core/aisdk"
-import { SessionRunnerRetry } from "@aigcfroge/core/session/runner/retry"
-import { toSessionError } from "@aigcfroge/core/session/to-session-error"
-import { Model } from "@aigcfroge/core/model"
-import { Provider } from "@aigcfroge/core/provider"
+import { AISDK } from "@omnixa/core/aisdk"
+import { SessionRunnerRetry } from "@omnixa/core/session/runner/retry"
+import { toSessionError } from "@omnixa/core/session/to-session-error"
+import { Model } from "@omnixa/core/model"
+import { Provider } from "@omnixa/core/provider"
 import {
   Media,
   LLM,
@@ -20,9 +20,9 @@ import {
   TransportError,
   UnknownProviderError,
   isContextOverflowFailure,
-} from "@aigcfroge/ai"
-import { LLMClient, RequestExecutor } from "@aigcfroge/ai/route"
-import { compileRequest } from "@aigcfroge/ai/route/client"
+} from "@omnixa/ai"
+import { LLMClient, RequestExecutor } from "@omnixa/ai/route"
+import { compileRequest } from "@omnixa/ai/route/client"
 import { expect } from "bun:test"
 import { Effect, Layer, Schema } from "effect"
 import { HttpClientRequest, HttpClientResponse } from "effect/http"

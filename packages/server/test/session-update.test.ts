@@ -1,29 +1,29 @@
 import { expect } from "bun:test"
-import { Session } from "@aigcfroge/schema/session"
+import { Session } from "@omnixa/schema/session"
 import { Context, Effect, Layer, Schema } from "effect"
 import { it } from "../../core/test/lib/effect"
 import path from "node:path"
-import { Location } from "@aigcfroge/core/location"
-import { LocationServiceMap } from "@aigcfroge/core/location-service-map"
-import { Model } from "@aigcfroge/core/model"
-import { Provider } from "@aigcfroge/core/provider"
-import { AbsolutePath } from "@aigcfroge/schema/schema"
-import { Global } from "@aigcfroge/util/global"
+import { Location } from "@omnixa/core/location"
+import { LocationServiceMap } from "@omnixa/core/location-service-map"
+import { Model } from "@omnixa/core/model"
+import { Provider } from "@omnixa/core/provider"
+import { AbsolutePath } from "@omnixa/schema/schema"
+import { Global } from "@omnixa/util/global"
 import { HttpEffect, HttpRouter, HttpServer } from "effect/http"
 import { tempGlobalLayer } from "../../core/test/fixture/global"
 import { useOfflineCatalog } from "../../core/test/fixture/models"
 import { tmpdirScoped } from "../../core/test/fixture/tmpdir"
 import { createRoutes } from "../src/routes"
-import { Database } from "@aigcfroge/core/database/database"
-import { SessionTable } from "@aigcfroge/core/session/sql"
-import { MetaAgentTable, MetaAgentSessionTable } from "@aigcfroge/core/meta-agent/sql"
-import { EventSequenceTable, EventTable } from "@aigcfroge/core/event/sql"
+import { Database } from "@omnixa/core/database/database"
+import { SessionTable } from "@omnixa/core/session/sql"
+import { MetaAgentTable, MetaAgentSessionTable } from "@omnixa/core/meta-agent/sql"
+import { EventSequenceTable, EventTable } from "@omnixa/core/event/sql"
 
 const SessionResponse = Schema.Struct({ data: Schema.toEncoded(Session.Info) })
 
 it.live("updates metadata and switches a captured Meta model through actual HTTP with rollback", () =>
   Effect.gen(function* () {
-    const directory = (yield* tmpdirScoped("aigcfroge-server-update-")).path
+    const directory = (yield* tmpdirScoped("omnixa-server-update-")).path
     const location = Location.Ref.make({ directory: AbsolutePath.make(directory) })
     const context = yield* Layer.build(
       createRoutes(
@@ -44,7 +44,7 @@ it.live("updates metadata and switches a captured Meta model through actual HTTP
         info: Provider.Info.make({
           ...Provider.Info.empty(model.providerID),
           activation: "enabled",
-          package: "@aigcfroge/ai/providers/openai/responses",
+          package: "@omnixa/ai/providers/openai/responses",
         }),
         models: [Model.Info.make(Model.Info.default(model.providerID, model.id))],
       },
@@ -55,7 +55,7 @@ it.live("updates metadata and switches a captured Meta model through actual HTTP
     const request = (path: string, method: string, body?: unknown, status = method === "PATCH" ? 204 : 200) =>
       Effect.promise(async () => {
         const response = await handler(
-          new Request(`http://aigcfroge.local${path}`, {
+          new Request(`http://omnixa.local${path}`, {
             method,
             headers: { "content-type": "application/json" },
             body: body === undefined ? undefined : JSON.stringify(body),

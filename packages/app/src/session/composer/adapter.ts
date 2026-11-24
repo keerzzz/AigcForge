@@ -1,4 +1,4 @@
-import { ClientError } from "@aigcfroge/client/promise"
+import { ClientError } from "@omnixa/client/promise"
 import { onCleanup, type Accessor } from "solid-js"
 import type { ActiveComposerAdapter, ComposerControls } from "@/composer/adapter"
 import { useComposerState } from "@/composer/persistence"

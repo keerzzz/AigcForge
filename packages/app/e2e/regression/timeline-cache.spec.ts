@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test"
-import type { SessionMessageInfo } from "@aigcfroge/client/promise"
-import { timelinePresets } from "@aigcfroge/session-ui/timeline/detail"
+import type { SessionMessageInfo } from "@omnixa/client/promise"
+import { timelinePresets } from "@omnixa/session-ui/timeline/detail"
 import { expected, messages } from "../utils/markdown-sessions"
 import { expectPath, seed, sessionHref, type SeedInput } from "../utils/app"
 import type { MockServerConfig } from "../utils/mock-server"
@@ -182,7 +182,7 @@ test("focuses Find in the selected cached timeline", async ({ page }) => {
 })
 
 test("disposes the old workspace's shell while destination history is loading", async ({ page }) => {
-  const destination = "C:/AigcForge/OtherProject"
+  const destination = "C:/Omnixa/OtherProject"
   const requested = Promise.withResolvers<void>()
   const release = Promise.withResolvers<void>()
   const reads: string[] = []
@@ -202,7 +202,7 @@ test("disposes the old workspace's shell while destination history is loading", 
                   id: "msg_workspace_shell",
                   type: "assistant",
                   agent: "build",
-                  model: { id: "claude-opus-4-6", providerID: "aigcfroge" },
+                  model: { id: "claude-opus-4-6", providerID: "omnixa" },
                   time: { created: 2 },
                   content: [
                     {
@@ -316,7 +316,7 @@ for (const grouped of [true, false]) {
             id: `msg_assistant_${id}`,
             type: "assistant",
             agent: "build",
-            model: { id: "claude-opus-4-6", providerID: "aigcfroge" },
+            model: { id: "claude-opus-4-6", providerID: "omnixa" },
             time: { created: 2, completed: 3 },
             content: [
               {

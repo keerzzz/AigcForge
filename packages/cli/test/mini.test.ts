@@ -1,13 +1,13 @@
 import { describe, expect, test } from "bun:test"
 import {
   ClientError,
-  AigcForge,
+  Omnixa,
   type AgentInfo,
   type ModelInfo,
   type SessionCreateInput,
   type SessionInfo,
-} from "@aigcfroge/client/promise"
-import { AIGCFROGE_VERSION } from "../src/version"
+} from "@omnixa/client/promise"
+import { OMNIXA_VERSION } from "../src/version"
 import path from "node:path"
 import { isolatedEnv } from "./fixture/environment"
 import { tmpdir } from "./fixture/tmpdir"
@@ -583,7 +583,7 @@ describe("mini command", () => {
           if (request.method === "GET" && url.pathname === "/api/location") return Response.json(location)
           if (request.method === "GET" && url.pathname === "/api/info")
             return Response.json({
-              version: AIGCFROGE_VERSION,
+              version: OMNIXA_VERSION,
               pid: process.pid,
               urls: [],
               paths: { tmp: home.path },
@@ -694,9 +694,9 @@ describe("mini command", () => {
     try {
       const script = [
         'import { runMini } from "./src/mini.ts"',
-        'import { resolve } from "@aigcfroge/tui/config"',
+        'import { resolve } from "@omnixa/tui/config"',
         'import path from "node:path"',
-        "const root = process.env.AIGCFROGE_TEST_HOME",
+        "const root = process.env.OMNIXA_TEST_HOME",
         'if (!root) throw new Error("Missing isolated test home")',
         "await runMini({",
         "  server: {",
@@ -1017,10 +1017,10 @@ describe("mini command", () => {
       port: 0,
       fetch() {
         return Response.json({
-          version: AIGCFROGE_VERSION,
+          version: OMNIXA_VERSION,
           pid: process.pid,
           urls: [],
-          paths: { tmp: "/tmp/aigcfroge" },
+          paths: { tmp: "/tmp/omnixa" },
         })
       },
     })
@@ -1029,10 +1029,10 @@ describe("mini command", () => {
       fetch(request) {
         authorization.push(request.headers.get("authorization"))
         return Response.json({
-          version: AIGCFROGE_VERSION,
+          version: OMNIXA_VERSION,
           pid: process.pid,
           urls: [],
-          paths: { tmp: "/tmp/aigcfroge" },
+          paths: { tmp: "/tmp/omnixa" },
         })
       },
     })
@@ -1065,8 +1065,8 @@ describe("mini command", () => {
   })
 
   test("re-resolves a managed target when the endpoint moves before transport construction", async () => {
-    const initial = AigcForge.make({ baseUrl: "https://initial.aigcfroge.test" })
-    const replacement = AigcForge.make({ baseUrl: "https://replacement.aigcfroge.test" })
+    const initial = Omnixa.make({ baseUrl: "https://initial.omnixa.test" })
+    const replacement = Omnixa.make({ baseUrl: "https://replacement.omnixa.test" })
     const controller = new AbortController()
     const seen: (typeof initial)[] = []
     let reconnects = 0
@@ -1117,7 +1117,7 @@ describe("mini command", () => {
 
     expect(result.exitCode).toBe(0)
     expect(result.stdout).toMatch(/^  mini[ \t]+Start the minimal interactive interface\r?$/m)
-    expect(result.stdout).toMatch(/^  run[ \t]+Run AigcForge with a message\r?$/m)
+    expect(result.stdout).toMatch(/^  run[ \t]+Run Omnixa with a message\r?$/m)
   })
 
   test("exposes run without legacy interactive, attach, or command modes", async () => {
@@ -1148,10 +1148,10 @@ describe("mini command", () => {
         requests.push(url.pathname)
         if (url.pathname === "/api/info")
           return Response.json({
-            version: AIGCFROGE_VERSION,
+            version: OMNIXA_VERSION,
             pid: process.pid,
             urls: [],
-            paths: { tmp: "/tmp/aigcfroge" },
+            paths: { tmp: "/tmp/omnixa" },
           })
         if (url.pathname === "/api/location")
           return Response.json({ directory: process.cwd(), project: { id: "global", directory: process.cwd() } })
@@ -1198,7 +1198,7 @@ describe("mini command", () => {
           version: "incompatible",
           pid: process.pid,
           urls: [],
-          paths: { tmp: "/tmp/aigcfroge" },
+          paths: { tmp: "/tmp/omnixa" },
         })
       },
     })
@@ -1235,7 +1235,7 @@ describe("mini command", () => {
       const result = await cli(args)
 
       expect(result.exitCode).toBe(1)
-      expect(result.stderr).toContain("aigcfroge mini requires a TTY stdout")
+      expect(result.stderr).toContain("omnixa mini requires a TTY stdout")
     }
   })
 })

@@ -3,13 +3,13 @@ import { NodeFileSystem } from "@effect/platform-node"
 import path from "path"
 import { describe, expect, test } from "bun:test"
 import { Effect, Layer } from "effect"
-import { WorkflowAsset } from "@aigcfroge/core/workflow-asset"
-import { FSUtil } from "@aigcfroge/util/fs-util"
-import { Location } from "@aigcfroge/core/location"
-import { Bus } from "@aigcfroge/core/bus"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { AbsolutePath } from "@aigcfroge/core/schema"
+import { WorkflowAsset } from "@omnixa/core/workflow-asset"
+import { FSUtil } from "@omnixa/util/fs-util"
+import { Location } from "@omnixa/core/location"
+import { Bus } from "@omnixa/core/bus"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { AbsolutePath } from "@omnixa/core/schema"
 import { location } from "./fixture/location"
 import { tmpdir } from "./fixture/tmpdir"
 
@@ -38,7 +38,7 @@ async function withTmp<T>(fn: (dir: string) => Promise<T>): Promise<T> {
 }
 
 async function createWorkflow(dir: string, name: string, description: string) {
-  const assetDir = path.join(dir, ".aigcfroge", "workflows")
+  const assetDir = path.join(dir, ".omnixa", "workflows")
   await fs.mkdir(assetDir, { recursive: true })
   await fs.writeFile(
     path.join(assetDir, `${name}.yaml`),
@@ -161,7 +161,7 @@ describe("WorkflowAsset registry", () => {
 
   test("marks YAML parse error as parse_error", async () => {
     await withTmp(async (dir) => {
-      const workflowsDir = path.join(dir, ".aigcfroge", "workflows")
+      const workflowsDir = path.join(dir, ".omnixa", "workflows")
       await fs.mkdir(workflowsDir, { recursive: true })
       await fs.writeFile(path.join(workflowsDir, "bad.yaml"), "not: valid: yaml: [[[")
       const invalid = await runNow(
@@ -176,7 +176,7 @@ describe("WorkflowAsset registry", () => {
 
   test("marks schema decode failure as bad_frontmatter", async () => {
     await withTmp(async (dir) => {
-      const workflowsDir = path.join(dir, ".aigcfroge", "workflows")
+      const workflowsDir = path.join(dir, ".omnixa", "workflows")
       await fs.mkdir(workflowsDir, { recursive: true })
       // Valid YAML but missing required field 'name'
       await fs.writeFile(path.join(workflowsDir, "badfm.yaml"), "kind: workflow\nsteps: []")
@@ -191,7 +191,7 @@ describe("WorkflowAsset registry", () => {
 
   test("marks duplicate-name files as name_conflict", async () => {
     await withTmp(async (dir) => {
-      const workflowsDir = path.join(dir, ".aigcfroge", "workflows")
+      const workflowsDir = path.join(dir, ".omnixa", "workflows")
       await fs.mkdir(workflowsDir, { recursive: true })
       const c = () =>
         [
@@ -249,7 +249,7 @@ describe("WorkflowAsset registry", () => {
 
   test("cross-kind .yaml and .md files do not conflict", async () => {
     await withTmp(async (dir) => {
-      const workflowsDir = path.join(dir, ".aigcfroge", "workflows")
+      const workflowsDir = path.join(dir, ".omnixa", "workflows")
       await fs.mkdir(workflowsDir, { recursive: true })
       const validYaml = [
         "kind: workflow",
@@ -293,7 +293,7 @@ describe("WorkflowAsset registry", () => {
 
   test("listInvalid reload reflects fixed files", async () => {
     await withTmp(async (dir) => {
-      const workflowsDir = path.join(dir, ".aigcfroge", "workflows")
+      const workflowsDir = path.join(dir, ".omnixa", "workflows")
       await fs.mkdir(workflowsDir, { recursive: true })
       await fs.writeFile(path.join(workflowsDir, "broken.yaml"), "not: valid: yaml: [[[")
       const reg = await runNow(

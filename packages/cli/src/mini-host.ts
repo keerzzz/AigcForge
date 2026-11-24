@@ -1,12 +1,12 @@
-import type { MiniFrontendInput } from "@aigcfroge/tui/mini"
-import { createModelPreferenceRepository } from "@aigcfroge/tui/model-preference"
+import type { MiniFrontendInput } from "@omnixa/tui/mini"
+import { createModelPreferenceRepository } from "@omnixa/tui/model-preference"
 import fs from "node:fs"
 import { readFile } from "node:fs/promises"
 import path from "node:path"
 import { ReadStream } from "node:tty"
-import { AIGCFROGE_VERSION } from "./version"
+import { OMNIXA_VERSION } from "./version"
 
-export const INTERACTIVE_INPUT_ERROR = "aigcfroge mini requires a controlling terminal for input"
+export const INTERACTIVE_INPUT_ERROR = "omnixa mini requires a controlling terminal for input"
 
 export type InteractiveStdin = {
   stdin: NodeJS.ReadStream
@@ -47,7 +47,7 @@ function createTrace(
   logPath: string,
   diagnostics: { pid: number; cwd: string; argv: string[] },
 ): MiniHost["diagnostics"]["trace"] {
-  if (!process.env.AIGCFROGE_DIRECT_TRACE) return
+  if (!process.env.OMNIXA_DIRECT_TRACE) return
   const stamp = new Date()
     .toISOString()
     .replace(/[-:]/g, "")
@@ -138,7 +138,7 @@ export function createMiniHost(input: {
     argv: process.argv.slice(2),
   }
   return {
-    version: AIGCFROGE_VERSION,
+    version: OMNIXA_VERSION,
     terminal: { stdin: input.terminal.stdin },
     platform: process.platform,
     stdout: {
@@ -151,7 +151,7 @@ export function createMiniHost(input: {
     },
     editor: {
       async open(options) {
-        const { openEditor } = await import("@aigcfroge/tui/editor")
+        const { openEditor } = await import("@omnixa/tui/editor")
         return openEditor(options)
       },
     },
@@ -161,7 +161,7 @@ export function createMiniHost(input: {
       sigusr2: signal("SIGUSR2"),
     },
     startup: {
-      showTiming: ["1", "true"].includes(process.env.AIGCFROGE_SHOW_TTFD?.toLowerCase() ?? ""),
+      showTiming: ["1", "true"].includes(process.env.OMNIXA_SHOW_TTFD?.toLowerCase() ?? ""),
       now: () => performance.now(),
     },
     diagnostics: {

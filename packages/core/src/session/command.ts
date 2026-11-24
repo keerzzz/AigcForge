@@ -1,7 +1,7 @@
 export * as SessionCommand from "./command.js"
 
-import type { PromptInput } from "@aigcfroge/schema/prompt-input"
-import type { SessionInbox } from "@aigcfroge/schema/session-inbox"
+import type { PromptInput } from "@omnixa/schema/prompt-input"
+import type { SessionInbox } from "@omnixa/schema/session-inbox"
 import { Effect } from "effect"
 import { Command } from "../command.js"
 import { CompositionConsumerView } from "../composition/consumer-view.js"

@@ -1,6 +1,6 @@
 import { Component } from "solid-js"
-import { Select } from "@aigcfroge/ui/select"
-import { Switch } from "@aigcfroge/ui/switch"
+import { Select } from "@omnixa/ui/select"
+import { Switch } from "@omnixa/ui/switch"
 import { useLanguage } from "@/runtime/i18n/language"
 import { useSettings } from "@/settings/model"
 import { SettingsList } from "@/settings/list"

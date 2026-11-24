@@ -1,6 +1,6 @@
 export * as WebSearchExa from "./exa.js"
 
-import { define } from "@aigcfroge/plugin/effect/plugin"
+import { define } from "@omnixa/plugin/effect/plugin"
 import { Effect, Schema, Scope } from "effect"
 import { HttpClient } from "effect/http"
 import { WebSearchMcp } from "./mcp.js"
@@ -23,7 +23,7 @@ const McpOutput = Schema.Struct({
 })
 
 export const Plugin = define<HttpClient.HttpClient | Scope.Scope>({
-  id: "aigcfroge.websearch.exa",
+  id: "omnixa.websearch.exa",
   effect: Effect.fn("WebSearchExa.Plugin")(function* (ctx) {
     const http = yield* HttpClient.HttpClient
     yield* ctx.integration.transform((editor) => {

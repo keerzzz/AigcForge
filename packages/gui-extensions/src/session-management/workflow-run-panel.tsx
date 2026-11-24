@@ -7,16 +7,16 @@ import {
   type WorkflowAssetSummary,
   type WorkflowAssetStepRunInfo,
   type WorkflowAssetWorkflowStatusResponse,
-} from "@aigcfroge/client/promise"
-import { Button } from "@aigcfroge/ui/button"
-import { Badge } from "@aigcfroge/ui/badge"
-import { Collapsible } from "@aigcfroge/ui/collapsible"
-import { Select } from "@aigcfroge/ui/select"
-import { SessionMessage } from "@aigcfroge/schema/session-message"
+} from "@omnixa/client/promise"
+import { Button } from "@omnixa/ui/button"
+import { Badge } from "@omnixa/ui/badge"
+import { Collapsible } from "@omnixa/ui/collapsible"
+import { Select } from "@omnixa/ui/select"
+import { SessionMessage } from "@omnixa/schema/session-message"
 import { Match } from "effect"
 import { For, Show, createMemo, onCleanup } from "solid-js"
 import { unwrap } from "solid-js/store"
-import { errorMessage } from "@aigcfroge/util/error"
+import { errorMessage } from "@omnixa/util/error"
 import { createKeyed, useExtension, type MountedSession, type SessionTargetRef } from "../sdk"
 import type SessionManagement from "./index"
 

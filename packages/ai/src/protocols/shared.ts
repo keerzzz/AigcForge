@@ -1,4 +1,4 @@
-import { Tool } from "@aigcfroge/schema/tool"
+import { Tool } from "@omnixa/schema/tool"
 import { Effect, Option, Schema } from "effect"
 import { Headers, HttpClientRequest } from "effect/http"
 import { Media } from "../media.js"

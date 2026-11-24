@@ -2,22 +2,22 @@ export * as SkillAsset from "./skill-asset"
 
 import { Context, Effect, Layer, Option, Schema, Scope, Stream } from "effect"
 import path from "path"
-import { SkillAsset } from "@aigcfroge/schema/skill-asset"
+import { SkillAsset } from "@omnixa/schema/skill-asset"
 import { ConfigMarkdown } from "./config/markdown"
 import { Bus } from "./bus"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { FSUtil } from "@omnixa/util/fs-util"
 import { Flag } from "./flag/flag"
 import { KeyedMutex } from "./effect/keyed-mutex"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
 import { Location } from "./location"
 import { AssetMigration } from "./asset-migration"
 import { SkillAssetPath } from "./skill-asset/path"
-import { Hash } from "@aigcfroge/util/hash"
+import { Hash } from "@omnixa/util/hash"
 import { Watcher } from "./filesystem/watcher"
 import { SKILLS_DIR } from "./constants"
 import { AssetPlacement } from "./asset-placement"
 import { LocationMutation } from "./location-mutation"
-import { Global } from "@aigcfroge/util/global"
+import { Global } from "@omnixa/util/global"
 
 export { SKILLS_DIR }
 
@@ -66,7 +66,7 @@ export interface Selected {
   readonly reload: () => Effect.Effect<void, SelectError>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/SkillAsset") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/v2/SkillAsset") {}
 
 export function loadDir<E = never>(
   fs: FSUtil.Interface,
@@ -271,7 +271,7 @@ export const layer = Layer.effect(
 
 /** First-run import of project-local legacy skills (`.claude/skills`, `.agents/skills`). Best-effort: never blocks boot. */
 const migrateLegacy = Effect.fnUntraced(function* (fs: FSUtil.Interface, directory: string, ownerRoot: string) {
-  if (!Flag.AIGCFROGE_EXPERIMENTAL_CHAT_ASSET) return
+  if (!Flag.OMNIXA_EXPERIMENTAL_CHAT_ASSET) return
   yield* AssetMigration.importOnce(fs, {
     ownerRoot,
     files: yield* AssetMigration.legacySkillFiles(fs, directory),

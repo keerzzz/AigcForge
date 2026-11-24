@@ -1,5 +1,5 @@
-import type { ModelSourceSeed, ProviderDefinitionInfo, ProviderDefinitionSaveInput } from "@aigcfroge/client/promise"
-import { ConfigProvider } from "@aigcfroge/schema/config/provider"
+import type { ModelSourceSeed, ProviderDefinitionInfo, ProviderDefinitionSaveInput } from "@omnixa/client/promise"
+import { ConfigProvider } from "@omnixa/schema/config/provider"
 import { Option, Schema } from "effect"
 
 const PROVIDER_ID = /^[a-z0-9][a-z0-9-_]*$/
@@ -9,9 +9,9 @@ export const providerProtocols = ["chat", "responses", "messages"] as const
 export type ProviderProtocol = (typeof providerProtocols)[number]
 
 export const providerPackages = {
-  chat: "@aigcfroge/ai/providers/openai-compatible",
-  responses: "@aigcfroge/ai/providers/openai-compatible/responses",
-  messages: "@aigcfroge/ai/providers/anthropic-compatible",
+  chat: "@omnixa/ai/providers/openai-compatible",
+  responses: "@omnixa/ai/providers/openai-compatible/responses",
+  messages: "@omnixa/ai/providers/anthropic-compatible",
 } as const
 
 type Translator = (key: string, vars?: Record<string, string | number | boolean>) => string

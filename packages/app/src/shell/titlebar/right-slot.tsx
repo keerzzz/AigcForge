@@ -46,7 +46,7 @@ export function TitlebarRightMount(props: { vertical?: boolean }) {
   return (
     <div
       ref={slot.setMount}
-      id="aigcfroge-titlebar-right"
+      id="omnixa-titlebar-right"
       class={props.vertical ? "flex w-full shrink-0 flex-col" : "flex shrink-0 items-center justify-end gap-0"}
     />
   )

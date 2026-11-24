@@ -1,6 +1,6 @@
 import { EOL } from "node:os"
-import { isConflictError, type CredentialCreateInput } from "@aigcfroge/client"
-import { Credential } from "@aigcfroge/schema/credential"
+import { isConflictError, type CredentialCreateInput } from "@omnixa/client"
+import { Credential } from "@omnixa/schema/credential"
 import { Effect, Option, Schema } from "effect"
 import { Commands } from "../../commands"
 import { Runtime } from "../../../framework/runtime"

@@ -1,19 +1,19 @@
-import type { FileSystem } from "@aigcfroge/core/filesystem"
-import { Bus } from "@aigcfroge/core/bus"
-import { Image } from "@aigcfroge/core/image"
-import { LocationServiceMap } from "@aigcfroge/core/location-service-map"
-import type { LocationServices } from "@aigcfroge/core/location-services"
-import { Plugin } from "@aigcfroge/core/plugin"
-import { Model } from "@aigcfroge/core/model"
-import { ModelResolver } from "@aigcfroge/core/model-resolver"
-import { Provider } from "@aigcfroge/core/provider"
-import { Agent } from "@aigcfroge/core/agent"
-import { Npm } from "@aigcfroge/util/npm"
-import { PluginHooks } from "@aigcfroge/core/plugin/hooks"
-import { Skill } from "@aigcfroge/core/skill"
-import type { Location } from "@aigcfroge/schema/location"
-import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import type { FileSystem } from "@omnixa/core/filesystem"
+import { Bus } from "@omnixa/core/bus"
+import { Image } from "@omnixa/core/image"
+import { LocationServiceMap } from "@omnixa/core/location-service-map"
+import type { LocationServices } from "@omnixa/core/location-services"
+import { Plugin } from "@omnixa/core/plugin"
+import { Model } from "@omnixa/core/model"
+import { ModelResolver } from "@omnixa/core/model-resolver"
+import { Provider } from "@omnixa/core/provider"
+import { Agent } from "@omnixa/core/agent"
+import { Npm } from "@omnixa/util/npm"
+import { PluginHooks } from "@omnixa/core/plugin/hooks"
+import { Skill } from "@omnixa/core/skill"
+import type { Location } from "@omnixa/schema/location"
+import { makeGlobalNode } from "@omnixa/util/effect/app-node"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
 import { Effect, Layer, LayerMap } from "effect"
 
 // Plain-prompt unit fixtures use virtual directories.
@@ -46,14 +46,14 @@ export const promptLocationNode = makeGlobalNode({
                       Effect.succeed([
                         {
                           ...Model.Info.default(Provider.ID.make("test"), Model.ID.make("cpu")),
-                          package: "@aigcfroge/ai/providers/openai",
+                          package: "@omnixa/ai/providers/openai",
                           settings: { baseURL: "http://offline.invalid", apiKey: "offline" },
                         },
                       ]),
                     default: () =>
                       Effect.succeed({
                         ...Model.Info.default(Provider.ID.make("test"), Model.ID.make("cpu")),
-                        package: "@aigcfroge/ai/providers/openai",
+                        package: "@omnixa/ai/providers/openai",
                         settings: { baseURL: "http://offline.invalid", apiKey: "offline" },
                       }),
                     get: (providerID, modelID) =>
@@ -61,7 +61,7 @@ export const promptLocationNode = makeGlobalNode({
                         providerID === "test" && modelID === "cpu"
                           ? {
                               ...Model.Info.default(providerID, modelID),
-                              package: "@aigcfroge/ai/providers/openai",
+                              package: "@omnixa/ai/providers/openai",
                               settings: { baseURL: "http://offline.invalid", apiKey: "offline" },
                             }
                           : undefined,

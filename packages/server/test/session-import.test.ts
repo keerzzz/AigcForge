@@ -1,28 +1,28 @@
 import { expect } from "bun:test"
 import path from "node:path"
-import { Database } from "@aigcfroge/core/database/database"
-import { EventTable, EventSequenceTable } from "@aigcfroge/core/event/sql"
+import { Database } from "@omnixa/core/database/database"
+import { EventTable, EventSequenceTable } from "@omnixa/core/event/sql"
 import {
   MetaAgentTable,
   MetaAgentSessionTable,
   MetaAgentStepTable,
   MetaAgentMemoryTable,
-} from "@aigcfroge/core/meta-agent/sql"
-import { ProjectTable } from "@aigcfroge/core/project/sql"
+} from "@omnixa/core/meta-agent/sql"
+import { ProjectTable } from "@omnixa/core/project/sql"
 import {
   SessionTable,
   SessionMessageTable,
   SessionInboxTable,
   SessionPendingTable,
   SessionCompositionSnapshotTable,
-} from "@aigcfroge/core/session/sql"
-import { Agent } from "@aigcfroge/schema/agent"
-import { DelegationID, ParticipantID } from "@aigcfroge/schema/delegation-id"
-import { MetaAgent } from "@aigcfroge/schema/meta-agent"
-import { Model } from "@aigcfroge/schema/model"
-import { Provider } from "@aigcfroge/schema/provider"
-import { Session } from "@aigcfroge/schema/session"
-import { Global } from "@aigcfroge/util/global"
+} from "@omnixa/core/session/sql"
+import { Agent } from "@omnixa/schema/agent"
+import { DelegationID, ParticipantID } from "@omnixa/schema/delegation-id"
+import { MetaAgent } from "@omnixa/schema/meta-agent"
+import { Model } from "@omnixa/schema/model"
+import { Provider } from "@omnixa/schema/provider"
+import { Session } from "@omnixa/schema/session"
+import { Global } from "@omnixa/util/global"
 import { Context, Effect, Layer, Schema } from "effect"
 import { HttpEffect, HttpRouter, HttpServer } from "effect/http"
 import { tempGlobalLayer } from "../../core/test/fixture/global"
@@ -53,7 +53,7 @@ const setup = Effect.gen(function* () {
   const request = (route: string, body?: unknown, status = 200) =>
     Effect.promise(async () => {
       const response = await handler(
-        new Request(`http://aigcfroge.local${route}`, {
+        new Request(`http://omnixa.local${route}`, {
           method: body === undefined ? "GET" : "POST",
           headers: { "content-type": "application/json" },
           body: body === undefined ? undefined : JSON.stringify(body),

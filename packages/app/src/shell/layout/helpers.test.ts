@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import type { SessionInfo } from "@aigcfroge/client/promise"
+import type { SessionInfo } from "@omnixa/client/promise"
 import {
   closeHomeProject,
   errorMessage,

@@ -1,4 +1,4 @@
-import type { SessionMessageAssistantTool } from "@aigcfroge/client/promise"
+import type { SessionMessageAssistantTool } from "@omnixa/client/promise"
 
 export function canonicalToolPart(
   name: string,

@@ -1,5 +1,5 @@
-import { Pty } from "@aigcfroge/schema/pty"
-import { PtyTicket } from "@aigcfroge/schema/pty-ticket"
+import { Pty } from "@omnixa/schema/pty"
+import { PtyTicket } from "@omnixa/schema/pty-ticket"
 import { Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/http-api"
 import { ForbiddenError, PtyNotFoundError } from "../errors.js"
@@ -54,7 +54,7 @@ export const PtyInstanceGroup = HttpApiGroup.make("pty-instance")
         identifier: "pty.list",
         override: { operationId: "pty-instance.pty.list" },
         summary: "List PTY sessions",
-        description: "Get a list of all active pseudo-terminal (PTY) sessions managed by AigcForge.",
+        description: "Get a list of all active pseudo-terminal (PTY) sessions managed by Omnixa.",
       }),
     ),
   )

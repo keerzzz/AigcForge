@@ -1,4 +1,4 @@
-import { PathIdentity } from "@aigcfroge/schema/path-identity"
+import { PathIdentity } from "@omnixa/schema/path-identity"
 import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/http-api"
 import { described } from "./metadata.js"
 import { LocationQuery, locationQueryOpenApi } from "./location.js"

@@ -1,19 +1,19 @@
-import { Message } from "@aigcfroge/ai"
-import { LLMClient, RequestExecutor } from "@aigcfroge/ai/route"
-import { Agent } from "@aigcfroge/core/agent"
-import { Credential } from "@aigcfroge/core/credential"
-import { Integration } from "@aigcfroge/core/integration"
-import { Location } from "@aigcfroge/core/location"
-import { Model } from "@aigcfroge/core/model"
-import { ModelResolver } from "@aigcfroge/core/model-resolver"
-import { Plugin } from "@aigcfroge/core/plugin"
-import { PluginHost } from "@aigcfroge/core/plugin/host"
-import { PluginHooks } from "@aigcfroge/core/plugin/hooks"
-import { SnowflakeCortexPlugin } from "@aigcfroge/core/plugin/provider/snowflake-cortex"
-import { Provider } from "@aigcfroge/core/provider"
-import { Session } from "@aigcfroge/core/session"
-import { SessionModelRequest } from "@aigcfroge/core/session/model-request"
-import { SessionModelTransport } from "@aigcfroge/core/session/model-transport"
+import { Message } from "@omnixa/ai"
+import { LLMClient, RequestExecutor } from "@omnixa/ai/route"
+import { Agent } from "@omnixa/core/agent"
+import { Credential } from "@omnixa/core/credential"
+import { Integration } from "@omnixa/core/integration"
+import { Location } from "@omnixa/core/location"
+import { Model } from "@omnixa/core/model"
+import { ModelResolver } from "@omnixa/core/model-resolver"
+import { Plugin } from "@omnixa/core/plugin"
+import { PluginHost } from "@omnixa/core/plugin/host"
+import { PluginHooks } from "@omnixa/core/plugin/hooks"
+import { SnowflakeCortexPlugin } from "@omnixa/core/plugin/provider/snowflake-cortex"
+import { Provider } from "@omnixa/core/provider"
+import { Session } from "@omnixa/core/session"
+import { SessionModelRequest } from "@omnixa/core/session/model-request"
+import { SessionModelTransport } from "@omnixa/core/session/model-transport"
 import { expect } from "bun:test"
 import { Effect, Layer, Schedule, Stream } from "effect"
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http"
@@ -56,7 +56,7 @@ const fixture = Effect.fn(function* () {
   const host = yield* PluginHost.make(plugin)
   yield* providers.transform((editor) => {
     editor.update(providerID, (provider) => {
-      provider.package = "@aigcfroge/ai/providers/openai-compatible"
+      provider.package = "@omnixa/ai/providers/openai-compatible"
       provider.settings = { baseURL: "https://${SNOWFLAKE_ACCOUNT}.snowflakecomputing.com/api/v2/cortex/v1" }
     })
     editor.models.update(providerID, modelID, () => {})
@@ -225,7 +225,7 @@ it.live("uses environment tokens rather than the account identifier and bypasses
           type: "env",
           name: "SNOWFLAKE_CORTEX_TOKEN",
         })
-        expect((yield* test.providers.get(providerID))?.package).toBe("@aigcfroge/ai/providers/openai-compatible")
+        expect((yield* test.providers.get(providerID))?.package).toBe("@omnixa/ai/providers/openai-compatible")
         expect(yield* test.hooks.has("aisdk", "sdk", providerID)).toBe(false)
 
         yield* test.stop

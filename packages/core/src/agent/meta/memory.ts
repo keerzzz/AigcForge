@@ -2,10 +2,10 @@ export * as MetaAgentMemory from "./memory"
 
 import { and, desc, eq, sql } from "drizzle-orm"
 import { Context, DateTime, Effect, Layer, Option, Schema } from "effect"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
 import { Database } from "../../database/database"
 import { MetaAgentService } from "../../meta-agent/service"
-import { MetaAgent } from "@aigcfroge/schema/meta-agent"
+import { MetaAgent } from "@omnixa/schema/meta-agent"
 import { MetaAgentMemoryTable, MetaAgentSessionTable, MetaAgentStepTable } from "../../meta-agent/sql"
 import { Project } from "../../project"
 import { SessionSchema } from "../../session/schema"
@@ -17,8 +17,8 @@ import { SessionMessageTable, SessionTable } from "../../session/sql.js"
 import { SessionMessage } from "../../session/message.js"
 import { SessionEvent } from "../../session/event.js"
 import { EventTable } from "../../event/sql.js"
-import { Event } from "@aigcfroge/schema/event"
-import { Document, type Entry } from "@aigcfroge/schema/config"
+import { Event } from "@omnixa/schema/event"
+import { Document, type Entry } from "@omnixa/schema/config"
 
 export const FactCategory = MetaAgent.FactCategory
 export type FactCategory = typeof FactCategory.Type
@@ -134,7 +134,7 @@ export interface Interface {
   readonly remove: (id: string, projectID?: Project.ID) => Effect.Effect<void>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/MetaAgentMemory") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/v2/MetaAgentMemory") {}
 
 export function invalidForModel(record: { readonly id: string; readonly content: string }) {
   if (CorrectionExtractor.hasCredentialContent(record.content))

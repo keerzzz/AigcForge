@@ -1,8 +1,8 @@
-import { LocationServiceMap } from "@aigcfroge/core/location-services"
-import { Plugin } from "@aigcfroge/core/plugin/service"
-import { Session } from "@aigcfroge/core/session"
-import { ApiNotFoundError, ConflictError, InvalidRequestError } from "@aigcfroge/protocol/errors"
-import { WorkspaceRouteContext } from "@aigcfroge/protocol/middleware/workspace-routing"
+import { LocationServiceMap } from "@omnixa/core/location-services"
+import { Plugin } from "@omnixa/core/plugin/service"
+import { Session } from "@omnixa/core/session"
+import { ApiNotFoundError, ConflictError, InvalidRequestError } from "@omnixa/protocol/errors"
+import { WorkspaceRouteContext } from "@omnixa/protocol/middleware/workspace-routing"
 import { Effect } from "effect"
 import { locationRefForRoute } from "../middleware/workspace-routing"
 

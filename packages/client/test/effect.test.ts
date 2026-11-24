@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
-import { CommandAsset } from "@aigcfroge/schema/command-asset"
-import { PromptAsset } from "@aigcfroge/schema/prompt-asset"
+import { CommandAsset } from "@omnixa/schema/command-asset"
+import { PromptAsset } from "@omnixa/schema/prompt-asset"
 import { Context, DateTime, Effect, Layer, Schema, Stream } from "effect"
 import { HttpClient, HttpClientResponse } from "effect/http"
 import { testEffect } from "../../core/test/lib/effect"
@@ -11,7 +11,7 @@ import {
   Event,
   Location,
   Model,
-  AigcForge,
+  Omnixa,
   Prompt,
   Session,
   SessionMessage,
@@ -28,7 +28,7 @@ commandTests.effect("Command asset methods decode canonical selected owners and 
     const route = { directory: "/repo/packages/app", workspace: "wrk_command" }
     const target = AssetPlacement.Target.make({
       scope: "project",
-      root: AbsolutePath.make("/repo/.aigcfroge/commands"),
+      root: AbsolutePath.make("/repo/.omnixa/commands"),
     })
     const candidate = CommandAsset.Candidate.make({
       name: "review-command",
@@ -76,7 +76,7 @@ commandTests.effect("Command asset methods decode canonical selected owners and 
       return Effect.succeed(HttpClientResponse.fromWeb(request, response))
     })
     const result = yield* Effect.gen(function* () {
-      const client = yield* AigcForge.make({ baseUrl: "http://localhost:3000" })
+      const client = yield* Omnixa.make({ baseUrl: "http://localhost:3000" })
       const inspected = yield* client["command-asset"].inspect({
         ...route,
         sessionID: Session.ID.make("ses_command"),
@@ -194,7 +194,7 @@ commandTests.effect("Command asset legacy Effect calls preserve omitted targets,
       return Effect.succeed(HttpClientResponse.fromWeb(request, response))
     })
     const result = yield* Effect.gen(function* () {
-      const client = yield* AigcForge.make({ baseUrl: "http://localhost:3000" })
+      const client = yield* Omnixa.make({ baseUrl: "http://localhost:3000" })
       const listed = yield* client["command-asset"].list(route)
       const content = yield* client["command-asset"].content({ ...route, path: candidate.relativePath })
       const applied = yield* client["command-asset"].apply({
@@ -256,7 +256,7 @@ promptTests.effect("Prompt asset methods decode canonical selected owners and pr
     const route = { directory: "/repo/packages/app", workspace: "wrk_prompt" }
     const target = AssetPlacement.Target.make({
       scope: "project",
-      root: AbsolutePath.make("/repo/.aigcfroge/prompts"),
+      root: AbsolutePath.make("/repo/.omnixa/prompts"),
     })
     const candidate = PromptAsset.Candidate.make({
       name: "review-prompt",
@@ -302,7 +302,7 @@ promptTests.effect("Prompt asset methods decode canonical selected owners and pr
       return Effect.succeed(HttpClientResponse.fromWeb(request, response))
     })
     const result = yield* Effect.gen(function* () {
-      const client = yield* AigcForge.make({ baseUrl: "http://localhost:3000" })
+      const client = yield* Omnixa.make({ baseUrl: "http://localhost:3000" })
       const inspected = yield* client["prompt-asset"].inspect({
         ...route,
         sessionID: Session.ID.make("ses_prompt"),
@@ -419,7 +419,7 @@ promptTests.effect("Prompt asset legacy Effect calls preserve omitted targets an
       return Effect.succeed(HttpClientResponse.fromWeb(request, response))
     })
     const result = yield* Effect.gen(function* () {
-      const client = yield* AigcForge.make({ baseUrl: "http://localhost:3000" })
+      const client = yield* Omnixa.make({ baseUrl: "http://localhost:3000" })
       const listed = yield* client["prompt-asset"].list(route)
       const content = yield* client["prompt-asset"].content({ ...route, path: candidate.relativePath })
       const applied = yield* client["prompt-asset"].apply({
@@ -483,13 +483,13 @@ test("server.info decodes the readiness response", async () => {
           version: "current",
           pid: 123,
           urls: ["http://localhost:3000"],
-          paths: { tmp: "/tmp/aigcfroge" },
+          paths: { tmp: "/tmp/omnixa" },
         }),
       ),
     ),
   )
   const result = await Effect.gen(function* () {
-    const client = yield* AigcForge.make({ baseUrl: "http://localhost:3000" })
+    const client = yield* Omnixa.make({ baseUrl: "http://localhost:3000" })
     return yield* client.server.info()
   }).pipe(Effect.provideService(HttpClient.HttpClient, httpClient), Effect.runPromise)
 
@@ -497,7 +497,7 @@ test("server.info decodes the readiness response", async () => {
     version: "current",
     pid: 123,
     urls: ["http://localhost:3000"],
-    paths: { tmp: "/tmp/aigcfroge" },
+    paths: { tmp: "/tmp/omnixa" },
   })
 })
 
@@ -513,7 +513,7 @@ test("vcs.base decodes nullable review-base metadata", async () => {
       Effect.succeed(HttpClientResponse.fromWeb(request, Response.json({ location, data }))),
     )
     const result = await Effect.gen(function* () {
-      const client = yield* AigcForge.make({ baseUrl: "http://localhost:3000" })
+      const client = yield* Omnixa.make({ baseUrl: "http://localhost:3000" })
       return yield* client.vcs.base({ location: { directory: AbsolutePath.make("/repo") } })
     }).pipe(Effect.provideService(HttpClient.HttpClient, httpClient), Effect.runPromise)
     expect(result.data).toEqual(data)
@@ -526,7 +526,7 @@ test("session.get returns the decoded Effect projection", async () => {
     Effect.succeed(HttpClientResponse.fromWeb(request, Response.json(session))),
   )
   const result = await Effect.gen(function* () {
-    const client = yield* AigcForge.make({ baseUrl: "http://localhost:3000" })
+    const client = yield* Omnixa.make({ baseUrl: "http://localhost:3000" })
     return yield* client.session.get({ sessionID: Session.ID.make("ses_test") })
   }).pipe(Effect.provideService(HttpClient.HttpClient, httpClient), Effect.runPromise)
 
@@ -550,7 +550,7 @@ test("session instructions methods use the public HTTP contract", async () => {
     )
   })
   const result = await Effect.gen(function* () {
-    const client = yield* AigcForge.make({ baseUrl: "http://localhost:3000" })
+    const client = yield* Omnixa.make({ baseUrl: "http://localhost:3000" })
     const listed = yield* client.session.instructions.entry.list({ sessionID: Session.ID.make("ses_test") })
     yield* client.session.instructions.entry.put({
       sessionID: Session.ID.make("ses_test"),
@@ -589,7 +589,7 @@ test("Skill asset methods decode selected targets and keep placement outside Ses
   const route = { directory: "/repo/packages/app", workspace: "wrk_test" }
   const target = AssetPlacement.Target.make({
     scope: "project",
-    root: AbsolutePath.make("/repo/.aigcfroge/skills"),
+    root: AbsolutePath.make("/repo/.omnixa/skills"),
   })
   const candidate = SkillAsset.Candidate.make({
     name: "review",
@@ -639,7 +639,7 @@ test("Skill asset methods decode selected targets and keep placement outside Ses
     return Effect.succeed(HttpClientResponse.fromWeb(request, response))
   })
   const result = await Effect.gen(function* () {
-    const client = yield* AigcForge.make({ baseUrl: "http://localhost:3000" })
+    const client = yield* Omnixa.make({ baseUrl: "http://localhost:3000" })
     const inspected = yield* client["skill-asset"].inspect({
       ...route,
       sessionID: Session.ID.make("ses_test"),
@@ -737,7 +737,7 @@ test("event.subscribe exposes and decodes the native Effect event stream", async
     ),
   )
   const events = await Effect.gen(function* () {
-    const client = yield* AigcForge.make({ baseUrl: "http://localhost:3000" })
+    const client = yield* Omnixa.make({ baseUrl: "http://localhost:3000" })
     return yield* client.event.subscribe().pipe(Stream.runCollect)
   }).pipe(Effect.provideService(HttpClient.HttpClient, httpClient), Effect.runPromise)
 
@@ -762,7 +762,7 @@ test("shared event source runs with the Effect context captured by make", async 
     }),
   )
   const client = await Effect.runPromise(
-    AigcForge.make({ baseUrl: "http://localhost:3000" }).pipe(
+    Omnixa.make({ baseUrl: "http://localhost:3000" }).pipe(
       Effect.provideService(HttpClient.HttpClient, httpClient),
       Effect.provideService(Token, "captured"),
     ),
@@ -782,7 +782,7 @@ test("event.subscribe terminates on Effect protocol decode failures", async () =
     ),
   )
   const error = await Effect.gen(function* () {
-    const client = yield* AigcForge.make({ baseUrl: "http://localhost:3000" })
+    const client = yield* Omnixa.make({ baseUrl: "http://localhost:3000" })
     return yield* client.event.subscribe().pipe(Stream.runCollect, Effect.flip)
   }).pipe(Effect.provideService(HttpClient.HttpClient, httpClient), Effect.runPromise)
 
@@ -841,7 +841,7 @@ test("session methods retain decoded Effect inputs and outputs", async () => {
     )
   })
   const result = await Effect.gen(function* () {
-    const client = yield* AigcForge.make({ baseUrl: "http://localhost:3000" })
+    const client = yield* Omnixa.make({ baseUrl: "http://localhost:3000" })
     const page = yield* client.session.list({ limit: 10 })
     const active = yield* client.session.active()
     const created = yield* client.session.create({
@@ -908,7 +908,7 @@ test("session.log retains the typed SessionNotFoundError", async () => {
     ),
   )
   const error = await Effect.gen(function* () {
-    const client = yield* AigcForge.make({ baseUrl: "http://localhost:3000" })
+    const client = yield* Omnixa.make({ baseUrl: "http://localhost:3000" })
     return yield* client.session.log({ sessionID: Session.ID.make("ses_missing") }).pipe(Stream.runCollect, Effect.flip)
   }).pipe(Effect.provideService(HttpClient.HttpClient, httpClient), Effect.runPromise)
 

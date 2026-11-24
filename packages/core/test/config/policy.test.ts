@@ -1,16 +1,16 @@
 import { describe, expect } from "bun:test"
-import { Document, Event, Info, type Entry } from "@aigcfroge/schema/config"
-import { ConfigPolicy } from "@aigcfroge/schema/config/policy"
-import { Permission } from "@aigcfroge/schema/permission"
-import { Config } from "@aigcfroge/core/config"
-import { ConfigPolicyPlugin } from "@aigcfroge/core/config/plugin/policy"
-import { Bus } from "@aigcfroge/core/bus"
-import { ManagedPolicy } from "@aigcfroge/core/managed-policy"
-import { Plugin } from "@aigcfroge/core/plugin"
-import { PluginHooks } from "@aigcfroge/core/plugin/hooks"
-import { PluginHost } from "@aigcfroge/core/plugin/host"
-import { Provider } from "@aigcfroge/core/provider"
-import { Session } from "@aigcfroge/core/session"
+import { Document, Event, Info, type Entry } from "@omnixa/schema/config"
+import { ConfigPolicy } from "@omnixa/schema/config/policy"
+import { Permission } from "@omnixa/schema/permission"
+import { Config } from "@omnixa/core/config"
+import { ConfigPolicyPlugin } from "@omnixa/core/config/plugin/policy"
+import { Bus } from "@omnixa/core/bus"
+import { ManagedPolicy } from "@omnixa/core/managed-policy"
+import { Plugin } from "@omnixa/core/plugin"
+import { PluginHooks } from "@omnixa/core/plugin/hooks"
+import { PluginHost } from "@omnixa/core/plugin/host"
+import { Provider } from "@omnixa/core/provider"
+import { Session } from "@omnixa/core/session"
 import { Effect, Schema } from "effect"
 import { testEffect } from "../lib/effect"
 import { PluginTestLayer } from "../plugin/fixture"
@@ -171,14 +171,14 @@ describe("ConfigPolicyPlugin.Plugin", () => {
       yield* catalog.transform((catalog) => {
         catalog.update(Provider.ID.openai, () => {})
         catalog.update(Provider.ID.anthropic, () => {})
-        catalog.update(Provider.ID.aigcfroge, () => {})
+        catalog.update(Provider.ID.omnixa, () => {})
       })
-      yield* managed.set({ statements: [provider("deny", "*"), provider("allow", "aigcfroge")] })
+      yield* managed.set({ statements: [provider("deny", "*"), provider("allow", "omnixa")] })
       yield* addPlugin([document(provider("allow", "anthropic"))])
 
       expect(yield* catalog.get(Provider.ID.anthropic)).toBeUndefined()
       expect(yield* catalog.get(Provider.ID.openai)).toBeUndefined()
-      expect(yield* catalog.get(Provider.ID.aigcfroge)).toBeDefined()
+      expect(yield* catalog.get(Provider.ID.omnixa)).toBeDefined()
     }),
   )
 

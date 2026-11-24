@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test"
-import { ToolSummary } from "@aigcfroge/core/session/tool-summary"
-import type { SessionMessage } from "@aigcfroge/core/session/message"
+import { ToolSummary } from "@omnixa/core/session/tool-summary"
+import type { SessionMessage } from "@omnixa/core/session/message"
 import { assistantWithTools, makeToolCallPlain } from "./fixture/tool-summary"
 
 describe("ToolSummary.fromMessages", () => {

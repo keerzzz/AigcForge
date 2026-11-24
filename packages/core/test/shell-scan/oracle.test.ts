@@ -18,7 +18,7 @@ const shells = [
 // machine with all of them to also verify that every fixture still executes somewhere.
 const strict = process.env.SHELL_ORACLE_STRICT === "1"
 
-const root = fs.mkdtempSync(path.join(os.tmpdir(), "aigcfroge-shell-oracle-"))
+const root = fs.mkdtempSync(path.join(os.tmpdir(), "omnixa-shell-oracle-"))
 const bin = path.join(root, "bin")
 const target = path.join(root, "target")
 const log = path.join(root, "log")

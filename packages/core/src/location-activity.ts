@@ -7,11 +7,11 @@ import { LocationServiceMap } from "./location-service-map.js"
 import { SessionEvent } from "./session/event.js"
 import { SessionExecution } from "./session/execution.js"
 import { SessionStore } from "./session/store.js"
-import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
+import { makeGlobalNode } from "@omnixa/util/effect/app-node"
 
 const isSessionEvent = Schema.is(SessionEvent.Durable)
 
-export class Service extends Context.Service<Service, {}>()("@aigcfroge/LocationActivity") {}
+export class Service extends Context.Service<Service, {}>()("@omnixa/LocationActivity") {}
 
 export function layer(options: { readonly timeToLive?: Duration.Input; readonly sweepInterval?: Duration.Input } = {}) {
   return Layer.effect(

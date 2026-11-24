@@ -7,7 +7,7 @@ const module = pathToFileURL(path.join(import.meta.dir, "../src/global-roots.ts"
 
 describe("global roots", () => {
   test("uses XDG overrides", () => {
-    const root = path.join(os.tmpdir(), "aigcfroge-xdg-overrides")
+    const root = path.join(os.tmpdir(), "omnixa-xdg-overrides")
     const env = {
       XDG_DATA_HOME: path.join(root, "data"),
       XDG_CACHE_HOME: path.join(root, "cache"),
@@ -16,16 +16,16 @@ describe("global roots", () => {
     }
 
     expect(run(env)).toEqual({
-      data: path.join(env.XDG_DATA_HOME, "aigcfroge"),
-      cache: path.join(env.XDG_CACHE_HOME, "aigcfroge"),
-      config: path.join(env.XDG_CONFIG_HOME, "aigcfroge"),
-      state: path.join(env.XDG_STATE_HOME, "aigcfroge"),
-      tmp: path.join(os.tmpdir(), "aigcfroge"),
+      data: path.join(env.XDG_DATA_HOME, "omnixa"),
+      cache: path.join(env.XDG_CACHE_HOME, "omnixa"),
+      config: path.join(env.XDG_CONFIG_HOME, "omnixa"),
+      state: path.join(env.XDG_STATE_HOME, "omnixa"),
+      tmp: path.join(os.tmpdir(), "omnixa"),
     })
   })
 
   test("empty XDG overrides use home directory defaults", () => {
-    const home = path.join(os.tmpdir(), "aigcfroge-xdg-home")
+    const home = path.join(os.tmpdir(), "omnixa-xdg-home")
 
     expect(
       run({
@@ -36,11 +36,11 @@ describe("global roots", () => {
         ...(process.platform === "win32" ? { USERPROFILE: home } : { HOME: home }),
       }),
     ).toEqual({
-      data: path.join(home, ".local", "share", "aigcfroge"),
-      cache: path.join(home, ".cache", "aigcfroge"),
-      config: path.join(home, ".config", "aigcfroge"),
-      state: path.join(home, ".local", "state", "aigcfroge"),
-      tmp: path.join(os.tmpdir(), "aigcfroge"),
+      data: path.join(home, ".local", "share", "omnixa"),
+      cache: path.join(home, ".cache", "omnixa"),
+      config: path.join(home, ".config", "omnixa"),
+      state: path.join(home, ".local", "state", "omnixa"),
+      tmp: path.join(os.tmpdir(), "omnixa"),
     })
   })
 })
@@ -50,7 +50,7 @@ function run(env: Record<string, string>) {
     cmd: [
       process.execPath,
       "-e",
-      `const { roots } = await import(${JSON.stringify(module)}); console.log(JSON.stringify(roots("aigcfroge")))`,
+      `const { roots } = await import(${JSON.stringify(module)}); console.log(JSON.stringify(roots("omnixa")))`,
     ],
     env: { ...process.env, ...env },
     stdout: "pipe",

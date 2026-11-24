@@ -1,7 +1,7 @@
 import { usePlatform } from "@/runtime/platform/platform"
 import { ServerConnection } from "@/runtime/server/registry"
 import { authTokenFromCredentials } from "./api"
-import { ClientError, isUnauthorizedError, AigcForge } from "@aigcfroge/client"
+import { ClientError, isUnauthorizedError, Omnixa } from "@omnixa/client"
 import { Accessor, createEffect, onCleanup } from "solid-js"
 import { createStore, reconcile } from "solid-js/store"
 
@@ -116,7 +116,7 @@ export async function checkServerHealth(
   }
 
   const attempt = async (count: number): Promise<ServerHealth> => {
-    const current = await AigcForge.make({
+    const current = await Omnixa.make({
       baseUrl: server.url,
       fetch,
       headers,

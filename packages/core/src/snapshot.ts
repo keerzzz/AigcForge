@@ -1,16 +1,16 @@
 export * as Snapshot from "./snapshot.js"
 
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
 import path from "path"
 import { Clock, Context, Effect, Fiber, Layer, Schema, Scope } from "effect"
-import { FileDiff } from "@aigcfroge/schema/file-diff"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { FileDiff } from "@omnixa/schema/file-diff"
+import { FSUtil } from "@omnixa/util/fs-util"
 import { Git } from "./git.js"
-import { Global } from "@aigcfroge/util/global"
+import { Global } from "@omnixa/util/global"
 import { Location } from "./location.js"
 import { AbsolutePath, RelativePath } from "./schema.js"
-import { ID } from "@aigcfroge/schema/snapshot"
-import { Hash } from "@aigcfroge/util/hash"
+import { ID } from "@omnixa/schema/snapshot"
+import { Hash } from "@omnixa/util/hash"
 import { State } from "./state.js"
 
 export { ID }
@@ -67,7 +67,7 @@ export interface Interface extends State.Transformable<Editor> {
   readonly restore: (input: RestoreInput) => Effect.Effect<void, Error>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/Snapshot") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/Snapshot") {}
 
 const layer = Layer.effect(
   Service,

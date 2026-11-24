@@ -1,6 +1,6 @@
 import { describe, expect } from "bun:test"
 import { Deferred, Effect, Fiber, Layer } from "effect"
-import { SchedulerCore } from "@aigcfroge/core/session/schedule-core"
+import { SchedulerCore } from "@omnixa/core/session/schedule-core"
 import { awaitWithTimeout, testEffect } from "./lib/effect"
 
 const at = (y: number, mo: number, d: number, h: number, mi: number) => new Date(y, mo - 1, d, h, mi, 0, 0).getTime()

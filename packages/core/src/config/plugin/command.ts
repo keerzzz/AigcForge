@@ -1,10 +1,10 @@
 export * as ConfigCommandPlugin from "./command.js"
 
-import { define } from "@aigcfroge/plugin/effect/plugin"
-import { Info, type Entry } from "@aigcfroge/schema/config"
-import { ConfigCommand } from "@aigcfroge/schema/config/command"
+import { define } from "@omnixa/plugin/effect/plugin"
+import { Info, type Entry } from "@omnixa/schema/config"
+import { ConfigCommand } from "@omnixa/schema/config/command"
 import { Model } from "../../model.js"
-import { AppProcess } from "@aigcfroge/util/process"
+import { AppProcess } from "@omnixa/util/process"
 import path from "path"
 import { Effect, Option, PubSub, Schema, Stream } from "effect"
 import { ChildProcess } from "effect/process"
@@ -15,13 +15,13 @@ import { Location } from "../../location.js"
 import { Session } from "../../session.js"
 import { SubagentJob } from "../../session/subagent-job.js"
 import { ShellSelect } from "../../shell/select.js"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { FSUtil } from "@omnixa/util/fs-util"
 import { ConfigMarkdown } from "../markdown.js"
 
 const decodeCommand = Schema.decodeUnknownOption(ConfigCommand.Info)
 
 export const Plugin = define({
-  id: "aigcfroge.config.command",
+  id: "omnixa.config.command",
   effect: Effect.fn(function* (ctx) {
     const config = yield* Config.Service
     const fs = yield* FSUtil.Service

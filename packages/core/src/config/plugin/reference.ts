@@ -1,19 +1,19 @@
 export * as ConfigReferencePlugin from "./reference.js"
 
-import { define } from "@aigcfroge/plugin/effect/plugin"
-import { Document } from "@aigcfroge/schema/config"
-import { ConfigReference } from "@aigcfroge/schema/config/reference"
+import { define } from "@omnixa/plugin/effect/plugin"
+import { Document } from "@omnixa/schema/config"
+import { ConfigReference } from "@omnixa/schema/config/reference"
 import path from "path"
 import { Effect } from "effect"
 import { Config } from "../../config.js"
 import { Reference } from "../../reference.js"
 import { AbsolutePath } from "../../schema.js"
-import { Global } from "@aigcfroge/util/global"
+import { Global } from "@omnixa/util/global"
 import { Location } from "../../location.js"
 import { ConfigEntryObserver } from "./entry-observer.js"
 
 export const Plugin = define({
-  id: "aigcfroge.config.reference",
+  id: "omnixa.config.reference",
   effect: Effect.fn(function* (ctx) {
     const config = yield* Config.Service
     const location = yield* Location.Service

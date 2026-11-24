@@ -1,20 +1,20 @@
-import { Composition } from "@aigcfroge/schema/composition"
-import { FileDiff } from "@aigcfroge/schema/file-diff"
-import { Model } from "@aigcfroge/schema/model"
-import { MetaAgent } from "@aigcfroge/schema/meta-agent"
-import { PermissionTier } from "@aigcfroge/schema/permission-tier"
-import { ProductMode } from "@aigcfroge/schema/product-mode"
-import { Provider } from "@aigcfroge/schema/provider"
-import { optional } from "@aigcfroge/schema/schema"
-import { Session } from "@aigcfroge/schema/session"
-import { SessionIdentity } from "@aigcfroge/schema/session-identity"
-import { SessionInput } from "@aigcfroge/schema/session-input"
-import { SessionTask } from "@aigcfroge/schema/session-task"
-import { PermissionV1 } from "@aigcfroge/schema/v1/permission"
-import { SessionV1 } from "@aigcfroge/schema/v1/session"
-import { WorkPreset } from "@aigcfroge/schema/work-preset"
-import { WorkflowAsset } from "@aigcfroge/schema/workflow-asset"
-import { Workspace } from "@aigcfroge/schema/workspace"
+import { Composition } from "@omnixa/schema/composition"
+import { FileDiff } from "@omnixa/schema/file-diff"
+import { Model } from "@omnixa/schema/model"
+import { MetaAgent } from "@omnixa/schema/meta-agent"
+import { PermissionTier } from "@omnixa/schema/permission-tier"
+import { ProductMode } from "@omnixa/schema/product-mode"
+import { Provider } from "@omnixa/schema/provider"
+import { optional } from "@omnixa/schema/schema"
+import { Session } from "@omnixa/schema/session"
+import { SessionIdentity } from "@omnixa/schema/session-identity"
+import { SessionInput } from "@omnixa/schema/session-input"
+import { SessionTask } from "@omnixa/schema/session-task"
+import { PermissionV1 } from "@omnixa/schema/v1/permission"
+import { SessionV1 } from "@omnixa/schema/v1/session"
+import { WorkPreset } from "@omnixa/schema/work-preset"
+import { WorkflowAsset } from "@omnixa/schema/workflow-asset"
+import { Workspace } from "@omnixa/schema/workspace"
 import { Effect, Schema, Struct } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "effect/http-api"
 import {
@@ -433,7 +433,7 @@ export const SessionInstanceGroup = HttpApiGroup.make("session-instance")
       OpenApi.annotations({
         identifier: "session.instance.session.list",
         summary: "List sessions",
-        description: "Get a list of all Aigcfroge sessions, sorted by most recently updated.",
+        description: "Get a list of all Omnixa sessions, sorted by most recently updated.",
       }),
     ),
     HttpApiEndpoint.get("status", SessionPaths.status, {
@@ -456,7 +456,7 @@ export const SessionInstanceGroup = HttpApiGroup.make("session-instance")
       OpenApi.annotations({
         identifier: "session.instance.session.get",
         summary: "Get session",
-        description: "Retrieve detailed information about a specific Aigcfroge session.",
+        description: "Retrieve detailed information about a specific Omnixa session.",
       }),
     ),
     HttpApiEndpoint.get("children", SessionPaths.children, {
@@ -694,7 +694,7 @@ export const SessionInstanceGroup = HttpApiGroup.make("session-instance")
       OpenApi.annotations({
         identifier: "session.instance.session.create",
         summary: "Create session",
-        description: "Create a new Aigcfroge session for interacting with AI assistants and managing conversations.",
+        description: "Create a new Omnixa session for interacting with AI assistants and managing conversations.",
       }),
     ),
     HttpApiEndpoint.delete("remove", SessionPaths.remove, {

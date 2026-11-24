@@ -5,10 +5,10 @@ import path from "node:path"
 import { isolatedEnv } from "./fixture/environment"
 
 test("standalone server exits when its owner is killed", async () => {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "aigcfroge-cli-standalone-"))
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "omnixa-cli-standalone-"))
   const owner = Bun.spawn([process.execPath, path.join(import.meta.dir, "fixture/standalone-owner.ts")], {
     cwd: path.join(import.meta.dir, ".."),
-    env: isolatedEnv(root, { AIGCFROGE_SERVER_USERNAME: "custom" }),
+    env: isolatedEnv(root, { OMNIXA_SERVER_USERNAME: "custom" }),
     stdin: "ignore",
     stdout: "pipe",
     stderr: "pipe",

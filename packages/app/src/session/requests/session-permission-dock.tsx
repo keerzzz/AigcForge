@@ -1,8 +1,8 @@
 import { For, Show } from "solid-js"
-import type { PermissionRequest } from "@aigcfroge/client/promise"
-import { Button } from "@aigcfroge/ui/button"
-import { DockPrompt } from "@aigcfroge/session-ui/dock-prompt"
-import { Icon } from "@aigcfroge/ui/icon"
+import type { PermissionRequest } from "@omnixa/client/promise"
+import { Button } from "@omnixa/ui/button"
+import { DockPrompt } from "@omnixa/session-ui/dock-prompt"
+import { Icon } from "@omnixa/ui/icon"
 import { useLanguage } from "@/runtime/i18n/language"
 
 export function SessionPermissionDock(props: {

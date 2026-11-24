@@ -4,28 +4,28 @@ import fs from "fs/promises"
 import path from "path"
 import { and, eq, isNull } from "drizzle-orm"
 import { Context, Effect, Exit, Fiber, Layer, Queue, Scope, Stream } from "effect"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { AbsolutePath } from "@aigcfroge/core/schema"
-import { Git } from "@aigcfroge/core/git"
-import { Database } from "@aigcfroge/core/database/database"
-import { Bus } from "@aigcfroge/core/bus"
-import { Project } from "@aigcfroge/core/project"
-import { ProjectTable } from "@aigcfroge/core/project/sql"
-import { Worktree } from "@aigcfroge/core/worktree"
-import { WorktreeStrategies } from "@aigcfroge/core/worktree/strategies"
-import { WorktreeDirectory } from "@aigcfroge/core/worktree/directory"
-import { WorktreeTable } from "@aigcfroge/core/worktree/sql"
-import { WorktreeGit } from "@aigcfroge/core/worktree/git"
-import { Location } from "@aigcfroge/core/location"
-import { Global } from "@aigcfroge/util/global"
-import { FSUtil } from "@aigcfroge/util/fs-util"
-import { Config } from "@aigcfroge/core/config"
-import { ConfigWorktreePlugin } from "@aigcfroge/core/config/plugin/worktree"
-import { ConfigNormalize } from "@aigcfroge/core/config/normalize"
-import { Document, Event, Info } from "@aigcfroge/schema/config"
-import { EventManifest } from "@aigcfroge/schema/event-manifest"
-import { Workspace } from "@aigcfroge/schema/workspace"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { AbsolutePath } from "@omnixa/core/schema"
+import { Git } from "@omnixa/core/git"
+import { Database } from "@omnixa/core/database/database"
+import { Bus } from "@omnixa/core/bus"
+import { Project } from "@omnixa/core/project"
+import { ProjectTable } from "@omnixa/core/project/sql"
+import { Worktree } from "@omnixa/core/worktree"
+import { WorktreeStrategies } from "@omnixa/core/worktree/strategies"
+import { WorktreeDirectory } from "@omnixa/core/worktree/directory"
+import { WorktreeTable } from "@omnixa/core/worktree/sql"
+import { WorktreeGit } from "@omnixa/core/worktree/git"
+import { Location } from "@omnixa/core/location"
+import { Global } from "@omnixa/util/global"
+import { FSUtil } from "@omnixa/util/fs-util"
+import { Config } from "@omnixa/core/config"
+import { ConfigWorktreePlugin } from "@omnixa/core/config/plugin/worktree"
+import { ConfigNormalize } from "@omnixa/core/config/normalize"
+import { Document, Event, Info } from "@omnixa/schema/config"
+import { EventManifest } from "@omnixa/schema/event-manifest"
+import { Workspace } from "@omnixa/schema/workspace"
 import { host } from "./plugin/host"
 import { initRepo } from "./fixture/git"
 import { tmpdir } from "./fixture/tmpdir"
@@ -283,7 +283,7 @@ describe("Worktree", () => {
         .set({
           commands: {
             start:
-              "bun -e \"await Bun.write('setup.json', JSON.stringify([process.env.AIGCFROGE_WORKTREE_BASE, process.env.AIGCFROGE_WORKTREE_PATH, process.cwd()]))\"",
+              "bun -e \"await Bun.write('setup.json', JSON.stringify([process.env.OMNIXA_WORKTREE_BASE, process.env.OMNIXA_WORKTREE_PATH, process.cwd()]))\"",
           },
         })
         .where(eq(ProjectTable.id, input.projectID))
@@ -317,7 +317,7 @@ describe("Worktree", () => {
         await $`git remote add origin git@github.com:owner/repo.git`.cwd(main).quiet()
         await $`git clone --no-hardlinks ${main} ${clone}`.quiet()
         await $`git remote set-url origin https://github.com/owner/repo.git`.cwd(clone).quiet()
-        await $`git -c user.name=Test -c user.email=test@aigcfroge.test -c commit.gpgsign=false commit --allow-empty -m clone`
+        await $`git -c user.name=Test -c user.email=test@omnixa.test -c commit.gpgsign=false commit --allow-empty -m clone`
           .cwd(clone)
           .quiet()
       })
@@ -332,7 +332,7 @@ describe("Worktree", () => {
       yield* config.setEntries([
         new Document({
           type: "document",
-          path: abs(path.join(root.path, "global/aigcfroge.json")),
+          path: abs(path.join(root.path, "global/omnixa.json")),
           info: new Info({ worktree: { directory: ".lane/trees" } }),
         }),
       ])
@@ -341,7 +341,7 @@ describe("Worktree", () => {
         projectID: initial.id,
         commands: {
           start:
-            "bun -e \"await Bun.write('setup.json', JSON.stringify([process.env.AIGCFROGE_WORKTREE_BASE, process.env.AIGCFROGE_WORKTREE_PATH, process.cwd()]))\"",
+            "bun -e \"await Bun.write('setup.json', JSON.stringify([process.env.OMNIXA_WORKTREE_BASE, process.env.OMNIXA_WORKTREE_PATH, process.cwd()]))\"",
         },
       })
 
@@ -898,12 +898,12 @@ describe("Worktree", () => {
       const documents = [
         new Document({
           type: "document",
-          path: abs(path.join(input.root.path, "aigcfroge.json")),
+          path: abs(path.join(input.root.path, "omnixa.json")),
           info: new Info({ worktree: { directory: "outer" } }),
         }),
         new Document({
           type: "document",
-          path: abs(path.join(input.root.path, "nested/aigcfroge.json")),
+          path: abs(path.join(input.root.path, "nested/omnixa.json")),
           info: new Info({ worktree: { directory: "copies" } }),
         }),
       ]
@@ -954,7 +954,7 @@ describe("Worktree", () => {
         yield* config.setEntries([
           new Document({
             type: "document",
-            path: abs(path.join(home, ".config/aigcfroge/aigcfroge.json")),
+            path: abs(path.join(home, ".config/omnixa/omnixa.json")),
             info: new Info({ worktree: { directory } }),
           }),
         ])

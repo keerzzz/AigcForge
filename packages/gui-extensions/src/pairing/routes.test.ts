@@ -16,10 +16,10 @@ describe("pairing routes", () => {
           "http://203.0.113.4:49374",
           "http://0.0.0.0:49374",
         ],
-        "https://aigcfroge.example.com",
+        "https://omnixa.example.com",
       ),
     ).toEqual([
-      { url: "https://aigcfroge.example.com", kind: "custom" },
+      { url: "https://omnixa.example.com", kind: "custom" },
       { url: "http://192.168.10.248:49374", kind: "local" },
       { url: "http://[fd12:3456::1]:49374", kind: "local" },
       { url: "http://169.254.10.2:49374", kind: "local" },
@@ -48,16 +48,16 @@ describe("pairing routes", () => {
 
 describe("custom address", () => {
   test("accepts an HTTP or HTTPS origin", () => {
-    expect(customAddress(" https://aigcfroge.example.com/ ")).toBe("https://aigcfroge.example.com")
+    expect(customAddress(" https://omnixa.example.com/ ")).toBe("https://omnixa.example.com")
     expect(customAddress("http://10.0.0.5:4096")).toBe("http://10.0.0.5:4096")
   })
 
   test("rejects anything a pairing link would rewrite or leak", () => {
-    expect(customAddress("aigcfroge.example.com")).toBeUndefined()
-    expect(customAddress("ftp://aigcfroge.example.com")).toBeUndefined()
-    expect(customAddress("https://aigcfroge.example.com/app")).toBeUndefined()
-    expect(customAddress("https://aigcfroge.example.com/?a=1")).toBeUndefined()
-    expect(customAddress("https://aigcfroge.example.com/#a")).toBeUndefined()
-    expect(customAddress("https://user:pass@aigcfroge.example.com")).toBeUndefined()
+    expect(customAddress("omnixa.example.com")).toBeUndefined()
+    expect(customAddress("ftp://omnixa.example.com")).toBeUndefined()
+    expect(customAddress("https://omnixa.example.com/app")).toBeUndefined()
+    expect(customAddress("https://omnixa.example.com/?a=1")).toBeUndefined()
+    expect(customAddress("https://omnixa.example.com/#a")).toBeUndefined()
+    expect(customAddress("https://user:pass@omnixa.example.com")).toBeUndefined()
   })
 })

@@ -1,11 +1,11 @@
 import { Popover } from "@kobalte/core/popover"
-import type { PluginInfo } from "@aigcfroge/client"
-import { Button } from "@aigcfroge/ui/button"
-import { Icon } from "@aigcfroge/ui/icon"
-import { Switch } from "@aigcfroge/ui/switch"
-import { showToast } from "@aigcfroge/ui/toast"
-import { Tooltip } from "@aigcfroge/ui/tooltip"
-import { getDirectory } from "@aigcfroge/util/path"
+import type { PluginInfo } from "@omnixa/client"
+import { Button } from "@omnixa/ui/button"
+import { Icon } from "@omnixa/ui/icon"
+import { Switch } from "@omnixa/ui/switch"
+import { showToast } from "@omnixa/ui/toast"
+import { Tooltip } from "@omnixa/ui/tooltip"
+import { getDirectory } from "@omnixa/util/path"
 import { useMutation } from "@tanstack/solid-query"
 import {
   children,

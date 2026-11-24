@@ -378,7 +378,7 @@ export const negotiateCapabilities = (connection: CodexAppServerConnection): Eff
       {
         method: "initialize",
         params: {
-          clientInfo: { name: "aigcfroge", version: "0.1.0" },
+          clientInfo: { name: "omnixa", version: "0.1.0" },
           capabilities: { experimentalApi: true },
         },
       },
@@ -468,7 +468,7 @@ const initializeConnection = (connection: CodexAppServerConnection) =>
     {
       method: "initialize",
       params: {
-        clientInfo: { name: "aigcfroge", version: "0.1.0" },
+        clientInfo: { name: "omnixa", version: "0.1.0" },
         capabilities: { experimentalApi: true, requestAttestation: false },
       },
     },

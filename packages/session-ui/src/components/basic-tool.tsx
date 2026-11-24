@@ -13,10 +13,10 @@ import {
 } from "solid-js"
 import { animate, type AnimationPlaybackControls } from "motion"
 import { createMediaQuery } from "@solid-primitives/media"
-import { useI18n } from "@aigcfroge/ui/context/i18n"
+import { useI18n } from "@omnixa/ui/context/i18n"
 import { createStore } from "solid-js/store"
-import { Collapsible } from "@aigcfroge/ui/collapsible"
-import { Icon, type IconProps } from "@aigcfroge/ui/icon"
+import { Collapsible } from "@omnixa/ui/collapsible"
+import { Icon, type IconProps } from "@omnixa/ui/icon"
 import { SessionProgressIndicatorV2 } from "../v2/components/session-progress-indicator-v2"
 
 export type TriggerTitle = {

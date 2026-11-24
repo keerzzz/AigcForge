@@ -1,4 +1,4 @@
-import { NonNegativeInt } from "@aigcfroge/schema/schema"
+import { NonNegativeInt } from "@omnixa/schema/schema"
 import { Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/http-api"
 import { ApiNotFoundError } from "../errors.js"

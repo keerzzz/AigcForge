@@ -46,7 +46,7 @@ export interface ClaudeSdk {
 const toSdkPermissionResult = (decision: "allow" | "deny") =>
   decision === "allow"
     ? { behavior: "allow" as const }
-    : { behavior: "deny" as const, message: "denied by AigcForge permission policy" }
+    : { behavior: "deny" as const, message: "denied by Omnixa permission policy" }
 
 export const makeClaudeCodeSdkAdapter = (
   sdk: ClaudeSdk | ((command: string) => Promise<ClaudeSdk>),

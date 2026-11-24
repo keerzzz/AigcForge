@@ -1,9 +1,9 @@
 export * as Plugin from "./plugin.js"
-export { Event, ID, Info, Source, State } from "@aigcfroge/schema/plugin"
+export { Event, ID, Info, Source, State } from "@omnixa/schema/plugin"
 
-import { Plugin } from "@aigcfroge/schema/plugin"
-import { Node } from "@aigcfroge/util/effect/app-node"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { Plugin } from "@omnixa/schema/plugin"
+import { Node } from "@omnixa/util/effect/app-node"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
 import type { PersistentPty } from "./persistent-pty.js"
 import { Cause, Context, Effect, Exit, Latch, Layer, Logger, Queue, References, Scope, Semaphore } from "effect"
 import { Bus } from "./bus.js"

@@ -1,4 +1,4 @@
-import { Image } from "@aigcfroge/core/image"
+import { Image } from "@omnixa/core/image"
 import { Effect, Layer } from "effect"
 
 /** Passthrough resizer for tests that build Tool.node without a Location. */

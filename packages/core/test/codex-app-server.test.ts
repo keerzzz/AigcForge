@@ -1,6 +1,6 @@
 import { describe, expect } from "bun:test"
 import { Cause, Deferred, Effect, Exit, Fiber, Layer, Queue, Schema, Sink, Stream } from "effect"
-import { CodexAppServer } from "@aigcfroge/core/tool/codex-app-server"
+import { CodexAppServer } from "@omnixa/core/tool/codex-app-server"
 import { ChildProcess, ChildProcessSpawner } from "effect/process"
 import { TestClock } from "effect/testing"
 import { awaitWithTimeout, testEffect } from "./lib/effect"

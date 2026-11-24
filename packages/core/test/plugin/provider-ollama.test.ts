@@ -1,15 +1,15 @@
-import { Bus } from "@aigcfroge/core/bus"
-import { Config } from "@aigcfroge/core/config"
-import { Environment, makeFiles } from "@aigcfroge/core/environment/index"
-import { EnvironmentUnavailable } from "@aigcfroge/core/environment/unavailable"
-import { Integration } from "@aigcfroge/core/integration"
-import { Model } from "@aigcfroge/core/model"
-import { Plugin } from "@aigcfroge/core/plugin"
-import { PluginHost } from "@aigcfroge/core/plugin/host"
-import { OllamaPlugin, make } from "@aigcfroge/core/plugin/provider/ollama"
-import { ProviderPlugins } from "@aigcfroge/core/plugin/provider"
-import { Provider } from "@aigcfroge/core/provider"
-import { Document, Event, Info } from "@aigcfroge/schema/config"
+import { Bus } from "@omnixa/core/bus"
+import { Config } from "@omnixa/core/config"
+import { Environment, makeFiles } from "@omnixa/core/environment/index"
+import { EnvironmentUnavailable } from "@omnixa/core/environment/unavailable"
+import { Integration } from "@omnixa/core/integration"
+import { Model } from "@omnixa/core/model"
+import { Plugin } from "@omnixa/core/plugin"
+import { PluginHost } from "@omnixa/core/plugin/host"
+import { OllamaPlugin, make } from "@omnixa/core/plugin/provider/ollama"
+import { ProviderPlugins } from "@omnixa/core/plugin/provider"
+import { Provider } from "@omnixa/core/provider"
+import { Document, Event, Info } from "@omnixa/schema/config"
 import { describe, expect } from "bun:test"
 import { Duration, Effect, Layer, Schema } from "effect"
 import { testEffect } from "../lib/effect"
@@ -102,8 +102,8 @@ describe("OllamaPlugin", () => {
           const providers = yield* Provider.Service
           const modelState = yield* Model.Service
           const providerID = Provider.ID.make("ollama")
-          expect(OllamaPlugin.id).toBe("aigcfroge.provider.ollama")
-          expect(ProviderPlugins.map((item) => item.id)).toContain("aigcfroge.provider.ollama")
+          expect(OllamaPlugin.id).toBe("omnixa.provider.ollama")
+          expect(ProviderPlugins.map((item) => item.id)).toContain("omnixa.provider.ollama")
           yield* addPlugin(server.url.origin)
           const model = yield* eventually(
             modelState.get(providerID, Model.ID.make("gemma3:4b")),
@@ -114,7 +114,7 @@ describe("OllamaPlugin", () => {
             id: providerID,
             name: "Ollama",
             activation: "enabled",
-            package: "@aigcfroge/ai/providers/openai-compatible",
+            package: "@omnixa/ai/providers/openai-compatible",
             settings: { baseURL: `${server.url.origin}/v1`, provider: "ollama", apiKey: "" },
           })
           expect(model).toMatchObject({
@@ -222,7 +222,7 @@ describe("OllamaPlugin", () => {
           yield* providers.transform((editor) => {
             editor.update(providerID, (provider) => {
               provider.name = "Ollama"
-              provider.package = "@aigcfroge/ai/providers/openai-compatible"
+              provider.package = "@omnixa/ai/providers/openai-compatible"
               provider.integrationID = Integration.ID.make("ollama")
             })
             editor.models.update(providerID, Model.ID.make("static-model"), () => {})

@@ -1,13 +1,13 @@
-import { Bus } from "@aigcfroge/core/bus"
-import { Config } from "@aigcfroge/core/config"
-import { Integration } from "@aigcfroge/core/integration"
-import { Model } from "@aigcfroge/core/model"
-import { Plugin } from "@aigcfroge/core/plugin"
-import { PluginHost } from "@aigcfroge/core/plugin/host"
-import { ProviderPlugins } from "@aigcfroge/core/plugin/provider"
-import { make, VLLMPlugin } from "@aigcfroge/core/plugin/provider/vllm"
-import { Provider } from "@aigcfroge/core/provider"
-import { Document, Event, Info } from "@aigcfroge/schema/config"
+import { Bus } from "@omnixa/core/bus"
+import { Config } from "@omnixa/core/config"
+import { Integration } from "@omnixa/core/integration"
+import { Model } from "@omnixa/core/model"
+import { Plugin } from "@omnixa/core/plugin"
+import { PluginHost } from "@omnixa/core/plugin/host"
+import { ProviderPlugins } from "@omnixa/core/plugin/provider"
+import { make, VLLMPlugin } from "@omnixa/core/plugin/provider/vllm"
+import { Provider } from "@omnixa/core/provider"
+import { Document, Event, Info } from "@omnixa/schema/config"
 import { describe, expect } from "bun:test"
 import { Duration, Effect, Layer, Schema } from "effect"
 import { testEffect } from "../lib/effect"
@@ -77,8 +77,8 @@ describe("VLLMPlugin", () => {
           const providers = yield* Provider.Service
           const modelState = yield* Model.Service
           const providerID = Provider.ID.make("vllm")
-          expect(VLLMPlugin.id).toBe("aigcfroge.provider.vllm")
-          expect(ProviderPlugins.map((item) => item.id)).toContain("aigcfroge.provider.vllm")
+          expect(VLLMPlugin.id).toBe("omnixa.provider.vllm")
+          expect(ProviderPlugins.map((item) => item.id)).toContain("omnixa.provider.vllm")
           yield* addPlugin(server.url.origin, "5 millis")
           yield* Effect.promise(() => Bun.sleep(20))
           expect(yield* providers.get(providerID)).toBeUndefined()
@@ -92,7 +92,7 @@ describe("VLLMPlugin", () => {
           expect(yield* providers.get(providerID)).toEqual({
             id: providerID,
             name: "vLLM",
-            package: "@aigcfroge/ai/providers/openai-compatible",
+            package: "@omnixa/ai/providers/openai-compatible",
             settings: { baseURL: `${server.url.origin}/v1`, provider: "vllm", apiKey: "" },
             activation: "enabled",
           })
@@ -182,7 +182,7 @@ describe("VLLMPlugin", () => {
           yield* providers.transform((editor) => {
             editor.update(providerID, (provider) => {
               provider.name = "vLLM"
-              provider.package = "@aigcfroge/ai/providers/openai-compatible"
+              provider.package = "@omnixa/ai/providers/openai-compatible"
               provider.integrationID = Integration.ID.make("vllm")
               provider.activation = "auto"
             })

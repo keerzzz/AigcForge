@@ -1,9 +1,9 @@
 import { EOL } from "node:os"
 import { Effect } from "effect"
-import { AigcForge } from "@aigcfroge/client"
+import { Omnixa } from "@omnixa/client"
 import { Commands } from "../../commands"
 import { Runtime } from "../../../framework/runtime"
-import { Service } from "@aigcfroge/client/effect/service"
+import { Service } from "@omnixa/client/effect/service"
 import { ServerConnection } from "../../../services/server-connection"
 import { resolveIntegration } from "./resolve"
 
@@ -13,7 +13,7 @@ export default Runtime.handler(
   Commands.commands.mcp.commands.logout,
   Effect.fn("cli.mcp.logout")(function* (input) {
     const { endpoint } = yield* ServerConnection.resolve()
-    const client = AigcForge.make({ baseUrl: endpoint.url, headers: Service.headers(endpoint) })
+    const client = Omnixa.make({ baseUrl: endpoint.url, headers: Service.headers(endpoint) })
 
     const integration = yield* resolveIntegration(client, input.name, location)
     if (!integration) {

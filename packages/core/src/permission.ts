@@ -1,8 +1,8 @@
 export * as Permission from "./permission.js"
 
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
 import { Context, Deferred, Duration, Effect, Layer, Option, Schema } from "effect"
-import { Permission } from "@aigcfroge/schema/permission"
+import { Permission } from "@omnixa/schema/permission"
 import { Bus } from "./bus.js"
 import { Location } from "./location.js"
 import { Agent } from "./agent.js"
@@ -17,11 +17,11 @@ import { PermissionSaved } from "./permission/saved.js"
 import { ApprovalPresence } from "./permission/approval-presence.js"
 import { ScopedGrantStore } from "./grant/store.js"
 import { PluginHooks } from "./plugin/hooks.js"
-import { PermissionTier } from "@aigcfroge/schema/permission-tier"
+import { PermissionTier } from "@omnixa/schema/permission-tier"
 
 const PermissionEffect = Permission.Effect
 export { PermissionEffect as Effect }
-export { Rule, Ruleset } from "@aigcfroge/schema/permission"
+export { Rule, Ruleset } from "@omnixa/schema/permission"
 const missingAgentPermissions: Permission.Ruleset = [{ action: "*", resource: "*", effect: "deny" }]
 
 export const ID = Permission.ID
@@ -69,7 +69,7 @@ export const AskResult = Schema.Struct({
 }).annotate({ identifier: "Permission.AskResult" })
 export type AskResult = typeof AskResult.Type
 
-export { Event } from "@aigcfroge/schema/permission"
+export { Event } from "@omnixa/schema/permission"
 
 export class DeclinedError extends Schema.TaggedError<DeclinedError>()("Permission.DeclinedError", {}) {}
 
@@ -146,7 +146,7 @@ export interface Interface {
   readonly list: () => Effect.Effect<ReadonlyArray<Request>>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/Permission") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/Permission") {}
 
 interface Pending {
   readonly request: Request

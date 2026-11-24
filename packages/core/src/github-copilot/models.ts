@@ -1,6 +1,6 @@
 export * as CopilotModels from "./models.js"
 
-import { Money } from "@aigcfroge/schema/money"
+import { Money } from "@omnixa/schema/money"
 import { Option, Schema } from "effect"
 import { Model } from "../model.js"
 import { Provider } from "../provider.js"
@@ -146,7 +146,7 @@ function build(id: Model.ID, remote: UsableModel, baseURL: string, previous?: Mo
   if (image) input.push("image")
   if (pdf) input.push("pdf")
   const prices = remote.billing?.token_prices
-  // Copilot reports AIC per billing batch; AigcForge stores USD per million tokens.
+  // Copilot reports AIC per billing batch; Omnixa stores USD per million tokens.
   const usdPerMillion = prices && prices.batch_size > 0 ? 10_000 / prices.batch_size : 0
   const version = remote.version.startsWith(`${remote.id}-`)
     ? remote.version.slice(remote.id.length + 1)
@@ -160,7 +160,7 @@ function build(id: Model.ID, remote: UsableModel, baseURL: string, previous?: Mo
     providerID: Provider.ID.githubCopilot,
     family: previous?.family ?? Model.Family.make(remote.capabilities.family),
     name: previous?.name ?? remote.name,
-    package: messages ? "@aigcfroge/ai/providers/anthropic" : Provider.aisdk("@ai-sdk/github-copilot"),
+    package: messages ? "@omnixa/ai/providers/anthropic" : Provider.aisdk("@ai-sdk/github-copilot"),
     settings: Provider.mergeOverlay(previous?.settings, {
       baseURL: messages ? `${baseURL}/v1` : baseURL,
       ...(endpoint ? { endpoint } : {}),

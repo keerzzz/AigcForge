@@ -4,8 +4,8 @@ import { Effect, Layer, Logger } from "effect"
 import fs from "fs/promises"
 import os from "os"
 import path from "path"
-import { fileLogger } from "@aigcfroge/util/observability/logging"
-import { resource } from "@aigcfroge/util/observability/otlp"
+import { fileLogger } from "@omnixa/util/observability/logging"
+import { resource } from "@omnixa/util/observability/otlp"
 
 const otelResourceAttributes = process.env.OTEL_RESOURCE_ATTRIBUTES
 
@@ -31,25 +31,24 @@ describe("resource", () => {
     process.env.OTEL_RESOURCE_ATTRIBUTES = "service.namespace=anomalyco,broken"
 
     expect(resource().attributes["service.namespace"]).toBeUndefined()
-    expect(resource().attributes["aigcfroge.client"]).toBeDefined()
+    expect(resource().attributes["omnixa.client"]).toBeDefined()
   })
 
   test("keeps built-in attributes when env values conflict", () => {
-    process.env.OTEL_RESOURCE_ATTRIBUTES =
-      "aigcfroge.client=web,service.instance.id=override,service.namespace=anomalyco"
+    process.env.OTEL_RESOURCE_ATTRIBUTES = "omnixa.client=web,service.instance.id=override,service.namespace=anomalyco"
 
     const app = { client: "cli", version: "1.2.3", channel: "beta" }
     expect(resource(app).attributes).toMatchObject({
-      "aigcfroge.client": "cli",
+      "omnixa.client": "cli",
       "service.namespace": "anomalyco",
     })
     expect(resource(app).attributes["service.instance.id"]).not.toBe("override")
-    expect(resource(app).attributes["aigcfroge.run"]).toMatch(/^[0-9a-f]{8}$/)
+    expect(resource(app).attributes["omnixa.run"]).toMatch(/^[0-9a-f]{8}$/)
   })
 })
 
 test("falls back to local logging when OTLP initialization fails", async () => {
-  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "aigcfroge-observability-test-"))
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "omnixa-observability-test-"))
   await using _ = {
     async [Symbol.asyncDispose]() {
       await fs.rm(dir, { recursive: true, force: true })
@@ -61,7 +60,7 @@ test("falls back to local logging when OTLP initialization fails", async () => {
       "--eval",
       `
         import { Effect } from "effect"
-        import { Observability } from "@aigcfroge/util/observability"
+        import { Observability } from "@omnixa/util/observability"
         await Effect.void.pipe(Effect.provide(Observability.layer()), Effect.scoped, Effect.runPromise)
       `,
     ],
@@ -85,13 +84,13 @@ test("falls back to local logging when OTLP initialization fails", async () => {
 })
 
 test("file logger appends concurrent runs with a run on every line", async () => {
-  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "aigcfroge-log-test-"))
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "omnixa-log-test-"))
   await using _ = {
     async [Symbol.asyncDispose]() {
       await fs.rm(dir, { recursive: true, force: true })
     },
   }
-  const file = path.join(dir, "aigcfroge.log")
+  const file = path.join(dir, "omnixa.log")
   const write = (runID: string) =>
     Effect.forEach(
       Array.from({ length: 50 }, (_, index) => index),
@@ -113,13 +112,13 @@ test("file logger appends concurrent runs with a run on every line", async () =>
 })
 
 test("file logger flattens nested objects", async () => {
-  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "aigcfroge-log-test-"))
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "omnixa-log-test-"))
   await using _ = {
     async [Symbol.asyncDispose]() {
       await fs.rm(dir, { recursive: true, force: true })
     },
   }
-  const file = path.join(dir, "aigcfroge.log")
+  const file = path.join(dir, "omnixa.log")
 
   await Effect.logInfo("request complete", {
     request: { method: "GET", timing: { duration: 42 } },

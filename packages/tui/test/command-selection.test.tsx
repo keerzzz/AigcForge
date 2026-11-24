@@ -3,7 +3,7 @@ import { InputRenderable, TextareaRenderable } from "@opentui/core"
 import { directory, json } from "./fixture/tui-client"
 import { tmpdir } from "./fixture/fixture"
 import { createAppFixture } from "./fixture/app"
-import type { SessionInfo } from "@aigcfroge/client"
+import type { SessionInfo } from "@omnixa/client"
 
 test("custom commands commit the captured agent, model and variant before execution", async () => {
   await using state = await tmpdir()

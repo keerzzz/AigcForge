@@ -1,7 +1,7 @@
 export * as WorkspaceDriver from "./driver.js"
 
-import { Workspace } from "@aigcfroge/schema/workspace"
-import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
+import { Workspace } from "@omnixa/schema/workspace"
+import { makeGlobalNode } from "@omnixa/util/effect/app-node"
 import { Context, Effect, Layer, Schema } from "effect"
 import type { Scope } from "effect"
 import type { EnvironmentDriver } from "../environment/driver.js"
@@ -67,9 +67,7 @@ export interface Registry {
   readonly get: (provider: string) => Effect.Effect<Interface, ProviderNotFound>
 }
 
-export class RegistryService extends Context.Service<RegistryService, Registry>()(
-  "@aigcfroge/WorkspaceDriverRegistry",
-) {}
+export class RegistryService extends Context.Service<RegistryService, Registry>()("@omnixa/WorkspaceDriverRegistry") {}
 
 export const registry = (drivers: Readonly<Record<string, Interface>>): Registry => ({
   get: (provider) => {

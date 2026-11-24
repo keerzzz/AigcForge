@@ -75,7 +75,7 @@ async function check(channel: string, read: (path: string) => Promise<Uint8Array
   expect(html).toContain(`href="/icons/${channel}/favicon.ico"`)
   expect(html).toContain(`href="/icons/${channel}/apple-touch-icon.png"`)
   expect(html).toContain(`href="/site.webmanifest"`)
-  expect(html).not.toContain("%AIGCFROGE_")
+  expect(html).not.toContain("%OMNIXA_")
 
   await Promise.all(
     Object.entries({

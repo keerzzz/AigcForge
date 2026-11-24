@@ -1,22 +1,22 @@
 import { chmod } from "node:fs/promises"
-import { Agent } from "@aigcfroge/core/agent"
+import { Agent } from "@omnixa/core/agent"
 import { describe, expect } from "bun:test"
 import { Effect, Schedule, Schema } from "effect"
-import { Config } from "@aigcfroge/core/config"
-import { ConfigProviderPlugin } from "@aigcfroge/core/config/plugin/provider"
-import { Bus } from "@aigcfroge/core/bus"
-import { Credential } from "@aigcfroge/core/credential"
-import { Model } from "@aigcfroge/core/model"
-import { Plugin } from "@aigcfroge/core/plugin"
-import { PluginHost } from "@aigcfroge/core/plugin/host"
-import { PluginHooks } from "@aigcfroge/core/plugin/hooks"
-import { make } from "@aigcfroge/core/plugin/provider/azure"
-import { Provider } from "@aigcfroge/core/provider"
-import { Integration } from "@aigcfroge/core/integration"
-import { Location } from "@aigcfroge/core/location"
-import { Session } from "@aigcfroge/core/session"
-import { Document, Info } from "@aigcfroge/schema/config"
-import { AppProcess } from "@aigcfroge/util/process"
+import { Config } from "@omnixa/core/config"
+import { ConfigProviderPlugin } from "@omnixa/core/config/plugin/provider"
+import { Bus } from "@omnixa/core/bus"
+import { Credential } from "@omnixa/core/credential"
+import { Model } from "@omnixa/core/model"
+import { Plugin } from "@omnixa/core/plugin"
+import { PluginHost } from "@omnixa/core/plugin/host"
+import { PluginHooks } from "@omnixa/core/plugin/hooks"
+import { make } from "@omnixa/core/plugin/provider/azure"
+import { Provider } from "@omnixa/core/provider"
+import { Integration } from "@omnixa/core/integration"
+import { Location } from "@omnixa/core/location"
+import { Session } from "@omnixa/core/session"
+import { Document, Info } from "@omnixa/schema/config"
+import { AppProcess } from "@omnixa/util/process"
 import { testEffect } from "../lib/effect"
 import { PluginTestLayer } from "./fixture"
 
@@ -183,7 +183,7 @@ const seedProvider = (settings?: Provider.Settings) =>
     const catalog = yield* Provider.Service
     yield* catalog.transform((editor) => {
       editor.update(Provider.ID.azure, (provider) => {
-        provider.package = "@aigcfroge/ai/providers/azure/responses"
+        provider.package = "@omnixa/ai/providers/azure/responses"
         if (settings) provider.settings = settings
       })
     })
@@ -204,7 +204,7 @@ const seedCatalog = Effect.gen(function* () {
     })
     editor.models.update(Provider.ID.azure, Model.ID.make("deepseek-v4-flash"), (model) => {
       model.name = "DeepSeek-V4-Flash"
-      model.package = "@aigcfroge/ai/providers/openai-compatible"
+      model.package = "@omnixa/ai/providers/openai-compatible"
       model.settings = { baseURL: "https://${AZURE_RESOURCE_NAME}.services.ai.azure.com/models" }
     })
   })
@@ -682,14 +682,14 @@ describe("AzurePlugin resource name", () => {
       const models = yield* Model.Service
       yield* providers.transform((editor) => {
         editor.update(Provider.ID.azure, (provider) => {
-          provider.package = "@aigcfroge/ai/providers/openai-compatible"
+          provider.package = "@omnixa/ai/providers/openai-compatible"
           provider.activation = "enabled"
           provider.settings = {
             baseURL: "https://${AZURE_COGNITIVE_SERVICES_RESOURCE_NAME}.cognitiveservices.azure.com/openai",
           }
         })
         editor.models.update(Provider.ID.azure, Model.ID.make("anthropic"), (model) => {
-          model.package = "@aigcfroge/ai/providers/anthropic"
+          model.package = "@omnixa/ai/providers/anthropic"
           model.settings = {
             resourceName: "model-resource",
             baseURL: "https://${AZURE_RESOURCE_NAME}.services.ai.azure.com/anthropic/v1",
@@ -719,7 +719,7 @@ describe("AzurePlugin transport", () => {
       const variants: Record<string, (model: Model.MutableInfo) => void> = {
         responses: () => {},
         chat: (model) => {
-          model.package = "@aigcfroge/ai/providers/azure/chat"
+          model.package = "@omnixa/ai/providers/azure/chat"
         },
         preview: (model) => {
           model.settings = { apiVersion: "2025-04-01-preview" }
@@ -731,12 +731,12 @@ describe("AzurePlugin transport", () => {
           model.settings = { baseURL: "https://gateway.example/azure" }
         },
         "non-azure": (model) => {
-          model.package = "@aigcfroge/ai/providers/anthropic"
+          model.package = "@omnixa/ai/providers/anthropic"
         },
       }
       yield* providers.transform((editor) => {
         editor.update(Provider.ID.azure, (provider) => {
-          provider.package = "@aigcfroge/ai/providers/azure/responses"
+          provider.package = "@omnixa/ai/providers/azure/responses"
           provider.activation = "enabled"
         })
         Object.entries(variants).forEach(([id, update]) =>

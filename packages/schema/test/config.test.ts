@@ -75,7 +75,7 @@ describe("Config.Entry", () => {
     const entries = [
       new Config.Document({
         type: "document",
-        path: AbsolutePath.make("/project/aigcfroge.json"),
+        path: AbsolutePath.make("/project/omnixa.json"),
         info: new Config.Info({
           permissions: [
             { action: "shell", resource: "*", effect: "ask" },
@@ -84,7 +84,7 @@ describe("Config.Entry", () => {
         }),
       }),
       new Config.Document({ type: "document", info: new Config.Info({ shell: "/bin/zsh" }) }),
-      new Config.Directory({ type: "directory", path: AbsolutePath.make("/project/.aigcfroge") }),
+      new Config.Directory({ type: "directory", path: AbsolutePath.make("/project/.omnixa") }),
     ]
 
     const encoded = Schema.encodeSync(Schema.Array(Config.Entry))(entries)

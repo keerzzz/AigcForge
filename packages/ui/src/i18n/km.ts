@@ -66,16 +66,6 @@ export const dict = {
   "ui.sessionTurn.retry.attempt": "ព្យាយាម #{{attempt}}",
   "ui.sessionTurn.retry.attemptLine": "{{line}} - ព្យាយាម #{{attempt}}",
   "ui.sessionTurn.retry.geminiHot": "Gemini គឺក្តៅពេកហើយនៅពេលនេះ",
-  "ui.sessionTurn.error.freeUsageExceeded": "លើសពីការប្រើប្រាស់ឥតគិតថ្លៃ",
-  "ui.sessionTurn.error.addCredits": "បន្ថែមក្រេឌីត",
-  "dialog.usageExceeded.freeTier.title": "បានដល់ដែនកំណត់ឥតគិតថ្លៃ",
-  "dialog.usageExceeded.freeTier.description":
-    "ជាវ AigcForge Go ក្នុងតម្លៃ $10/ខែ សម្រាប់ការចូលប្រើដែលអាចទុកចិត្តបានចំពោះម៉ូដែលប្រភពបើកចំហល្អបំផុត។",
-  "dialog.usageExceeded.freeTier.actionLabel": "ជាវ",
-  "dialog.usageExceeded.accountRateLimit.title": "ឈានដល់កម្រិតកំណត់",
-  "dialog.usageExceeded.accountRateLimit.description":
-    "ឈានដល់ដែនកំណត់នៃការប្រើប្រាស់។ ដើម្បីបន្តប្រើម៉ូដែលនេះឥឡូវនេះ សូមបើកការប្រើប្រាស់ពីសមតុល្យដែលមានរបស់អ្នក។",
-  "dialog.usageExceeded.accountRateLimit.actionLabel": "បើកការកំណត់",
   "ui.sessionTurn.status.delegating": "ការផ្ទេរការងារ",
   "ui.sessionTurn.status.planning": "ការធ្វើផែនការជំហានបន្ទាប់",
   "ui.sessionTurn.status.gatheringContext": "ការរុករក",

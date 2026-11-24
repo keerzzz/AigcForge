@@ -1,5 +1,5 @@
-import { resolveThemeVariant } from "@aigcfroge/ui/theme/resolve"
-import type { DesktopTheme } from "@aigcfroge/ui/theme/types"
+import { resolveThemeVariant } from "@omnixa/ui/theme/resolve"
+import type { DesktopTheme } from "@omnixa/ui/theme/types"
 import { nativeTheme } from "electron"
 import oc2ThemeJson from "../../../../ui/src/theme/themes/oc-2.json"
 import { BACKGROUND_COLOR_KEY } from "../storage/keys"

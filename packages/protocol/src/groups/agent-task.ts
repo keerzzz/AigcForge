@@ -1,4 +1,4 @@
-import { SessionTask } from "@aigcfroge/schema/session-task"
+import { SessionTask } from "@omnixa/schema/session-task"
 import { Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/http-api"
 import { Authorization } from "../middleware/authorization.js"

@@ -1,7 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "aigcfroge HttpApi",
+    "title": "omnixa HttpApi",
     "version": "0.0.1",
     "description": "Experimental HttpApi surface for selected instance routes."
   },
@@ -2168,7 +2168,7 @@
             }
           }
         },
-        "description": "Retrieve foreground Session drains currently owned by this AigcForge process. Sessions absent from the result are inactive.",
+        "description": "Retrieve foreground Session drains currently owned by this Omnixa process. Sessions absent from the result are inactive.",
         "summary": "List active sessions"
       }
     },
@@ -5030,7 +5030,7 @@
             }
           }
         },
-        "description": "Interrupt active execution owned by this AigcForge process. Returns interrupted=true when an active execution was interrupted and false for the idle no-op. When resume=true, execution resumes pending steering input and next-in-line control items (manual compaction, moves) while queued prompts remain parked.",
+        "description": "Interrupt active execution owned by this Omnixa process. Returns interrupted=true when an active execution was interrupted and false for the idle no-op. When resume=true, execution resumes pending steering input and next-in-line control items (manual compaction, moves) while queued prompts remain parked.",
         "summary": "Interrupt session execution"
       }
     },
@@ -13585,7 +13585,7 @@
             "required": true
           },
           {
-            "name": "x-aigcfroge-ticket",
+            "name": "x-omnixa-ticket",
             "in": "header",
             "schema": {
               "anyOf": [
@@ -14454,7 +14454,7 @@
             "required": true
           },
           {
-            "name": "x-aigcfroge-ticket",
+            "name": "x-omnixa-ticket",
             "in": "header",
             "schema": {
               "anyOf": [
@@ -14660,7 +14660,7 @@
             }
           }
         },
-        "description": "Stream persistent PTY output through the AigcForge server.",
+        "description": "Stream persistent PTY output through the Omnixa server.",
         "summary": "Connect to a persistent PTY",
         "x-websocket": true
       }
@@ -28468,7 +28468,7 @@
             }
           }
         },
-        "description": "Get a list of all active pseudo-terminal (PTY) sessions managed by AigcForge.",
+        "description": "Get a list of all active pseudo-terminal (PTY) sessions managed by Omnixa.",
         "summary": "List PTY sessions"
       },
       "post": {
@@ -29227,7 +29227,7 @@
             }
           }
         },
-        "description": "Get a list of projects that have been opened with AigcForge.",
+        "description": "Get a list of projects that have been opened with Omnixa.",
         "summary": "List all projects"
       }
     },
@@ -29310,7 +29310,7 @@
             }
           }
         },
-        "description": "Retrieve the currently active project that AigcForge is working with.",
+        "description": "Retrieve the currently active project that Omnixa is working with.",
         "summary": "Get current project"
       }
     },
@@ -30689,7 +30689,7 @@
             }
           }
         },
-        "description": "Retrieve the current AigcForge configuration settings and preferences.",
+        "description": "Retrieve the current Omnixa configuration settings and preferences.",
         "summary": "Get configuration"
       },
       "patch": {
@@ -30770,7 +30770,7 @@
             }
           }
         },
-        "description": "Update AigcForge configuration settings and preferences.",
+        "description": "Update Omnixa configuration settings and preferences.",
         "summary": "Update configuration",
         "requestBody": {
           "content": {
@@ -33685,7 +33685,7 @@
             }
           }
         },
-        "description": "Get a list of all Aigcfroge sessions, sorted by most recently updated.",
+        "description": "Get a list of all Omnixa sessions, sorted by most recently updated.",
         "summary": "List sessions"
       },
       "post": {
@@ -33773,7 +33773,7 @@
             }
           }
         },
-        "description": "Create a new Aigcfroge session for interacting with AI assistants and managing conversations.",
+        "description": "Create a new Omnixa session for interacting with AI assistants and managing conversations.",
         "summary": "Create session",
         "requestBody": {
           "content": {
@@ -34101,7 +34101,7 @@
             }
           }
         },
-        "description": "Retrieve detailed information about a specific Aigcfroge session.",
+        "description": "Retrieve detailed information about a specific Omnixa session.",
         "summary": "Get session"
       },
       "delete": {
@@ -68854,7 +68854,7 @@
         "properties": {
           "interrupted": {
             "type": "boolean",
-            "description": "Whether an active execution owned by this AigcForge process was interrupted."
+            "description": "Whether an active execution owned by this Omnixa process was interrupted."
           }
         },
         "required": ["interrupted"],

@@ -1,8 +1,8 @@
 import { isAbsolute, resolve } from "node:path"
 import type { ToolCall, ToolCallContent, ToolCallLocation, ToolCallUpdate, ToolKind } from "@agentclientprotocol/sdk"
-import type { Tool } from "@aigcfroge/schema/tool"
-import { readDisplayText } from "@aigcfroge/tui/mini/tool"
-import { Patch } from "@aigcfroge/util/patch"
+import type { Tool } from "@omnixa/schema/tool"
+import { readDisplayText } from "@omnixa/tui/mini/tool"
+import { Patch } from "@omnixa/util/patch"
 import { Result } from "effect"
 
 export type ToolInput = Record<string, unknown>

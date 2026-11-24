@@ -1,9 +1,9 @@
-import { createSimpleContext } from "@aigcfroge/ui/context"
+import { createSimpleContext } from "@omnixa/ui/context"
 import type { AsyncStorage, SyncStorage } from "@solid-primitives/storage"
 import type { Accessor } from "solid-js"
 import type { DesktopMenuAction } from "@/shell/commands/desktop-menu"
 import type { DraftStore } from "@/runtime/persistence/drafts"
-import type { Bridge } from "@aigcfroge/gui-extensions/sdk/bridge"
+import type { Bridge } from "@omnixa/gui-extensions/sdk/bridge"
 
 type PickerPaths = string | string[] | null
 

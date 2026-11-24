@@ -1,12 +1,12 @@
 {
-  "name": "aigcfroge",
-  "displayName": "aigcfroge",
-  "description": "aigcfroge for VS Code",
+  "name": "omnixa",
+  "displayName": "omnixa",
+  "description": "omnixa for VS Code",
   "version": "2.0.26",
   "publisher": "sst-dev",
   "repository": {
     "type": "git",
-    "url": "https://github.com/anomalyco/aigcfroge"
+    "url": "https://github.com/keerzzz/AigcForge"
   },
   "license": "MIT",
   "icon": "images/icon.png",
@@ -25,54 +25,54 @@
   "contributes": {
     "commands": [
       {
-        "command": "aigcfroge.openTerminal",
-        "title": "Open aigcfroge",
+        "command": "omnixa.openTerminal",
+        "title": "Open omnixa",
         "icon": {
           "light": "images/button-dark.svg",
           "dark": "images/button-light.svg"
         }
       },
       {
-        "command": "aigcfroge.openNewTerminal",
-        "title": "Open aigcfroge in new tab",
+        "command": "omnixa.openNewTerminal",
+        "title": "Open omnixa in new tab",
         "icon": {
           "light": "images/button-dark.svg",
           "dark": "images/button-light.svg"
         }
       },
       {
-        "command": "aigcfroge.addFilepathToTerminal",
+        "command": "omnixa.addFilepathToTerminal",
         "title": "Add Filepath to Terminal"
       }
     ],
     "menus": {
       "editor/title": [
         {
-          "command": "aigcfroge.openNewTerminal",
+          "command": "omnixa.openNewTerminal",
           "group": "navigation"
         }
       ]
     },
     "keybindings": [
       {
-        "command": "aigcfroge.openTerminal",
-        "title": "Run aigcfroge",
+        "command": "omnixa.openTerminal",
+        "title": "Run omnixa",
         "key": "cmd+escape",
         "mac": "cmd+escape",
         "win": "ctrl+escape",
         "linux": "ctrl+escape"
       },
       {
-        "command": "aigcfroge.openNewTerminal",
-        "title": "Run aigcfroge",
+        "command": "omnixa.openNewTerminal",
+        "title": "Run omnixa",
         "key": "cmd+shift+escape",
         "mac": "cmd+shift+escape",
         "win": "ctrl+shift+escape",
         "linux": "ctrl+shift+escape"
       },
       {
-        "command": "aigcfroge.addFilepathToTerminal",
-        "title": "aigcfroge: Insert At-Mentioned",
+        "command": "omnixa.addFilepathToTerminal",
+        "title": "omnixa: Insert At-Mentioned",
         "key": "cmd+alt+k",
         "mac": "cmd+alt+k",
         "win": "ctrl+alt+K",

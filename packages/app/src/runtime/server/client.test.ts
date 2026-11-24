@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
-import type { AigcForgeEvent } from "@aigcfroge/client/promise"
+import type { OmnixaEvent } from "@omnixa/client/promise"
 import { createRoot } from "solid-js"
-import { createAigcForgeEventSource, createServerTransport } from "./client"
+import { createOmnixaEventSource, createServerTransport } from "./client"
 
 const permission = {
   id: "evt_permission",
@@ -15,16 +15,16 @@ const permission = {
     resources: ["src/**"],
     source: { type: "tool", messageID: "msg_1", id: "call_1" },
   },
-} satisfies Extract<AigcForgeEvent, { type: "permission.asked" }>
+} satisfies Extract<OmnixaEvent, { type: "permission.asked" }>
 
 function setup() {
-  return createRoot((dispose) => ({ ...createAigcForgeEventSource(), dispose }))
+  return createRoot((dispose) => ({ ...createOmnixaEventSource(), dispose }))
 }
 
 describe("server event stream", () => {
   test("publishes the original current event with exact data", () => {
     const server = setup()
-    const received: AigcForgeEvent[] = []
+    const received: OmnixaEvent[] = []
     let requestID: string | undefined
 
     server.event.on("permission.asked", (event) => {
@@ -41,16 +41,16 @@ describe("server event stream", () => {
 
   test("filters locations without changing workspace identity", () => {
     const server = setup()
-    const repo: AigcForgeEvent[] = []
-    const other: AigcForgeEvent[] = []
-    const all: AigcForgeEvent[] = []
+    const repo: OmnixaEvent[] = []
+    const other: OmnixaEvent[] = []
+    const all: OmnixaEvent[] = []
     let workspaceID: string | undefined
 
     const global = {
       id: "evt_connected",
       type: "server.connected",
       data: {},
-    } satisfies Extract<AigcForgeEvent, { type: "server.connected" }>
+    } satisfies Extract<OmnixaEvent, { type: "server.connected" }>
 
     const repoEvents = server.event.location("/repo")
     repoEvents.on("permission.asked", (event) => {
@@ -97,7 +97,7 @@ test("rotates HTTP and PTY clients together", async () => {
       version: "2.0.0-test",
       pid: 1,
       urls: [request.url],
-      paths: { tmp: "/tmp/aigcfroge" },
+      paths: { tmp: "/tmp/omnixa" },
     })
   }
 
@@ -127,11 +127,11 @@ test("rotates HTTP and PTY clients together", async () => {
   expect(requests).toEqual([
     {
       url: "http://127.0.0.1:4100/api/info",
-      authorization: `Basic ${btoa("aigcfroge:first")}`,
+      authorization: `Basic ${btoa("omnixa:first")}`,
     },
     {
       url: "http://127.0.0.1:4200/api/info",
-      authorization: `Basic ${btoa("aigcfroge:second")}`,
+      authorization: `Basic ${btoa("omnixa:second")}`,
     },
   ])
   const sameOrigin = transport.update({ url: "http://127.0.0.1:4200", password: "third" })
@@ -139,7 +139,7 @@ test("rotates HTTP and PTY clients together", async () => {
   await observed.api().server.info()
   expect(requests[2]).toEqual({
     url: "http://127.0.0.1:4200/api/info",
-    authorization: `Basic ${btoa("aigcfroge:third")}`,
+    authorization: `Basic ${btoa("omnixa:third")}`,
   })
   observed.dispose()
 })

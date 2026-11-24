@@ -1,7 +1,7 @@
 import { RGBA } from "@opentui/core"
 import { blendColor } from "./core/color/style.js"
 
-export interface AigcForgeDiagramPaletteInput {
+export interface OmnixaDiagramPaletteInput {
   readonly text: RGBA
   readonly subdued: RGBA
   readonly info: RGBA
@@ -14,9 +14,9 @@ export interface AigcForgeDiagramPaletteInput {
   }
 }
 
-export type AigcForgeDiagramPalette = ReturnType<typeof createAigcForgeDiagramPalette>
+export type OmnixaDiagramPalette = ReturnType<typeof createOmnixaDiagramPalette>
 
-export function createAigcForgeDiagramPalette(input: AigcForgeDiagramPaletteInput) {
+export function createOmnixaDiagramPalette(input: OmnixaDiagramPaletteInput) {
   const secondary = blendColor(input.text, input.subdued, 0.5)
   const muted = blendColor(input.text, input.subdued, 0.7)
   return {
@@ -43,7 +43,7 @@ export function createAigcForgeDiagramPalette(input: AigcForgeDiagramPaletteInpu
   }
 }
 
-export function resolveAigcForgeDiagramPalette(
+export function resolveOmnixaDiagramPalette(
   theme: {
     readonly text: {
       readonly base: RGBA
@@ -60,7 +60,7 @@ export function resolveAigcForgeDiagramPalette(
   mode: "dark" | "light",
 ) {
   const accent = theme.categorical[3] ?? theme.categorical[0]!
-  return createAigcForgeDiagramPalette({
+  return createOmnixaDiagramPalette({
     text: theme.text.base,
     subdued: theme.text.muted,
     info: theme.text.feedback.info.base,

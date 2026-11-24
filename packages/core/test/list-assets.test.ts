@@ -2,23 +2,23 @@ import { describe, expect } from "bun:test"
 import path from "node:path"
 import { Cause, Effect, Exit, Layer, Schema } from "effect"
 import { eq } from "drizzle-orm"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { Location } from "@aigcfroge/core/location"
-import { Session } from "@aigcfroge/core/session"
-import { Tool } from "@aigcfroge/core/tool"
-import { ListAssetsTool } from "@aigcfroge/core/tool/list-assets"
-import { AssetPublication } from "@aigcfroge/core/asset-publication"
-import { Database } from "@aigcfroge/core/database/database"
-import { Project } from "@aigcfroge/core/project"
-import { ProjectTable } from "@aigcfroge/core/project/sql"
-import { SessionTable } from "@aigcfroge/core/session/sql"
-import { SessionStore } from "@aigcfroge/core/session/store"
-import { LocationMutation } from "@aigcfroge/core/location-mutation"
-import { Skill } from "@aigcfroge/core/skill"
-import { AbsolutePath } from "@aigcfroge/core/schema"
-import { Global } from "@aigcfroge/util/global"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { Location } from "@omnixa/core/location"
+import { Session } from "@omnixa/core/session"
+import { Tool } from "@omnixa/core/tool"
+import { ListAssetsTool } from "@omnixa/core/tool/list-assets"
+import { AssetPublication } from "@omnixa/core/asset-publication"
+import { Database } from "@omnixa/core/database/database"
+import { Project } from "@omnixa/core/project"
+import { ProjectTable } from "@omnixa/core/project/sql"
+import { SessionTable } from "@omnixa/core/session/sql"
+import { SessionStore } from "@omnixa/core/session/store"
+import { LocationMutation } from "@omnixa/core/location-mutation"
+import { Skill } from "@omnixa/core/skill"
+import { AbsolutePath } from "@omnixa/core/schema"
+import { Global } from "@omnixa/util/global"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { FSUtil } from "@omnixa/util/fs-util"
 import { tempLocationLayer } from "./fixture/location"
 import { tempGlobalLayer } from "./fixture/global"
 import { testEffect } from "./lib/effect"
@@ -81,7 +81,7 @@ describe("list_assets registered tool", () => {
         })
         .run()
       yield* f.fs.writeWithDirs(
-        path.join(f.location.directory, ".aigcfroge/skills/craft.md"),
+        path.join(f.location.directory, ".omnixa/skills/craft.md"),
         "---\nkind: skill\nname: Craft definition\ndescription: Description\n---\nPRIVATE_DEFINITION_BODY",
       )
       yield* skills.transform((editor) =>
@@ -96,7 +96,7 @@ describe("list_assets registered tool", () => {
       )
       const result = yield* executeTool(f.registry, call())
       expect(result.output).toEqual({
-        assets: [{ kind: "skill", name: "craft", relativePath: ".aigcfroge/skills/craft.md" }],
+        assets: [{ kind: "skill", name: "craft", relativePath: ".omnixa/skills/craft.md" }],
       })
       const publication = Schema.decodeUnknownSync(AssetPublication.Json)(result.metadata?.publication)
       expect(publication.runtime.skills[0].id).toBe(Skill.ID.make("runtime-craft"))
@@ -135,7 +135,7 @@ describe("list_assets registered tool", () => {
         output: { assets: [] },
         content: [{ type: "text", text: "No assets found." }],
       })
-      yield* f.fs.makeDirectory(path.join(f.location.directory, ".aigcfroge"))
+      yield* f.fs.makeDirectory(path.join(f.location.directory, ".omnixa"))
       expect(yield* executeTool(f.registry, call({}, "call-empty-root"))).toMatchObject({
         status: "completed",
         output: { assets: [] },
@@ -146,27 +146,27 @@ describe("list_assets registered tool", () => {
   it.live("preserves names, relative paths, kind filtering and asset order", () =>
     Effect.gen(function* () {
       const f = yield* setup
-      yield* f.fs.makeDirectory(path.join(f.location.directory, ".aigcfroge/prompts"), { recursive: true })
-      yield* f.fs.makeDirectory(path.join(f.location.directory, ".aigcfroge/skills/toolkit"), { recursive: true })
-      yield* f.fs.makeDirectory(path.join(f.location.directory, ".aigcfroge/agents"))
-      yield* f.fs.makeDirectory(path.join(f.location.directory, ".aigcfroge/mcps"))
-      yield* f.fs.makeDirectory(path.join(f.location.directory, ".aigcfroge/workflows"))
-      yield* f.fs.writeFileString(path.join(f.location.directory, ".aigcfroge/prompts/a.md"), "a")
-      yield* f.fs.writeFileString(path.join(f.location.directory, ".aigcfroge/mcps/b.json"), "{}")
-      yield* f.fs.writeFileString(path.join(f.location.directory, ".aigcfroge/workflows/c.yaml"), "c: true")
-      yield* f.fs.writeFileString(path.join(f.location.directory, ".aigcfroge/prompts/.hidden.md"), "hidden")
-      yield* f.fs.writeFileString(path.join(f.location.directory, ".aigcfroge/agents/helper.agent.md"), "helper")
+      yield* f.fs.makeDirectory(path.join(f.location.directory, ".omnixa/prompts"), { recursive: true })
+      yield* f.fs.makeDirectory(path.join(f.location.directory, ".omnixa/skills/toolkit"), { recursive: true })
+      yield* f.fs.makeDirectory(path.join(f.location.directory, ".omnixa/agents"))
+      yield* f.fs.makeDirectory(path.join(f.location.directory, ".omnixa/mcps"))
+      yield* f.fs.makeDirectory(path.join(f.location.directory, ".omnixa/workflows"))
+      yield* f.fs.writeFileString(path.join(f.location.directory, ".omnixa/prompts/a.md"), "a")
+      yield* f.fs.writeFileString(path.join(f.location.directory, ".omnixa/mcps/b.json"), "{}")
+      yield* f.fs.writeFileString(path.join(f.location.directory, ".omnixa/workflows/c.yaml"), "c: true")
+      yield* f.fs.writeFileString(path.join(f.location.directory, ".omnixa/prompts/.hidden.md"), "hidden")
+      yield* f.fs.writeFileString(path.join(f.location.directory, ".omnixa/agents/helper.agent.md"), "helper")
       expect((yield* executeTool(f.registry, call())).output).toEqual({
         assets: [
-          { kind: "prompt", name: "a", relativePath: ".aigcfroge/prompts/a.md" },
-          { kind: "skill", name: "toolkit", relativePath: ".aigcfroge/skills/toolkit" },
-          { kind: "mcp", name: "b", relativePath: ".aigcfroge/mcps/b.json" },
-          { kind: "agent", name: "helper", relativePath: ".aigcfroge/agents/helper.agent.md" },
-          { kind: "workflow", name: "c", relativePath: ".aigcfroge/workflows/c.yaml" },
+          { kind: "prompt", name: "a", relativePath: ".omnixa/prompts/a.md" },
+          { kind: "skill", name: "toolkit", relativePath: ".omnixa/skills/toolkit" },
+          { kind: "mcp", name: "b", relativePath: ".omnixa/mcps/b.json" },
+          { kind: "agent", name: "helper", relativePath: ".omnixa/agents/helper.agent.md" },
+          { kind: "workflow", name: "c", relativePath: ".omnixa/workflows/c.yaml" },
         ],
       })
       expect((yield* executeTool(f.registry, call({ kind: "agent" }))).output).toEqual({
-        assets: [{ kind: "agent", name: "helper", relativePath: ".aigcfroge/agents/helper.agent.md" }],
+        assets: [{ kind: "agent", name: "helper", relativePath: ".omnixa/agents/helper.agent.md" }],
       })
       expect((yield* executeTool(f.registry, call({ kind: "unknown" }))).output).toEqual({ assets: [] })
     }),
@@ -175,15 +175,15 @@ describe("list_assets registered tool", () => {
   it.live("observes additions and removals through the same registered executor", () =>
     Effect.gen(function* () {
       const f = yield* setup
-      yield* f.fs.makeDirectory(path.join(f.location.directory, ".aigcfroge/prompts"), { recursive: true })
-      yield* f.fs.writeFileString(path.join(f.location.directory, ".aigcfroge/prompts/first.md"), "first")
+      yield* f.fs.makeDirectory(path.join(f.location.directory, ".omnixa/prompts"), { recursive: true })
+      yield* f.fs.writeFileString(path.join(f.location.directory, ".omnixa/prompts/first.md"), "first")
       expect((yield* executeTool(f.registry, call({}, "call-first"))).output).toEqual({
-        assets: [{ kind: "prompt", name: "first", relativePath: ".aigcfroge/prompts/first.md" }],
+        assets: [{ kind: "prompt", name: "first", relativePath: ".omnixa/prompts/first.md" }],
       })
-      yield* f.fs.remove(path.join(f.location.directory, ".aigcfroge/prompts/first.md"))
-      yield* f.fs.writeFileString(path.join(f.location.directory, ".aigcfroge/prompts/second.md"), "second")
+      yield* f.fs.remove(path.join(f.location.directory, ".omnixa/prompts/first.md"))
+      yield* f.fs.writeFileString(path.join(f.location.directory, ".omnixa/prompts/second.md"), "second")
       expect((yield* executeTool(f.registry, call({}, "call-second"))).output).toEqual({
-        assets: [{ kind: "prompt", name: "second", relativePath: ".aigcfroge/prompts/second.md" }],
+        assets: [{ kind: "prompt", name: "second", relativePath: ".omnixa/prompts/second.md" }],
       })
     }),
   )
@@ -200,7 +200,7 @@ describe("list_assets registered tool", () => {
       }),
     )
   })
-  ;[".aigcfroge", ".aigcfroge/prompts"].forEach((relativePath) => {
+  ;[".omnixa", ".omnixa/prompts"].forEach((relativePath) => {
     it.live(`fails for a non-directory ${relativePath}`, () =>
       Effect.gen(function* () {
         const f = yield* setup
@@ -217,7 +217,7 @@ describe("list_assets registered tool", () => {
   permissionTest("fails on unreadable asset directories", () =>
     Effect.gen(function* () {
       const f = yield* setup
-      const directory = path.join(f.location.directory, ".aigcfroge/prompts")
+      const directory = path.join(f.location.directory, ".omnixa/prompts")
       yield* f.fs.makeDirectory(directory, { recursive: true })
       yield* Effect.acquireRelease(f.fs.chmod(directory, 0), () => f.fs.chmod(directory, 0o700).pipe(Effect.orDie))
       expect(yield* executeTool(f.registry, call())).toMatchObject({

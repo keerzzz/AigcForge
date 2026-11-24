@@ -3,22 +3,22 @@ import { describe, expect } from "bun:test"
 import fs from "fs/promises"
 import path from "path"
 import { Deferred, Duration, Effect, Fiber, Layer, Option, Schedule, Stream } from "effect"
-import { Config } from "@aigcfroge/core/config"
-import { ConfigLocationWatcherPlugin } from "@aigcfroge/core/config/plugin/location-watcher"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { Bus } from "@aigcfroge/core/bus"
-import { FSUtil } from "@aigcfroge/util/fs-util"
-import { LocationWatcher } from "@aigcfroge/core/filesystem/location-watcher"
-import { LocationWatcherPolicy } from "@aigcfroge/core/filesystem/location-watcher-policy"
-import { Watcher } from "@aigcfroge/core/filesystem/watcher"
-import { FileSystem } from "@aigcfroge/schema/filesystem"
-import { Document, Event, Info, type Entry } from "@aigcfroge/schema/config"
-import { Location } from "@aigcfroge/core/location"
-import { Plugin } from "@aigcfroge/core/plugin"
-import { PluginSupervisor } from "@aigcfroge/core/plugin/supervisor"
-import { AbsolutePath } from "@aigcfroge/core/schema"
+import { Config } from "@omnixa/core/config"
+import { ConfigLocationWatcherPlugin } from "@omnixa/core/config/plugin/location-watcher"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { Bus } from "@omnixa/core/bus"
+import { FSUtil } from "@omnixa/util/fs-util"
+import { LocationWatcher } from "@omnixa/core/filesystem/location-watcher"
+import { LocationWatcherPolicy } from "@omnixa/core/filesystem/location-watcher-policy"
+import { Watcher } from "@omnixa/core/filesystem/watcher"
+import { FileSystem } from "@omnixa/schema/filesystem"
+import { Document, Event, Info, type Entry } from "@omnixa/schema/config"
+import { Location } from "@omnixa/core/location"
+import { Plugin } from "@omnixa/core/plugin"
+import { PluginSupervisor } from "@omnixa/core/plugin/supervisor"
+import { AbsolutePath } from "@omnixa/core/schema"
 import { location } from "../fixture/location"
 import { tmpdir } from "../fixture/tmpdir"
 import { testEffect } from "../lib/effect"
@@ -62,11 +62,11 @@ describe("Watcher lifecycle", () => {
         const watcher = yield* Watcher.Service
         const consumer = yield* watcher
           .subscribe(
-            { path: "/shared", type: "entries", names: ["aigcfroge.json"] },
+            { path: "/shared", type: "entries", names: ["omnixa.json"] },
             Effect.gen(function* () {
               counts.ready++
               const notify = yield* Deferred.await(publish)
-              notify({ path: "/shared/aigcfroge.json", type: "create" })
+              notify({ path: "/shared/omnixa.json", type: "create" })
             }),
           )
           .pipe(Effect.flatMap(Stream.runHead), Effect.forkScoped({ startImmediately: true }))
@@ -74,7 +74,7 @@ describe("Watcher lifecycle", () => {
         expect(counts.ready).toBe(0)
         yield* Deferred.succeed(acquired, undefined)
         expect(Option.getOrUndefined(yield* Fiber.join(consumer))).toEqual({
-          path: "/shared/aigcfroge.json",
+          path: "/shared/omnixa.json",
           type: "create",
         })
         expect(counts).toEqual({ ready: 1, closed: 1 })
@@ -119,7 +119,7 @@ describe("Watcher lifecycle", () => {
             native.subscribe({
               type: "entries",
               target: tmp.path,
-              names: ["aigcfroge.json", ".aigcfroge"],
+              names: ["omnixa.json", ".omnixa"],
               ignore: [],
               publish: (update) => events.push(update),
             }),
@@ -127,19 +127,19 @@ describe("Watcher lifecycle", () => {
           )
           yield* Effect.promise(async () => {
             await fs.mkdir(path.join(tmp.path, "nested"))
-            await fs.writeFile(path.join(tmp.path, "nested", "aigcfroge.json"), "ignored")
-            await fs.writeFile(path.join(tmp.path, "aigcfroge.jsonc"), "ignored")
-            await fs.writeFile(path.join(tmp.path, "aigcfroge.json"), "first")
+            await fs.writeFile(path.join(tmp.path, "nested", "omnixa.json"), "ignored")
+            await fs.writeFile(path.join(tmp.path, "omnixa.jsonc"), "ignored")
+            await fs.writeFile(path.join(tmp.path, "omnixa.json"), "first")
           })
           yield* Effect.sync(() => events.length).pipe(
             Effect.filterOrFail((count) => count > 0),
             Effect.retry(Schedule.spaced("10 millis")),
             Effect.timeout("1 second"),
           )
-          expect(events.every((update) => update.path === path.join(tmp.path, "aigcfroge.json"))).toBe(true)
+          expect(events.every((update) => update.path === path.join(tmp.path, "omnixa.json"))).toBe(true)
           yield* Effect.sleep("10 millis")
-          yield* Effect.promise(() => fs.mkdir(path.join(tmp.path, ".aigcfroge")))
-          yield* Effect.sync(() => events.some((update) => update.path === path.join(tmp.path, ".aigcfroge"))).pipe(
+          yield* Effect.promise(() => fs.mkdir(path.join(tmp.path, ".omnixa")))
+          yield* Effect.sync(() => events.some((update) => update.path === path.join(tmp.path, ".omnixa"))).pipe(
             Effect.filterOrFail(Boolean),
             Effect.retry(Schedule.spaced("10 millis")),
             Effect.timeout("1 second"),
@@ -188,8 +188,8 @@ describe("Watcher lifecycle", () => {
         watcher
           .subscribe({ path: "/shared", type: "entries", names })
           .pipe(Effect.flatMap(Stream.runDrain), Effect.forkScoped({ startImmediately: true }))
-      const first = yield* consume(["aigcfroge.json", ".aigcfroge", "aigcfroge.json"])
-      const second = yield* consume([".aigcfroge", "aigcfroge.json"])
+      const first = yield* consume(["omnixa.json", ".omnixa", "omnixa.json"])
+      const second = yield* consume([".omnixa", "omnixa.json"])
       yield* Effect.yieldNow
       expect(counts.subscribes).toBe(1)
 
@@ -270,7 +270,7 @@ function withTmp<A, E, R>(
       await $`git init`.cwd(tmp.path).quiet()
       await $`git config core.fsmonitor false`.cwd(tmp.path).quiet()
       await $`git config commit.gpgsign false`.cwd(tmp.path).quiet()
-      await $`git config user.email test@aigcfroge.test`.cwd(tmp.path).quiet()
+      await $`git config user.email test@omnixa.test`.cwd(tmp.path).quiet()
       await $`git config user.name Test`.cwd(tmp.path).quiet()
       await $`git commit --allow-empty -m root`.cwd(tmp.path).quiet()
       await options.init?.(tmp.path)
@@ -564,7 +564,7 @@ describeNative("LocationWatcher", () => {
       Effect.gen(function* () {
         const fs = yield* FSUtil.Service
         const watcher = yield* Watcher.Service
-        const target = path.join(directory, "aigcfroge.json")
+        const target = path.join(directory, "omnixa.json")
         const sibling = path.join(directory, "other.json")
         const updates = yield* watcher.subscribe({ path: target, type: "file" })
         const update = yield* updates.pipe(

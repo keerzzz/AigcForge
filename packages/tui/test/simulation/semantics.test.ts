@@ -1,8 +1,8 @@
 import { expect, test } from "bun:test"
 import { BoxRenderable } from "@opentui/core"
 import { Effect } from "effect"
-import { SimulationSemantics as Reader } from "@aigcfroge/simulation/frontend/semantics"
-import { SimulationRenderer } from "@aigcfroge/simulation/frontend/renderer"
+import { SimulationSemantics as Reader } from "@omnixa/simulation/frontend/semantics"
+import { SimulationRenderer } from "@omnixa/simulation/frontend/renderer"
 import { SimulationSemantics } from "../../src/simulation/semantics"
 
 test("shares lazy semantic annotations with the simulation renderer", async () => {

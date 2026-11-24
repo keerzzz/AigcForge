@@ -1,5 +1,5 @@
-import { Schedule } from "@aigcfroge/schema/schedule"
-import { Session } from "@aigcfroge/schema/session"
+import { Schedule } from "@omnixa/schema/schedule"
+import { Session } from "@omnixa/schema/session"
 import { Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/http-api"
 import { InvalidRequestError } from "../errors.js"

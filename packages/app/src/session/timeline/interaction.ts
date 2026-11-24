@@ -1,4 +1,4 @@
-import type { SessionMessageUser } from "@aigcfroge/client/promise"
+import type { SessionMessageUser } from "@omnixa/client/promise"
 import { createResizeObserver } from "@solid-primitives/resize-observer"
 import { useLocation } from "@solidjs/router"
 import { createEffect, on, onCleanup } from "solid-js"

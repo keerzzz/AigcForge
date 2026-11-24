@@ -1,15 +1,14 @@
 #!/usr/bin/env bun
 import { $ } from "bun"
 import pkg from "../package.json"
-import { Script } from "@aigcfroge/script"
+import { Script } from "@omnixa/script"
 import { fileURLToPath } from "url"
 import { existsSync } from "fs"
 import { chmod, rm, utimes } from "node:fs/promises"
 import path from "node:path"
-import { UpdateArtifact } from "../../../script/update-artifact"
 
 const dir = fileURLToPath(new URL("..", import.meta.url))
-const root = path.resolve(process.env.AIGCFROGE_CLI_DIST ?? path.join(dir, "dist"))
+const root = path.resolve(process.env.OMNIXA_CLI_DIST ?? path.join(dir, "dist"))
 process.chdir(dir)
 const dryRun = process.argv.includes("--dry-run")
 
@@ -33,7 +32,6 @@ async function publishDistribution(input: {
   legacyCommand?: string
   binary: string
   packagePrefix: string
-  artifact: string
 }) {
   const binaries: Record<string, string> = {}
   for (const filepath of new Bun.Glob("*/package.json").scanSync({ cwd: input.root })) {
@@ -68,11 +66,11 @@ async function publishDistribution(input: {
           [input.command]: `./bin/${input.command}.exe`,
           ...(input.legacyCommand ? { [input.legacyCommand]: `./bin/${input.command}.exe` } : {}),
         },
-        ...(input.command !== input.binary ? { aigcfrogeSourceBinary: input.binary } : {}),
+        ...(input.command !== input.binary ? { omnixaSourceBinary: input.binary } : {}),
         scripts: { postinstall: "node ./postinstall.mjs" },
         version,
         license: pkg.license,
-        repository: { type: "git", url: "git+https://github.com/anomalyco/aigcfroge.git" },
+        repository: { type: "git", url: "git+https://github.com/keerzzz/AigcForge.git" },
         os: ["darwin", "linux", "win32"],
         cpu: ["arm64", "x64"],
         optionalDependencies: binaries,
@@ -84,75 +82,45 @@ async function publishDistribution(input: {
 
   await Promise.all(
     Object.entries(binaries).map(([name, version]) =>
-      publish(`${input.root}/${name.replace("@aigcfroge/", "")}`, name, version),
+      publish(`${input.root}/${name.replace("@omnixa/", "")}`, name, version),
     ),
   )
   await publish(`${input.root}/${input.name}`, input.name, version)
-  const files = await UpdateArtifact.upload({
-    version,
-    files: await Promise.all(
+  console.log(
+    "Prepared CLI release archives",
+    await Promise.all(
       Object.keys(binaries).map((name) =>
         archive(
-          path.join(input.root, name.replace("@aigcfroge/", ""), "bin"),
+          path.join(input.root, name.replace("@omnixa/", ""), "bin"),
           name.slice(input.packagePrefix.length),
           input.binary,
           input.root,
         ),
       ),
     ),
-    dryRun,
-  })
-  const artifact = {
-    channel: Script.channel,
-    name: input.artifact,
-    distribution: "aigcfroge",
-    version,
-    metadata: { files },
-  }
-  if (dryRun) {
-    console.log(`dry-run artifact: ${JSON.stringify(artifact)}`)
-    return
-  }
-  await UpdateArtifact.publish({
-    channel: Script.channel,
-    name: input.artifact,
-    distribution: "npm",
-    version,
-    metadata: { package: input.name },
-  })
-  await UpdateArtifact.publish(artifact)
+  )
 }
 
 await publishDistribution({
   root,
   name: pkg.name,
-  command: "aigcfroge",
-  legacyCommand: "aigcfroge2",
-  binary: "aigcfroge",
-  packagePrefix: "@aigcfroge/cli-",
-  artifact: "cli",
+  command: "omnixa",
+  legacyCommand: "omnixa2",
+  binary: "omnixa",
+  packagePrefix: "@omnixa/cli-",
 })
 if (Script.channel !== "latest" && existsSync(path.join(root, "node"))) {
   await publishDistribution({
     root: path.join(root, "node"),
-    name: "@aigcfroge/cli-node",
-    command: "aigcfroge2-node",
-    binary: "aigcfroge2-node",
-    packagePrefix: "@aigcfroge/cli-node-",
-    artifact: "cli-node",
+    name: "@omnixa/cli-node",
+    command: "omnixa2-node",
+    binary: "omnixa2-node",
+    packagePrefix: "@omnixa/cli-node-",
   })
 }
 
 if (Script.channel === "latest" && Script.release && !dryRun) {
-  await $`docker buildx build --platform linux/amd64,linux/arm64 --tag ghcr.io/anomalyco/aigcfroge:${Script.version} --push .`
-}
-
-if ((Script.channel === "beta" || Script.channel === "latest") && Script.release) {
-  await $`bun ./script/publish-aur.ts ${dryRun ? ["--dry-run"] : []}`.env({ ...process.env, AIGCFROGE_CLI_DIST: root })
-  await $`bun ./script/publish-homebrew.ts ${dryRun ? ["--dry-run"] : []}`.env({
-    ...process.env,
-    AIGCFROGE_CLI_DIST: root,
-  })
+  await $`docker buildx build --platform linux/amd64,linux/arm64 --tag ghcr.io/keerzzz/aigcforge:${Script.version} --push .`
 }
 
 async function archive(bin: string, target: string, binary: string, directory: string) {

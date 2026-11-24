@@ -1,5 +1,5 @@
-import { createSimpleContext } from "@aigcfroge/ui/context"
-import { useDialog } from "@aigcfroge/ui/context/dialog"
+import { createSimpleContext } from "@omnixa/ui/context"
+import { useDialog } from "@omnixa/ui/context/dialog"
 import { type Accessor, batch, createEffect, createMemo, onCleanup, onMount, untrack } from "solid-js"
 import { createStore, produce, reconcile } from "solid-js/store"
 import { Schema } from "effect"

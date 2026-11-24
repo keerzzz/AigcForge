@@ -1,6 +1,6 @@
 import { createEffect, on, type ComponentProps } from "solid-js"
 import { unwrap } from "solid-js/store"
-import { host } from "@aigcfroge/cli/vite-host"
+import { host } from "@omnixa/cli/vite-host"
 import { RouteProvider, useRoute } from "../../tui/src/context/route"
 
 export {

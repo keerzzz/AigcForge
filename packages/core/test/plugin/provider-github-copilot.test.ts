@@ -1,30 +1,30 @@
-import { AISDK } from "@aigcfroge/core/aisdk"
-import { App } from "@aigcfroge/core/app"
-import { Agent } from "@aigcfroge/schema/agent"
-import { Session } from "@aigcfroge/core/session"
-import { Location } from "@aigcfroge/core/location"
+import { AISDK } from "@omnixa/core/aisdk"
+import { App } from "@omnixa/core/app"
+import { Agent } from "@omnixa/schema/agent"
+import { Session } from "@omnixa/core/session"
+import { Location } from "@omnixa/core/location"
 import { describe, expect, test } from "bun:test"
 import { Effect } from "effect"
-import { Model } from "@aigcfroge/core/model"
-import { ModelResolver } from "@aigcfroge/core/model-resolver"
-import { Plugin } from "@aigcfroge/core/plugin"
-import { PluginHost } from "@aigcfroge/core/plugin/host"
-import { PluginHooks } from "@aigcfroge/core/plugin/hooks"
+import { Model } from "@omnixa/core/model"
+import { ModelResolver } from "@omnixa/core/model-resolver"
+import { Plugin } from "@omnixa/core/plugin"
+import { PluginHost } from "@omnixa/core/plugin/host"
+import { PluginHooks } from "@omnixa/core/plugin/hooks"
 import {
   copilotBaseURL,
   copilotEntitlementError,
   copilotFetch,
   GithubCopilotPlugin,
   utilityTitle,
-} from "@aigcfroge/core/plugin/provider/github-copilot"
-import { LLM, Message, SystemPart } from "@aigcfroge/ai"
-import { compileRequest } from "@aigcfroge/ai/route/client"
+} from "@omnixa/core/plugin/provider/github-copilot"
+import { LLM, Message, SystemPart } from "@omnixa/ai"
+import { compileRequest } from "@omnixa/ai/route/client"
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http"
-import { Provider } from "@aigcfroge/core/provider"
-import { Integration } from "@aigcfroge/core/integration"
-import { Credential } from "@aigcfroge/core/credential"
-import { isRecord } from "@aigcfroge/core/util/record"
-import type { SessionRequestKind } from "@aigcfroge/plugin/effect/session"
+import { Provider } from "@omnixa/core/provider"
+import { Integration } from "@omnixa/core/integration"
+import { Credential } from "@omnixa/core/credential"
+import { isRecord } from "@omnixa/core/util/record"
+import type { SessionRequestKind } from "@omnixa/plugin/effect/session"
 import { fakeSelectorSdk } from "../fixture/selector"
 import { pollWithTimeout, testEffect } from "../lib/effect"
 import { PluginTestLayer } from "./fixture"
@@ -538,7 +538,7 @@ describe("GithubCopilotPlugin", () => {
       expect(requests[0]?.get("x-initiator")).toBe("user")
       expect(requests[0]?.get("copilot-vision-request")).toBe("true")
       expect(requests[0]?.get("x-github-api-version")).toBe("2026-08-01")
-      expect(requests[0]?.get("user-agent")).toBe("aigcfroge/beta/1.2.3/test")
+      expect(requests[0]?.get("user-agent")).toBe("omnixa/beta/1.2.3/test")
     }),
   )
 

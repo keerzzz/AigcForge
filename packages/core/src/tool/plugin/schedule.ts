@@ -1,9 +1,9 @@
 export * as ScheduleTool from "./schedule.js"
 
-import type { Context } from "@aigcfroge/plugin/effect/plugin"
-import { ToolFailure } from "@aigcfroge/ai"
+import type { Context } from "@omnixa/plugin/effect/plugin"
+import { ToolFailure } from "@omnixa/ai"
 import { Effect, Schema } from "effect"
-import { Schedule } from "@aigcfroge/schema/schedule"
+import { Schedule } from "@omnixa/schema/schedule"
 import { MetaAgentService } from "../../meta-agent/service.js"
 import { Permission } from "../../permission.js"
 import { ScheduleService } from "../../session/schedule-service.js"
@@ -32,7 +32,7 @@ export const Input = Schema.Union([
 export const Output = Schema.Struct({ data: Schema.Array(Schedule.Rule) })
 
 export const Plugin = {
-  id: "aigcfroge.tool.schedule",
+  id: "omnixa.tool.schedule",
   effect: Effect.fn("ScheduleTool.Plugin")(function* (ctx: Context) {
     const schedules = yield* ScheduleService.Service
     const metas = yield* MetaAgentService.Service

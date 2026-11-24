@@ -1,16 +1,22 @@
 #!/usr/bin/env bun
-import { Script } from "@aigcfroge/script"
 import { $ } from "bun"
 import { mkdir, rm } from "node:fs/promises"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
-import { UpdateArtifact } from "../../../script/update-artifact"
+
+if (!process.argv.includes("--dry-run")) {
+  throw new Error(
+    "Omnixa AUR publication is disabled: no project-owned AUR package is configured. Use --dry-run to prepare package metadata.",
+  )
+}
+
+const { Script } = await import("@omnixa/script")
 
 if (Script.channel !== "beta" && Script.channel !== "latest") {
   throw new Error("AUR publishing requires the beta or latest channel")
 }
-const name = "aigcfroge-beta"
-const command = "aigcfroge"
+const name = "omnixa-beta"
+const command = "omnixa"
 const valid =
   Script.channel === "beta"
     ? /^\d+\.\d+\.\d+-beta[.-]\d+(?:\.\d+)?$/.test(Script.version)
@@ -18,22 +24,17 @@ const valid =
 if (!valid) throw new Error(`Expected a ${Script.channel} release version`)
 
 const dir = fileURLToPath(new URL("..", import.meta.url))
-const root = path.resolve(process.env.AIGCFROGE_CLI_DIST ?? path.join(dir, "dist"))
+const root = path.resolve(process.env.OMNIXA_CLI_DIST ?? path.join(dir, "dist"))
 const outdir = path.join(root, `aur-${name}`)
-const dryRun = process.argv.includes("--dry-run")
 const pkgver = Script.version.replaceAll("-", ".")
 const license = Bun.file(path.join(dir, "..", "..", "LICENSE"))
 const shim = `#!/bin/sh
-exec "$(dirname "$0")/aigcfroge" "$@"
+exec "$(dirname "$0")/omnixa" "$@"
 `
 
 await rm(outdir, { recursive: true, force: true })
 await mkdir(path.dirname(outdir), { recursive: true })
-if (dryRun) await mkdir(outdir)
-if (!dryRun) {
-  await $`git clone ${`ssh://aur@aur.archlinux.org/${name}.git`} ${outdir}`
-  await $`git checkout -B master`.cwd(outdir)
-}
+await mkdir(outdir)
 
 const sources = await Promise.all(
   [
@@ -52,7 +53,7 @@ const sources = await Promise.all(
 )
 
 await Bun.write(path.join(outdir, "LICENSE"), license)
-await Bun.write(path.join(outdir, "aigcfroge2"), shim)
+await Bun.write(path.join(outdir, "omnixa2"), shim)
 await Bun.write(
   path.join(outdir, "PKGBUILD"),
   [
@@ -60,22 +61,22 @@ await Bun.write(
     `pkgname=${name}`,
     `pkgver=${pkgver}`,
     "pkgrel=1",
-    "pkgdesc='AigcForge beta - the AI coding agent for the terminal'",
-    "url='https://github.com/anomalyco/aigcfroge'",
+    "pkgdesc='Omnixa beta - the AI coding agent for the terminal'",
+    "url='https://github.com/keerzzz/AigcForge'",
     "arch=('x86_64' 'aarch64')",
     "license=('MIT')",
     "depends=('glibc' 'gcc-libs' 'ripgrep')",
-    `provides=('${command}' 'aigcfroge2')`,
-    `conflicts=('${command}' 'aigcfroge2')`,
+    `provides=('${command}' 'omnixa2')`,
+    `conflicts=('${command}' 'omnixa2')`,
     // Stripping a compiled Bun executable can damage its embedded application.
     "options=('!strip' '!debug')",
-    "source=('LICENSE' 'aigcfroge2')",
+    "source=('LICENSE' 'omnixa2')",
     `sha256sums=('${new Bun.CryptoHasher("sha256").update(await license.arrayBuffer()).digest("hex")}' '${new Bun.CryptoHasher("sha256").update(shim).digest("hex")}')`,
     ...sources,
     "",
     "package() {",
-    `  install -Dm755 "$srcdir/package/bin/aigcfroge" "$pkgdir/usr/bin/${command}"`,
-    '  install -Dm755 "$srcdir/aigcfroge2" "$pkgdir/usr/bin/aigcfroge2"',
+    `  install -Dm755 "$srcdir/package/bin/omnixa" "$pkgdir/usr/bin/${command}"`,
+    '  install -Dm755 "$srcdir/omnixa2" "$pkgdir/usr/bin/omnixa2"',
     '  install -Dm644 "$srcdir/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"',
     "}",
     "",
@@ -83,17 +84,3 @@ await Bun.write(
 )
 await Bun.write(path.join(outdir, ".SRCINFO"), await $`makepkg --printsrcinfo`.cwd(outdir).text())
 console.log(`Prepared ${name} ${pkgver} in ${outdir}`)
-if (dryRun) process.exit(0)
-
-await $`git add PKGBUILD .SRCINFO LICENSE aigcfroge2`.cwd(outdir)
-if ((await $`git diff --cached --quiet`.cwd(outdir).nothrow()).exitCode !== 0) {
-  await $`git commit -m ${`chore: update ${name} to ${pkgver}`}`.cwd(outdir)
-  await $`git push origin master`.cwd(outdir)
-}
-await UpdateArtifact.publish({
-  channel: Script.channel,
-  name: "cli",
-  distribution: "aur",
-  version: Script.version,
-  metadata: { package: name },
-})

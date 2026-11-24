@@ -63,7 +63,7 @@ export interface Interface {
   ) => Effect.Effect<ReadonlyArray<CorrectionStore.NewEntry>, CorrectionStore.InvalidEntryError | ExtractionError>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/CorrectionExtractor") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/v2/CorrectionExtractor") {}
 
 // Entity extraction with containment dedupe: sort by position (longer first on
 // ties) and drop any match that overlaps a previously kept one, so "./bar"

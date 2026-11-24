@@ -1,18 +1,6 @@
-<p align="center">
-  <a href="https://aigcfroge.ai">
-    <picture>
-      <source srcset="packages/console/app/src/asset/logo-ornate-dark.svg" media="(prefers-color-scheme: dark)">
-      <source srcset="packages/console/app/src/asset/logo-ornate-light.svg" media="(prefers-color-scheme: light)">
-      <img src="packages/console/app/src/asset/logo-ornate-light.svg" alt="AigcForge logo">
-    </picture>
-  </a>
-</p>
+# Omnixa
+
 <p align="center">Ο πράκτορας τεχνητής νοημοσύνης ανοικτού κώδικα για προγραμματισμό.</p>
-<p align="center">
-  <a href="https://aigcfroge.ai/discord"><img alt="Discord" src="https://img.shields.io/discord/1391832426048651334?style=flat-square&label=discord" /></a>
-  <a href="https://www.npmjs.com/package/aigcfroge-ai"><img alt="npm" src="https://img.shields.io/npm/v/aigcfroge-ai?style=flat-square" /></a>
-  <a href="https://github.com/anomalyco/aigcfroge/actions/workflows/publish.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/anomalyco/aigcfroge/publish.yml?style=flat-square&branch=dev" /></a>
-</p>
 
 <p align="center">
   <a href="README.md">English</a> |
@@ -39,66 +27,28 @@
   <a href="README.vi.md">Tiếng Việt</a>
 </p>
 
-[![AigcForge Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://aigcfroge.ai)
-
 ---
 
 ### Εγκατάσταση
 
-```bash
-# YOLO
-curl -fsSL https://aigcfroge.ai/install | bash
-
-# Διαχειριστές πακέτων
-scoop install aigcfroge             # Windows
-choco install aigcfroge             # Windows
-brew install anomalyco/tap/aigcfroge # macOS και Linux (προτείνεται, πάντα ενημερωμένο)
-brew install aigcfroge              # macOS και Linux (επίσημος τύπος brew, λιγότερο συχνές ενημερώσεις)
-sudo pacman -S aigcfroge            # Arch Linux (Σταθερό)
-paru -S aigcfroge-bin               # Arch Linux (Τελευταία έκδοση από AUR)
-mise use -g aigcfroge               # Οποιοδήποτε λειτουργικό σύστημα
-nix run nixpkgs#aigcfroge           # ή github:anomalyco/aigcfroge με βάση την πιο πρόσφατη αλλαγή από το dev branch
-```
-
-> [!TIP]
-> Αφαίρεσε παλαιότερες εκδόσεις από τη 0.1.x πριν από την εγκατάσταση.
-
-### Εφαρμογή Desktop (BETA)
-
-Το AigcForge είναι επίσης διαθέσιμο ως εφαρμογή. Κατέβασε το απευθείας από τη [σελίδα εκδόσεων](https://github.com/anomalyco/aigcfroge/releases) ή το [aigcfroge.ai/download](https://aigcfroge.ai/download).
-
-| Πλατφόρμα             | Λήψη                                |
-| --------------------- | ----------------------------------- |
-| macOS (Apple Silicon) | `aigcfroge-desktop-mac-arm64.dmg`   |
-| macOS (Intel)         | `aigcfroge-desktop-mac-x64.dmg`     |
-| Windows               | `aigcfroge-desktop-windows-x64.exe` |
-| Linux                 | `.deb`, `.rpm`, ή AppImage          |
+Εγκαταστήστε ένα CLI binary που δημιουργήθηκε τοπικά από αυτό το αποθετήριο:
 
 ```bash
-# macOS (Homebrew)
-brew install --cask aigcfroge-desktop
-# Windows (Scoop)
-scoop bucket add extras; scoop install extras/aigcfroge-desktop
+./install --binary /absolute/path/to/omnixa
+"$HOME/.omnixa/bin/omnixa" --version
 ```
 
-#### Κατάλογος Εγκατάστασης
+Ο κατάλογος εγκατάστασης είναι `$HOME/.omnixa/bin`. Η απομακρυσμένη εγκατάσταση και οι αυτόματες αναβαθμίσεις CLI απαιτούν ρυθμισμένο `OMNIXA_UPDATE_URL`.
 
-Το script εγκατάστασης τηρεί την ακόλουθη σειρά προτεραιότητας για τη διαδρομή εγκατάστασης:
+### Εφαρμογή Desktop
 
-1. `$AIGCFROGE_INSTALL_DIR` - Προσαρμοσμένος κατάλογος εγκατάστασης
-2. `$XDG_BIN_DIR` - Διαδρομή συμβατή με τις προδιαγραφές XDG Base Directory
-3. `$HOME/bin` - Τυπικός κατάλογος εκτελέσιμων αρχείων χρήστη (εάν υπάρχει ή μπορεί να δημιουργηθεί)
-4. `$HOME/.aigcfroge/bin` - Προεπιλεγμένη εφεδρική διαδρομή
+Προορισμός εκδόσεων Desktop: [keerzzz/AigcForge](https://github.com/keerzzz/AigcForge/releases).
 
-```bash
-# Παραδείγματα
-AIGCFROGE_INSTALL_DIR=/usr/local/bin curl -fsSL https://aigcfroge.ai/install | bash
-XDG_BIN_DIR=$HOME/.local/bin curl -fsSL https://aigcfroge.ai/install | bash
-```
+Τοπική δημιουργία και πακετάρισμα από τον ίδιο πηγαίο κώδικα: [packages/desktop/README.md](packages/desktop/README.md).
 
 ### Πράκτορες
 
-Το AigcForge περιλαμβάνει δύο ενσωματωμένους πράκτορες μεταξύ των οποίων μπορείτε να εναλλάσσεστε με το πλήκτρο `Tab`.
+Το Omnixa περιλαμβάνει δύο ενσωματωμένους πράκτορες μεταξύ των οποίων μπορείτε να εναλλάσσεστε με το πλήκτρο `Tab`.
 
 - **build** - Προεπιλεγμένος πράκτορας με πλήρη πρόσβαση για εργασία πάνω σε κώδικα
 - **plan** - Πράκτορας μόνο ανάγνωσης για ανάλυση και εξερεύνηση κώδικα
@@ -109,20 +59,20 @@ XDG_BIN_DIR=$HOME/.local/bin curl -fsSL https://aigcfroge.ai/install | bash
 Περιλαμβάνεται επίσης ένας **general** υποπράκτορας για σύνθετες αναζητήσεις και πολυβηματικές διεργασίες.
 Χρησιμοποιείται εσωτερικά και μπορεί να κληθεί χρησιμοποιώντας `@general` στα μηνύματα.
 
-Μάθετε περισσότερα για τους [πράκτορες](https://aigcfroge.ai/docs/agents).
+Μάθετε περισσότερα για τους [πράκτορες](packages/core/README.md).
 
 ### Οδηγός Χρήσης
 
-Για περισσότερες πληροφορίες σχετικά με τη ρύθμιση του AigcForge, [**πλοηγήσου στον οδηγό χρήσης μας**](https://aigcfroge.ai/docs).
+Για περισσότερες πληροφορίες σχετικά με τη ρύθμιση του Omnixa, [**πλοηγήσου στον οδηγό χρήσης μας**](specs/v2/README.md).
 
 ### Συνεισφορά
 
-Εάν ενδιαφέρεσαι να συνεισφέρεις στο AigcForge, διαβάστε τα [οδηγό χρήσης συνεισφοράς](./CONTRIBUTING.md) πριν υποβάλεις ένα pull request.
+Εάν ενδιαφέρεσαι να συνεισφέρεις στο Omnixa, διαβάστε τα [οδηγό χρήσης συνεισφοράς](./CONTRIBUTING.md) πριν υποβάλεις ένα pull request.
 
-### Δημιουργία πάνω στο AigcForge
+### Δημιουργία πάνω στο Omnixa
 
-Εάν εργάζεσαι σε ένα έργο σχετικό με το AigcForge και χρησιμοποιείτε το "aigcfroge" ως μέρος του ονόματός του, για παράδειγμα "aigcfroge-dashboard" ή "aigcfroge-mobile", πρόσθεσε μια σημείωση στο README σας για να διευκρινίσεις ότι δεν είναι κατασκευασμένο από την ομάδα του AigcForge και δεν έχει καμία σχέση με εμάς.
+Εάν εργάζεσαι σε ένα έργο σχετικό με το Omnixa και χρησιμοποιείτε το "omnixa" ως μέρος του ονόματός του, για παράδειγμα "omnixa-dashboard" ή "omnixa-mobile", πρόσθεσε μια σημείωση στο README σας για να διευκρινίσεις ότι δεν είναι κατασκευασμένο από την ομάδα του Omnixa και δεν έχει καμία σχέση με εμάς.
 
 ---
 
-**Γίνε μέλος της κοινότητάς μας** [Discord](https://discord.gg/aigcfroge) | [X.com](https://x.com/aigcfroge)
+Based on [OpenCode](https://github.com/anomalyco/opencode), under the [MIT license](LICENSE).

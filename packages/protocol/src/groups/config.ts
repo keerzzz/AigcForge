@@ -1,5 +1,5 @@
-import { Config } from "@aigcfroge/schema/config"
-import { ConfigShell } from "@aigcfroge/schema/config/shell"
+import { Config } from "@omnixa/schema/config"
+import { ConfigShell } from "@omnixa/schema/config/shell"
 import { Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "effect/http-api"
 import { LocationQuery, locationQueryOpenApi } from "./location.js"

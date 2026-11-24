@@ -1,17 +1,17 @@
 export * as ConfigWorktreePlugin from "./worktree.js"
 
-import { define } from "@aigcfroge/plugin/effect/plugin"
+import { define } from "@omnixa/plugin/effect/plugin"
 import { Effect } from "effect"
 import path from "path"
 import { Config } from "../../config.js"
-import { Global } from "@aigcfroge/util/global"
+import { Global } from "@omnixa/util/global"
 import { Location } from "../../location.js"
 import { AbsolutePath } from "../../schema.js"
 import { WorktreeStrategies } from "../../worktree/strategies.js"
 import { ConfigEntryObserver } from "./entry-observer.js"
 
 export const Plugin = define({
-  id: "aigcfroge.config.worktree",
+  id: "omnixa.config.worktree",
   effect: Effect.fn(function* (ctx) {
     const config = yield* Config.Service
     const location = yield* Location.Service

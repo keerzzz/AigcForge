@@ -1,8 +1,8 @@
 export * as SessionShareV2 from "./share-v2.js"
 
 import { Context, DateTime, Effect, Layer, Option, Schema, Stream } from "effect"
-import { SessionCommunication } from "@aigcfroge/schema/session-communication"
-import { Hash } from "@aigcfroge/util/hash"
+import { SessionCommunication } from "@omnixa/schema/session-communication"
+import { Hash } from "@omnixa/util/hash"
 import { CompositionDigest } from "../composition/digest.js"
 import { Session } from "../session.js"
 import type { SessionSchema } from "./schema.js"
@@ -19,8 +19,8 @@ import { KV } from "../kv.js"
 import { SessionEvent } from "./event.js"
 import { ControllerConflictError } from "./error.js"
 import { serializedSelection } from "./session.js"
-import { Node } from "@aigcfroge/util/effect/app-node"
-import type { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { Node } from "@omnixa/util/effect/app-node"
+import type { LayerNode } from "@omnixa/util/effect/layer-node"
 
 /**
  * Share scope: what content from the source session to share.
@@ -120,7 +120,7 @@ export interface Interface {
   ) => Effect.Effect<SessionCommunication.Capability, Session.NotFoundError>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/SessionShare") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/v2/SessionShare") {}
 
 /** Exported for share-summary.ts to use without duplicating. */
 export function formatMessages(messages: ReadonlyArray<SessionMessage.Info>): string {

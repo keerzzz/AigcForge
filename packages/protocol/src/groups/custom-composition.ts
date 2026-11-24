@@ -1,7 +1,7 @@
-import { Composition } from "@aigcfroge/schema/composition"
-import { CustomProfile } from "@aigcfroge/schema/custom-profile"
-import { AssetPlacement } from "@aigcfroge/schema/asset-placement"
-import { AbsolutePath, optional } from "@aigcfroge/schema/schema"
+import { Composition } from "@omnixa/schema/composition"
+import { CustomProfile } from "@omnixa/schema/custom-profile"
+import { AssetPlacement } from "@omnixa/schema/asset-placement"
+import { AbsolutePath, optional } from "@omnixa/schema/schema"
 import { Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/http-api"
 import {

@@ -1,8 +1,8 @@
 declare global {
-  const AIGCFROGE_VERSION: string
-  const AIGCFROGE_CHANNEL: string
+  const OMNIXA_VERSION: string
+  const OMNIXA_CHANNEL: string
 }
 
-export const InstallationVersion = typeof AIGCFROGE_VERSION === "string" ? AIGCFROGE_VERSION : "local"
-export const InstallationChannel = typeof AIGCFROGE_CHANNEL === "string" ? AIGCFROGE_CHANNEL : "local"
+export const InstallationVersion = typeof OMNIXA_VERSION === "string" ? OMNIXA_VERSION : "local"
+export const InstallationChannel = typeof OMNIXA_CHANNEL === "string" ? OMNIXA_CHANNEL : "local"
 export const InstallationLocal = InstallationChannel === "local"

@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, mock, spyOn, test } from "bun:test"
 import {
-  AigcForge,
+  Omnixa,
   type EventSubscribeOutput,
   type SessionMessageAssistantTool,
   type SessionMessageInfo,
-} from "@aigcfroge/client/promise"
+} from "@omnixa/client/promise"
 import { runNonInteractivePrompt } from "../../src/run/noninteractive"
 
 type V2Event = EventSubscribeOutput
@@ -219,7 +219,7 @@ async function run(input: {
   wait?: () => Promise<void>
   terminalDelay?: number
 }) {
-  const sdk = AigcForge.make({ baseUrl: "https://aigcfroge.test" })
+  const sdk = Omnixa.make({ baseUrl: "https://omnixa.test" })
   const values: V2Event[] = [{ id: "evt_connected", type: "server.connected", data: {} }]
   let wake: (() => void) | undefined
   const wait = Promise.withResolvers<void>()
@@ -426,7 +426,7 @@ describe("runNonInteractivePrompt", () => {
     })
     const globalOptions = {
       headers: {
-        "x-aigcfroge-directory": "%2Fwork%20tree",
+        "x-omnixa-directory": "%2Fwork%20tree",
       },
     }
     expect(sdk.session.form.cancel).toHaveBeenCalledWith({ sessionID: "global", formID: "frm_live" }, globalOptions)

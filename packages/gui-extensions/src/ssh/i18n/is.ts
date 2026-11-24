@@ -19,13 +19,8 @@ export default {
   "stage.incompatible": "Þörf fyrir uppfærslu á netþjóni",
   "error.input": "Sláðu inn hýsil eða SSH tengingarskipun. Fjarskipanir og óstuddir SSH valkostir eru ekki leyfðar.",
   "error.connection": "Gat ekki komið á SSH tengingunni. Athugaðu netið þitt og SSH stillingar.",
-  "error.platform":
-    "Þessi ytri pallur er ekki studdur. Sjálfvirk uppsetning krefst sem stendur Linux eða macOS á x64 eða arm64.",
   "error.version": "Fjarþjónustan verður að passa við þessa skrifborðsútgáfu áður en hún tengist.",
-  "error.install": "Gat ekki sett upp ytri netþjóninn. Athugaðu tengingar, pláss og að tar sé uppsett.",
-  "error.unpublished":
-    "Þessi skrifborðsútgáfa hefur engan birtan fjarþjón. Fyrir þróunarsmíðar, settu upp og ræstu V2 á hýsilinn, reyndu síðan aftur.",
-  "error.service": "SSH tengdur, en AigcForge þjónninn varð ekki tilbúinn.",
+  "error.service": "SSH tengdur, en Omnixa þjónninn varð ekki tilbúinn.",
   "error.host-key":
     "Ekki var hægt að staðfesta auðkenni gestgjafans. Staðfestu fingrafar þess áður en þú uppfærir SSH þekkta gestgjafa þína.",
   "error.ssh-missing": "OpenSSH fannst ekki. Settu upp OpenSSH viðskiptavin og tryggðu að ssh sé tiltækt á PATH.",

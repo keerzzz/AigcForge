@@ -1,5 +1,5 @@
-import { Button } from "@aigcfroge/ui/button"
-import { useDialog } from "@aigcfroge/ui/context/dialog"
+import { Button } from "@omnixa/ui/button"
+import { useDialog } from "@omnixa/ui/context/dialog"
 import { createMemo, Show, type Component } from "solid-js"
 import { ServerRowMenu } from "@/servers/registry/row-menu"
 import { ServerHealthIndicator } from "@/servers/registry/row"

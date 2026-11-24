@@ -1,11 +1,11 @@
-import { Bus } from "@aigcfroge/core/bus"
-import { DelegationPresentation } from "@aigcfroge/core/delegation/presentation"
-import { DelegationService } from "@aigcfroge/core/delegation/service"
-import { DelegationExecution } from "@aigcfroge/core/delegation/execution"
-import { Flag } from "@aigcfroge/core/flag/flag"
-import { Session } from "@aigcfroge/core/session"
-import { InvalidRequestError } from "@aigcfroge/protocol/errors"
-import { WorkspaceRouteContext } from "@aigcfroge/protocol/middleware/workspace-routing"
+import { Bus } from "@omnixa/core/bus"
+import { DelegationPresentation } from "@omnixa/core/delegation/presentation"
+import { DelegationService } from "@omnixa/core/delegation/service"
+import { DelegationExecution } from "@omnixa/core/delegation/execution"
+import { Flag } from "@omnixa/core/flag/flag"
+import { Session } from "@omnixa/core/session"
+import { InvalidRequestError } from "@omnixa/protocol/errors"
+import { WorkspaceRouteContext } from "@omnixa/protocol/middleware/workspace-routing"
 import { DateTime, Effect } from "effect"
 import { HttpApiBuilder } from "effect/http-api"
 import { Api } from "../api"
@@ -18,7 +18,7 @@ export const DelegationHandler = HttpApiBuilder.group(Api, "delegation", (handle
     const sessions = yield* Session.Service
     const bus = yield* Bus.Service
     const enabled = Effect.suspend(() => {
-      if (!Flag.AIGCFROGE_EXPERIMENTAL_PERSISTENT_DELEGATIONS)
+      if (!Flag.OMNIXA_EXPERIMENTAL_PERSISTENT_DELEGATIONS)
         return new InvalidRequestError({ message: "Persistent delegations are disabled", kind: "disabled" })
       if (!bus.retainsEvents)
         return new InvalidRequestError({

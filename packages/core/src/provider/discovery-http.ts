@@ -2,9 +2,9 @@ export * as ProviderDiscoveryHTTP from "./discovery-http.js"
 
 import { Effect, Option, Schema, Stream } from "effect"
 import { HttpClient, HttpClientRequest } from "effect/http"
-import { Model } from "@aigcfroge/schema/model"
-import { ModelSource } from "@aigcfroge/schema/model-source"
-import { optional } from "@aigcfroge/schema/schema"
+import { Model } from "@omnixa/schema/model"
+import { ModelSource } from "@omnixa/schema/model-source"
+import { optional } from "@omnixa/schema/schema"
 
 export class FetchError extends Schema.TaggedError<FetchError>()("ProviderDiscovery.Fetch", {
   kind: Schema.Literals(["auth", "network", "timeout", "invalid", "incomplete"]),
@@ -29,7 +29,7 @@ const OpenAIPage = Schema.Struct({
   data: Schema.Array(
     Schema.Struct({
       id: Schema.String.check(Schema.isMinLength(1)),
-      // A relay can provide AigcForge's typed metadata extension. Standard OpenAI
+      // A relay can provide Omnixa's typed metadata extension. Standard OpenAI
       // listings provide IDs only; owned_by and ID spelling imply no capabilities.
       metadata: ModelSource.Metadata.pipe(optional),
     }),

@@ -16,17 +16,14 @@ for (const reasoningDefaultOpen of [false, true]) {
         "Used 4 Read, Skill",
       )
       const summaryIcon = group.locator('[data-component="context-tool-group-trigger"] [data-slot="tool-summary-icon"]')
-      await expect(summaryIcon.locator('[data-slot="icon-svg"] use')).toHaveAttribute(
-        "href",
-        "#aigcfroge-v2-icon-glasses",
-      )
+      await expect(summaryIcon.locator('[data-slot="icon-svg"] use')).toHaveAttribute("href", "#omnixa-v2-icon-glasses")
       await expect(first.locator('[data-slot="tool-summary-icon"] [data-slot="icon-svg"] use')).toHaveAttribute(
         "href",
-        "#aigcfroge-v2-icon-brain",
+        "#omnixa-v2-icon-brain",
       )
       await expect(
         group.locator('[data-component="read-tool-group"] [data-slot="tool-summary-icon"] [data-slot="icon-svg"] use'),
-      ).toHaveAttribute("href", "#aigcfroge-v2-icon-glasses")
+      ).toHaveAttribute("href", "#omnixa-v2-icon-glasses")
       await root.getByRole("button", { name: "Start current work", exact: true }).click()
       await expect(summaryIcon.locator('[data-component="session-progress-indicator-v2"]')).toHaveCount(1)
       await expect(first.locator('[data-component="session-progress-indicator-v2"]')).toHaveCount(0)
@@ -37,14 +34,11 @@ for (const reasoningDefaultOpen of [false, true]) {
       await expect(used).toHaveAttribute("aria-expanded", "true")
       await root.getByRole("button", { name: "Finish current work", exact: true }).click()
       await expect(summaryIcon.locator('[data-component="session-progress-indicator-v2"]')).toHaveCount(0)
-      await expect(summaryIcon.locator('[data-slot="icon-svg"] use')).toHaveAttribute(
-        "href",
-        "#aigcfroge-v2-icon-glasses",
-      )
+      await expect(summaryIcon.locator('[data-slot="icon-svg"] use')).toHaveAttribute("href", "#omnixa-v2-icon-glasses")
       await expect(group.locator('[data-slot="context-tool-group-item"]')).toHaveText([
         /Read.*group\.ts/,
         /Thought/,
-        /Loaded.*aigcfroge.*frontend-design.*skills/,
+        /Loaded.*omnixa.*frontend-design.*skills/,
         /Thought/,
         /Loaded.*rtl-aware-development.*skill/,
       ])
@@ -69,7 +63,7 @@ for (const reasoningDefaultOpen of [false, true]) {
       await expect(group.locator('[data-slot="context-tool-group-item"]')).toHaveText([
         /Read.*group\.ts/,
         /Thought/,
-        /Loaded.*aigcfroge.*frontend-design.*skills/,
+        /Loaded.*omnixa.*frontend-design.*skills/,
         /Thought/,
         /Loaded.*rtl-aware-development.*skill/,
         /Read.*group\.test\.ts/,
@@ -113,7 +107,7 @@ story("summarizes subagents as Agent while retaining their card titles", async (
   await expect(title).toHaveCSS("text-overflow", "ellipsis")
   await expect(header.locator('[data-slot="tool-summary-icon"] [data-slot="icon-svg"] use')).toHaveAttribute(
     "href",
-    "#aigcfroge-v2-icon-glasses",
+    "#omnixa-v2-icon-glasses",
   )
   expect(await prefix.evaluate((node) => node.textContent)).toBe("Used")
   expect(await count.evaluate((node) => node.textContent)).toBe("4")

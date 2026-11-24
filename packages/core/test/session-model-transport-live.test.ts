@@ -1,16 +1,16 @@
 import { describe, expect, test } from "bun:test"
-import { AIError, LLM, Message } from "@aigcfroge/ai"
+import { AIError, LLM, Message } from "@omnixa/ai"
 import {
   LLMClient,
   RequestExecutor,
   WebSocketTransport,
   type ChannelObservation,
   type WebSocketChannelExchange,
-} from "@aigcfroge/ai/route"
-import { configure } from "@aigcfroge/ai/providers/openai"
-import { SessionModelTransport } from "@aigcfroge/core/session/model-transport"
-import { WebSocketConstructor } from "@aigcfroge/core/effect/websocket-constructor"
-import { Session } from "@aigcfroge/schema/session"
+} from "@omnixa/ai/route"
+import { configure } from "@omnixa/ai/providers/openai"
+import { SessionModelTransport } from "@omnixa/core/session/model-transport"
+import { WebSocketConstructor } from "@omnixa/core/effect/websocket-constructor"
+import { Session } from "@omnixa/schema/session"
 import { Effect, Fiber, Layer, Stream } from "effect"
 import { Headers } from "effect/http"
 import { Socket } from "effect/socket"

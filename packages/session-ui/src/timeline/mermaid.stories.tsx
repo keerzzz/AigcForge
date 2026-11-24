@@ -5,7 +5,7 @@ import { CurrentSessionProviders } from "../storybook/current-session-story"
 import { SessionTimeline } from "./session-timeline"
 
 export default {
-  title: "AigcForge/Conversation/Mermaid diagrams",
+  title: "Omnixa/Conversation/Mermaid diagrams",
   id: "current-session-mermaid",
   component: SessionTimeline,
   parameters: { layout: "fullscreen" },

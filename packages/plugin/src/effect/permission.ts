@@ -1,7 +1,7 @@
-import type { PermissionApi } from "@aigcfroge/client/effect/api"
-import type { Agent } from "@aigcfroge/schema/agent"
-import type { Permission } from "@aigcfroge/schema/permission"
-import type { Session } from "@aigcfroge/schema/session"
+import type { PermissionApi } from "@omnixa/client/effect/api"
+import type { Agent } from "@omnixa/schema/agent"
+import type { Permission } from "@omnixa/schema/permission"
+import type { Session } from "@omnixa/schema/session"
 import type { Hooks } from "./registration.js"
 
 export interface PermissionEvaluation {

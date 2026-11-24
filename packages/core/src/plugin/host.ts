@@ -1,10 +1,10 @@
 export * as PluginHost from "./host.js"
 
-import { Plugin } from "@aigcfroge/plugin/effect"
-import type { IntegrationMethodRegistration } from "@aigcfroge/plugin/effect/integration"
-import { EventManifest } from "@aigcfroge/schema/event-manifest"
-import type { Event } from "@aigcfroge/schema/event"
-import { ServerConfig } from "@aigcfroge/schema/mcp"
+import { Plugin } from "@omnixa/plugin/effect"
+import type { IntegrationMethodRegistration } from "@omnixa/plugin/effect/integration"
+import { EventManifest } from "@omnixa/schema/event-manifest"
+import type { Event } from "@omnixa/schema/event"
+import { ServerConfig } from "@omnixa/schema/mcp"
 import { App } from "../app.js"
 import { Effect, Schema, Stream } from "effect"
 import { Agent } from "../agent.js"
@@ -38,7 +38,7 @@ import { Generate } from "../generate.js"
 import { Permission } from "../permission.js"
 import { PluginHooks } from "./hooks.js"
 import type { Interface } from "../plugin.js"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
 
 const mutable = <T>(value: T) => value as DeepMutable<T>
 type RpcEvent = Event.Payload & {

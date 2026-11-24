@@ -1,9 +1,9 @@
 export * as ProposePromptAssetTool from "./propose-prompt-asset.js"
 
-import type { Context } from "@aigcfroge/plugin/effect/plugin"
-import { ToolFailure } from "@aigcfroge/ai"
+import type { Context } from "@omnixa/plugin/effect/plugin"
+import { ToolFailure } from "@omnixa/ai"
 import { Effect, Schema } from "effect"
-import { PromptAsset } from "@aigcfroge/schema/prompt-asset"
+import { PromptAsset } from "@omnixa/schema/prompt-asset"
 import path from "node:path"
 import { Flag } from "../flag/flag.js"
 import { PromptAssetPath } from "../prompt-asset/path.js"
@@ -31,9 +31,9 @@ export const Input = Schema.Struct({
 export const Output = PromptAsset.Inspection
 
 export const Plugin = {
-  id: "aigcfroge.tool.propose_prompt_asset",
+  id: "omnixa.tool.propose_prompt_asset",
   effect: Effect.fn("ProposePromptAssetTool.Plugin")(function* (ctx: Context) {
-    if (!Flag.AIGCFROGE_EXPERIMENTAL_CHAT_ASSET) return
+    if (!Flag.OMNIXA_EXPERIMENTAL_CHAT_ASSET) return
 
     const service = yield* PromptAssetService.Service
 

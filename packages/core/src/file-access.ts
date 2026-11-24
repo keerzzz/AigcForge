@@ -1,8 +1,8 @@
 export * as FileAccess from "./file-access.js"
 
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
-import { FSUtil } from "@aigcfroge/util/fs-util"
-import { Global } from "@aigcfroge/util/global"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
+import { FSUtil } from "@omnixa/util/fs-util"
+import { Global } from "@omnixa/util/global"
 import { Array, Context, Effect, Layer, Schema } from "effect"
 import path from "path"
 import { Location } from "./location.js"
@@ -61,7 +61,7 @@ export interface Interface {
   ) => Effect.Effect<Target, FSUtil.Error | Error | SessionErrors.NotFoundError>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/FileAccess") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/FileAccess") {}
 
 /** Expand a leading ~ and normalize Windows shell paths before lexical resolution. */
 export const resolvePath = (directory: string, input: string, home = Global.Path.home) => {

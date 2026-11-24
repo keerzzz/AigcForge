@@ -1,10 +1,8 @@
 import { Context } from "effect"
 
-const aigcfrogeOrigin = /^https:\/\/([a-z0-9-]+\.)*aigcfroge\.ai$/
-
 export type CorsOptions = { readonly cors?: ReadonlyArray<string> }
 
-export const CorsConfig = Context.Reference<CorsOptions | undefined>("@aigcfroge/ServerCorsConfig", {
+export const CorsConfig = Context.Reference<CorsOptions | undefined>("@omnixa/ServerCorsConfig", {
   defaultValue: () => undefined,
 })
 
@@ -15,7 +13,6 @@ export function isAllowedCorsOrigin(input: string | undefined, opts?: CorsOption
   if (input.startsWith("oc://renderer")) return true
   if (input === "tauri://localhost" || input === "http://tauri.localhost" || input === "https://tauri.localhost")
     return true
-  if (aigcfrogeOrigin.test(input)) return true
   return opts?.cors?.includes(input) ?? false
 }
 

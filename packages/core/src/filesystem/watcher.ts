@@ -3,9 +3,9 @@ export * as Watcher from "./watcher.js"
 // @ts-ignore
 import { createWrapper } from "@parcel/watcher/wrapper.js"
 import type ParcelWatcher from "@parcel/watcher"
-import { FileSystem } from "@aigcfroge/schema/filesystem"
-import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { FileSystem } from "@omnixa/schema/filesystem"
+import { makeGlobalNode } from "@omnixa/util/effect/app-node"
+import { FSUtil } from "@omnixa/util/fs-util"
 import { Cause, Context, Effect, Layer, PubSub, RcMap, Schema, Stream } from "effect"
 import { lazy } from "../util/lazy.js"
 import { watch } from "node:fs"
@@ -58,7 +58,7 @@ export interface NativeInterface {
 }
 
 /** Uses fs.watch for immediate entries and Parcel for recursive directories. */
-export class Native extends Context.Service<Native, NativeInterface>()("@aigcfroge/Watcher/Native") {}
+export class Native extends Context.Service<Native, NativeInterface>()("@omnixa/Watcher/Native") {}
 
 export interface Interface {
   /** onReady runs after native acquisition and listener registration, when the stream is consumed. */
@@ -70,7 +70,7 @@ export const Options = Schema.Struct({
 })
 export type Options = typeof Options.Type
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/Watcher") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/Watcher") {}
 
 export interface TestInterface extends Interface {
   /** Delivers one update to every active watch whose target covers `update.path`. */
@@ -79,7 +79,7 @@ export interface TestInterface extends Interface {
   readonly subscriptions: () => Effect.Effect<readonly WatchInput[]>
 }
 
-export class Test extends Context.Service<Test, TestInterface>()("@aigcfroge/Watcher/Test") {}
+export class Test extends Context.Service<Test, TestInterface>()("@omnixa/Watcher/Test") {}
 
 export const layer = (options?: Options) =>
   Layer.effect(

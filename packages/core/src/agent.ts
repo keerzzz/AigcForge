@@ -1,10 +1,10 @@
 export * as Agent from "./agent.js"
 
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
 import { Array, Context, Effect, Layer, Option, Scope, Stream, Types } from "effect"
-import { Agent } from "@aigcfroge/schema/agent"
-import type { Permission } from "@aigcfroge/schema/permission"
-import { ProductMode } from "@aigcfroge/schema/product-mode"
+import { Agent } from "@omnixa/schema/agent"
+import type { Permission } from "@omnixa/schema/permission"
+import { ProductMode } from "@omnixa/schema/product-mode"
 import { AgentFileLoader } from "./agent/file-loader.js"
 import { AgentProtocol } from "./agent/protocol.js"
 import { Bus } from "./bus.js"
@@ -27,7 +27,7 @@ export const Color = Agent.Color
 export const Info = Agent.Info
 export type Info = Agent.Info
 
-export { Event } from "@aigcfroge/schema/agent"
+export { Event } from "@omnixa/schema/agent"
 
 export interface Selection {
   readonly id: ID
@@ -54,7 +54,7 @@ export interface Interface extends State.Transformable<Editor> {
   readonly list: () => Effect.Effect<Info[]>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/Agent") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/Agent") {}
 
 const layer = Layer.effect(
   Service,
@@ -165,7 +165,7 @@ const registerFileAgentTransform = (agents: Interface): Effect.Effect<void, neve
     const fileLoader = Option.getOrUndefined(yield* Effect.serviceOption(AgentFileLoader.Service))
     if (!fileLoader) return
     yield* agents.transform((draft) => {
-      if (!Flag.AIGCFROGE_ENABLE_AGENT_FILE) return
+      if (!Flag.OMNIXA_ENABLE_AGENT_FILE) return
       // Base State transforms are synchronous; the loader's list is an in-memory
       // snapshot over already-parsed files, so runSync keeps rebuild semantics.
       const fileAgents = Effect.runSync(fileLoader.loadAll())
@@ -198,7 +198,7 @@ export const fileLayer = Layer.effect(
   Service,
   Effect.gen(function* () {
     const agents = yield* Service
-    if (Flag.AIGCFROGE_ENABLE_AGENT_FILE) {
+    if (Flag.OMNIXA_ENABLE_AGENT_FILE) {
       yield* registerFileAgentTransform(agents)
       const scope = yield* Scope.Scope
       yield* subscribeToFileWatcher(agents, scope)

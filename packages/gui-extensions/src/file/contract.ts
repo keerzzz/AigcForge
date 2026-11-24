@@ -1,5 +1,5 @@
 import type { Component, JSX } from "solid-js"
-import type { ArtifactKind } from "@aigcfroge/util/artifact"
+import type { ArtifactKind } from "@omnixa/util/artifact"
 import type { ChangeKind } from "../review/contract"
 import { Contract, Registry, type MountedSession, type SessionScreen } from "../sdk"
 

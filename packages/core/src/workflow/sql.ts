@@ -1,6 +1,6 @@
 import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core"
-import { WorkflowAsset } from "@aigcfroge/schema/workflow-asset"
-import type { Session as SessionSchema } from "@aigcfroge/schema/session"
+import { WorkflowAsset } from "@omnixa/schema/workflow-asset"
+import type { Session as SessionSchema } from "@omnixa/schema/session"
 import { SessionTable } from "../session/sql"
 
 export const WorkflowRunTable = sqliteTable(

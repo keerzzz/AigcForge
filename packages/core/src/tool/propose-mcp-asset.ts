@@ -1,9 +1,9 @@
 export * as ProposeMCPAssetTool from "./propose-mcp-asset.js"
 
-import type { Context } from "@aigcfroge/plugin/effect/plugin"
-import { ToolFailure } from "@aigcfroge/ai"
+import type { Context } from "@omnixa/plugin/effect/plugin"
+import { ToolFailure } from "@omnixa/ai"
 import { Effect, Schema } from "effect"
-import { MCPAsset } from "@aigcfroge/schema/mcp-asset"
+import { MCPAsset } from "@omnixa/schema/mcp-asset"
 import { Flag } from "../flag/flag.js"
 import { MCPAssetService } from "../mcp-asset-service.js"
 
@@ -40,9 +40,9 @@ export const Output = Schema.Struct({
 })
 
 export const Plugin = {
-  id: "aigcfroge.tool.propose_mcp_asset",
+  id: "omnixa.tool.propose_mcp_asset",
   effect: Effect.fn("ProposeMCPAssetTool.Plugin")(function* (ctx: Context) {
-    if (!Flag.AIGCFROGE_EXPERIMENTAL_CHAT_ASSET) return
+    if (!Flag.OMNIXA_EXPERIMENTAL_CHAT_ASSET) return
 
     const service = yield* MCPAssetService.Service
 

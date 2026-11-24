@@ -1,9 +1,9 @@
 import type { Page } from "@playwright/test"
-import type { JsonValue, SessionMessageAssistant, SessionMessageInfo } from "@aigcfroge/client/promise"
-import { base64Encode } from "@aigcfroge/util/encode"
+import type { JsonValue, SessionMessageAssistant, SessionMessageInfo } from "@omnixa/client/promise"
+import { base64Encode } from "@omnixa/util/encode"
 import { createTwoFilesPatch } from "diff"
 import { SERVER, pageMessagesFrom } from "./app"
-import { mockAigcForgeServer, type MockServerConfig } from "./mock-server"
+import { mockOmnixaServer, type MockServerConfig } from "./mock-server"
 
 // A long stress transcript: source (12 turns, links a child), target (72 mixed turns), and child (4 turns).
 
@@ -36,11 +36,11 @@ const targetID = "ses_smoke_target"
 
 const childID = "ses_smoke_child"
 
-const directory = "C:/AigcForge/SmokeProject"
+const directory = "C:/Omnixa/SmokeProject"
 
 const projectID = "proj_smoke_timeline"
 
-const model = { providerID: "aigcfroge", modelID: "claude-opus-4-6", variant: "max" }
+const model = { providerID: "omnixa", modelID: "claude-opus-4-6", variant: "max" }
 
 type MessagePart =
   | { id: string; type: "text"; text: string }
@@ -347,13 +347,13 @@ export const fixture = {
   provider: {
     all: [
       {
-        id: "aigcfroge",
-        name: "AigcForge",
+        id: "omnixa",
+        name: "Omnixa",
         models: { "claude-opus-4-6": { id: "claude-opus-4-6", name: "Claude Opus 4.6", limit: { context: 200_000 } } },
       },
     ],
-    connected: ["aigcfroge"],
-    default: { providerID: "aigcfroge", modelID: "claude-opus-4-6" },
+    connected: ["omnixa"],
+    default: { providerID: "omnixa", modelID: "claude-opus-4-6" },
   },
   sessions: [
     {
@@ -434,7 +434,7 @@ export async function installTimelineSettings(page: Page) {
 
 // Each call serves its own copies of the sessions, so creates and renames never leak into other tests.
 export function mockStressTimeline(page: Page, input: Partial<MockServerConfig> = {}) {
-  return mockAigcForgeServer(page, {
+  return mockOmnixaServer(page, {
     sessions: fixture.sessions.map((item) => ({ ...item })),
     provider: fixture.provider,
     directory: fixture.directory,
@@ -449,14 +449,14 @@ export async function installStressSessionTabs(page: Page, input?: { draftID?: s
   await page.addInitScript(
     ({ directory, sessionIDs, dirBase64, server, draftID }) => {
       localStorage.setItem(
-        "aigcfroge.global.dat:server",
+        "omnixa.global.dat:server",
         JSON.stringify({
           projects: { local: [{ worktree: directory, expanded: true }] },
           lastProject: { local: directory },
         }),
       )
       localStorage.setItem(
-        "aigcfroge.window.browser.dat:tabs",
+        "omnixa.window.browser.dat:tabs",
         JSON.stringify([
           ...sessionIDs.map((sessionId) => ({
             type: "session",

@@ -1,13 +1,13 @@
 export * as PluginSupervisor from "./supervisor.js"
 
-import { Event } from "@aigcfroge/schema/config"
+import { Event } from "@omnixa/schema/config"
 import { Cause, Effect, Layer, Queue, Stream } from "effect"
 import path from "path"
 import { ConfigPluginSource } from "../config/plugin/source.js"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
 import { ManagedPolicy } from "../managed-policy.js"
 import { Bus } from "../bus.js"
-import { Npm } from "@aigcfroge/util/npm"
+import { Npm } from "@omnixa/util/npm"
 import { Plugin } from "../plugin.js"
 import { InstancePlugins } from "./instance.js"
 import { PluginInternal } from "./internal.js"
@@ -50,7 +50,7 @@ const resolve = Effect.fn("PluginSupervisor.resolve")(function* (
       matched.length > 0 ||
       operation.target === "*" ||
       operation.target.endsWith(".*") ||
-      operation.target.startsWith("aigcfroge.")
+      operation.target.startsWith("omnixa.")
     if (selectsPlugins) {
       matched.forEach((plugin) => enabled.add(plugin.id))
       continue

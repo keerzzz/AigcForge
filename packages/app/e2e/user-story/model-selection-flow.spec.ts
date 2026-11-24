@@ -1,12 +1,12 @@
 import { expect, test } from "@playwright/test"
 import { Schema } from "effect"
 import { provider, sessionHref } from "../utils/app"
-import { mockAigcForgeServer } from "../utils/mock-server"
+import { mockOmnixaServer } from "../utils/mock-server"
 import { expectAppVisible } from "../utils/waits"
 import { openSession } from "../utils/workspace"
 import { selectGlobalMode } from "../utils/home-mode"
 
-const directory = "C:/AigcForge/NewProject"
+const directory = "C:/Omnixa/NewProject"
 
 test("creates a session in a new project and selects its model", async ({ page }) => {
   // An empty draft must remain usable when the file viewer is unavailable.
@@ -29,7 +29,7 @@ test("creates a session in a new project and selects its model", async ({ page }
         : route.continue()
     },
   )
-  await mockAigcForgeServer(page, {
+  await mockOmnixaServer(page, {
     directory,
     project: {
       id: "proj_model_selection_flow",
@@ -42,8 +42,8 @@ test("creates a session in a new project and selects its model", async ({ page }
     provider: () => ({
       all: [
         {
-          id: "aigcfroge",
-          name: "AigcForge",
+          id: "omnixa",
+          name: "Local gateway",
           models: {
             "free-model": {
               id: "free-model",
@@ -51,39 +51,32 @@ test("creates a session in a new project and selects its model", async ({ page }
               cost: { input: 0, output: 0 },
               limit: { context: 200_000 },
             },
-          },
-        },
-        {
-          id: "aigcfroge-go",
-          name: "AigcForge Go",
-          models: {
-            "go-model-1": {
-              id: "go-model-1",
-              name: "Go Model 1",
-              cost: { input: 1, output: 1 },
+            "custom-model": {
+              id: "custom-model",
+              name: "Custom Model",
               limit: { context: 200_000 },
             },
           },
         },
       ],
-      connected: ["aigcfroge", "aigcfroge-go"],
-      default: { providerID: "aigcfroge", modelID: "free-model" },
+      connected: ["omnixa"],
+      default: { providerID: "omnixa", modelID: "free-model" },
     }),
     sessions: [],
     pageMessages: () => ({ items: [] }),
     // Listings are requested by absolute path and returned relative to the stable Location.
-    fileList: (path) => (path === "C:/AigcForge" ? [{ path: "./", type: "directory", ignored: false }] : []),
+    fileList: (path) => (path === "C:/Omnixa" ? [{ path: "./", type: "directory", ignored: false }] : []),
   })
   await page.addInitScript(() => {
-    localStorage.setItem("aigcfroge.global.dat:server", JSON.stringify({ projects: { local: [] } }))
+    localStorage.setItem("omnixa.global.dat:server", JSON.stringify({ projects: { local: [] } }))
     localStorage.setItem(
-      "aigcfroge.global.dat:model",
+      "omnixa.global.dat:model",
       JSON.stringify({
         user: [
-          { providerID: "aigcfroge", modelID: "free-model", visibility: "show" },
-          { providerID: "aigcfroge-go", modelID: "go-model-1", visibility: "show" },
+          { providerID: "omnixa", modelID: "free-model", visibility: "show" },
+          { providerID: "omnixa", modelID: "custom-model", visibility: "show" },
         ],
-        recent: [{ providerID: "aigcfroge-go", modelID: "go-model-1" }],
+        recent: [{ providerID: "omnixa", modelID: "custom-model" }],
         variant: {},
       }),
     )
@@ -94,12 +87,12 @@ test("creates a session in a new project and selects its model", async ({ page }
   await expectAppVisible(addProject)
   await addProject.click()
   const picker = page.getByRole("dialog", { name: "Open project", exact: true })
-  await expect(picker.getByRole("combobox")).toHaveValue("C:\\AigcForge\\NewProject")
+  await expect(picker.getByRole("combobox")).toHaveValue("C:\\Omnixa\\NewProject")
 
   const listing = page.waitForRequest((request) => {
     const url = new URL(request.url())
 
-    return url.pathname === "/api/fs/list" && url.searchParams.get("path") === "C:/AigcForge"
+    return url.pathname === "/api/fs/list" && url.searchParams.get("path") === "C:/Omnixa"
   })
 
   await picker.getByRole("button", { name: "Parent", exact: true }).click()
@@ -108,7 +101,7 @@ test("creates a session in a new project and selects its model", async ({ page }
   await expect(directoryItem).toBeVisible()
   await directoryItem.click()
   await expect(directoryItem).toHaveAttribute("aria-selected", "true")
-  await expect(picker.getByText("C:\\AigcForge\\NewProject", { exact: true })).toBeVisible()
+  await expect(picker.getByText("C:\\Omnixa\\NewProject", { exact: true })).toBeVisible()
   const selectFolder = picker.getByRole("button", { name: "Select folder", exact: true })
   await expect(selectFolder).toBeEnabled()
   await selectFolder.click()
@@ -119,7 +112,7 @@ test("creates a session in a new project and selects its model", async ({ page }
   await expectAppVisible(page.locator('[data-component="composer"]'))
 
   const modelControl = page.locator('[data-action="composer-model"]')
-  await expect(modelControl).toContainText("Go Model 1")
+  await expect(modelControl).toContainText("Custom Model")
   await modelControl.click()
   const modelSearch = page.getByPlaceholder("Search models", { exact: true })
   await expect(modelSearch).toBeFocused()
@@ -132,14 +125,14 @@ test("creates a session in a new project and selects its model", async ({ page }
   await modelSearch.press("ArrowUp")
   await modelSearch.press("Enter")
 
-  await expect(modelControl).toContainText("Go Model 1")
+  await expect(modelControl).toContainText("Custom Model")
 })
 
 test("restores each existing session's model and variant when switching tabs", async ({ page }) => {
   const sessions = ["A", "B"].map((name) => ({
     id: `ses_model_${name}`,
     title: `Model ${name}`,
-    model: { id: `model-${name}`, providerID: "aigcfroge", variant: "balanced" },
+    model: { id: `model-${name}`, providerID: "omnixa", variant: "balanced" },
   }))
 
   await openSession(page, {

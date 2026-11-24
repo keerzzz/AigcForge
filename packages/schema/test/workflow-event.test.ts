@@ -48,7 +48,7 @@ describe("Workflow update contract", () => {
       created: 1,
       durable: { aggregateID: data.runID, seq: 0, version: 1 },
       data,
-    }
+    } satisfies typeof WorkflowEvent.Updated.Encoded
     const typed = Schema.decodeUnknownSync(Schema.toType(WorkflowEvent.Updated))({
       ...envelope,
       metadata: undefined,

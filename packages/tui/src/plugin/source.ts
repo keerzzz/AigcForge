@@ -1,1 +1,1 @@
-export { createPluginSources } from "@aigcfroge/plugin/source"
+export { createPluginSources } from "@omnixa/plugin/source"

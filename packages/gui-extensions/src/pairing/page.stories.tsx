@@ -40,7 +40,7 @@ export const NetworkAddresses = story([
 
 /** A saved custom address, such as a VPN, tunnel or reverse proxy URL, is offered first. */
 export const CustomAddress = story(["http://127.0.0.1:49374", "http://192.168.10.248:49374"], {
-  custom: "https://aigcfroge.example.com",
+  custom: "https://omnixa.example.com",
 })
 
 /** The default service only listens on this computer, so the page explains how to let other devices in. */

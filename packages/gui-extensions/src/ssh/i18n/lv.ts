@@ -20,13 +20,8 @@ export default {
   "error.input":
     "Ievadiet resursdatora vai SSH savienojuma komandu. Tālvadības komandas un neatbalstītas SSH opcijas nav atļautas.",
   "error.connection": "Nevarēja izveidot savienojumu SSH. Pārbaudiet savu tīklu un SSH konfigurāciju.",
-  "error.platform":
-    "Šī attālā platforma netiek atbalstīta. Automātiskajai iestatīšanai pašlaik ir nepieciešams Linux vai macOS uz x64 vai arm64.",
   "error.version": "Pirms savienojuma izveides attālajam pakalpojumam ir jāatbilst šai darbvirsmas versijai.",
-  "error.install": "Nevarēja instalēt attālo serveri. Pārbaudiet savienojumu, diska vietu un to, vai ir instalēta tar.",
-  "error.unpublished":
-    "Šai darbvirsmas versijai nav publicēta attālā servera. Izstrādes būvējumiem instalējiet un startējiet V2 resursdatorā, pēc tam mēģiniet vēlreiz.",
-  "error.service": "SSH ir izveidots savienojums, taču serveris AigcForge nebija gatavs.",
+  "error.service": "SSH ir izveidots savienojums, taču serveris Omnixa nebija gatavs.",
   "error.host-key":
     "Nevarēja pārbaudīt saimnieka identitāti. Pirms SSH zināmo saimniekdatoru atjaunināšanas pārbaudiet tā pirkstu nospiedumu.",
   "error.ssh-missing":

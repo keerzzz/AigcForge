@@ -1,10 +1,10 @@
-declare const AIGCFROGE_VERSION: string
-declare const AIGCFROGE_CHANNEL: string
-declare const AIGCFROGE_ARTIFACT: string
+declare const OMNIXA_VERSION: string
+declare const OMNIXA_CHANNEL: string
+declare const OMNIXA_ARTIFACT: string
 
-const version = typeof AIGCFROGE_VERSION === "string" ? AIGCFROGE_VERSION : "local"
-const channel = typeof AIGCFROGE_CHANNEL === "string" ? AIGCFROGE_CHANNEL : "local"
-const artifact = typeof AIGCFROGE_ARTIFACT === "string" ? AIGCFROGE_ARTIFACT : "cli"
+const version = typeof OMNIXA_VERSION === "string" ? OMNIXA_VERSION : "local"
+const channel = typeof OMNIXA_CHANNEL === "string" ? OMNIXA_CHANNEL : "local"
+const artifact = typeof OMNIXA_ARTIFACT === "string" ? OMNIXA_ARTIFACT : "cli"
 
-export { version as AIGCFROGE_VERSION, channel as AIGCFROGE_CHANNEL, artifact as AIGCFROGE_ARTIFACT }
-export const AIGCFROGE_LOCAL = channel === "local"
+export { version as OMNIXA_VERSION, channel as OMNIXA_CHANNEL, artifact as OMNIXA_ARTIFACT }
+export const OMNIXA_LOCAL = channel === "local"

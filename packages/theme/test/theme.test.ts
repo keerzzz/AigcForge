@@ -2,7 +2,7 @@ import { expect, test } from "bun:test"
 import { migrateV1, resolveThemeDocument } from "../src/tui/index.js"
 import type { ThemeV1Json } from "../src/tui/v1.js"
 
-const source: ThemeV1Json = await Bun.file(new URL("../../tui/src/theme/assets/aigcfroge.json", import.meta.url)).json()
+const source: ThemeV1Json = await Bun.file(new URL("../../tui/src/theme/assets/omnixa.json", import.meta.url)).json()
 const document = migrateV1(source)
 
 test.each(["light", "dark"] as const)("resolves %s themes without status tokens", (mode) => {

@@ -1,29 +1,29 @@
 import { describe, expect, test } from "bun:test"
 import { Effect } from "effect"
-import { Provider } from "@aigcfroge/core/provider"
+import { Provider } from "@omnixa/core/provider"
 
 describe("Provider", () => {
   test("loads bundled native provider entrypoints", async () => {
     const packages = [
-      "@aigcfroge/ai/providers/baseten",
-      "@aigcfroge/ai/providers/cerebras",
-      "@aigcfroge/ai/providers/cloudflare-ai-gateway",
-      "@aigcfroge/ai/providers/cloudflare-workers-ai",
-      "@aigcfroge/ai/providers/cohere",
-      "@aigcfroge/ai/providers/cohere/chat",
-      "@aigcfroge/ai/providers/deepinfra",
-      "@aigcfroge/ai/providers/deepseek",
-      "@aigcfroge/ai/providers/fireworks",
-      "@aigcfroge/ai/providers/google-vertex",
-      "@aigcfroge/ai/providers/google-vertex/gemini",
-      "@aigcfroge/ai/providers/google-vertex/interactions",
-      "@aigcfroge/ai/providers/google-vertex/chat",
-      "@aigcfroge/ai/providers/google-vertex/responses",
-      "@aigcfroge/ai/providers/google-vertex/messages",
-      "@aigcfroge/ai/providers/groq",
-      "@aigcfroge/ai/providers/mistral",
-      "@aigcfroge/ai/providers/togetherai",
-      "@aigcfroge/ai/providers/vercel-ai-gateway",
+      "@omnixa/ai/providers/baseten",
+      "@omnixa/ai/providers/cerebras",
+      "@omnixa/ai/providers/cloudflare-ai-gateway",
+      "@omnixa/ai/providers/cloudflare-workers-ai",
+      "@omnixa/ai/providers/cohere",
+      "@omnixa/ai/providers/cohere/chat",
+      "@omnixa/ai/providers/deepinfra",
+      "@omnixa/ai/providers/deepseek",
+      "@omnixa/ai/providers/fireworks",
+      "@omnixa/ai/providers/google-vertex",
+      "@omnixa/ai/providers/google-vertex/gemini",
+      "@omnixa/ai/providers/google-vertex/interactions",
+      "@omnixa/ai/providers/google-vertex/chat",
+      "@omnixa/ai/providers/google-vertex/responses",
+      "@omnixa/ai/providers/google-vertex/messages",
+      "@omnixa/ai/providers/groq",
+      "@omnixa/ai/providers/mistral",
+      "@omnixa/ai/providers/togetherai",
+      "@omnixa/ai/providers/vercel-ai-gateway",
     ]
 
     for (const specifier of packages) {

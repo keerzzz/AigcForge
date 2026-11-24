@@ -14,12 +14,12 @@ import { createStore } from "solid-js/store"
 import { Schema } from "effect"
 import { makeEventListener } from "@solid-primitives/event-listener"
 import { createMediaQuery } from "@solid-primitives/media"
-import { ResizeHandle } from "@aigcfroge/ui/resize-handle"
+import { ResizeHandle } from "@omnixa/ui/resize-handle"
 import {
   SESSION_REVIEW_V2_SIDEBAR_WIDTH_DEFAULT,
   SESSION_REVIEW_V2_SIDEBAR_WIDTH_MAX,
   SESSION_REVIEW_V2_SIDEBAR_WIDTH_MIN,
-} from "@aigcfroge/session-ui/v2/session-review-v2"
+} from "@omnixa/session-ui/v2/session-review-v2"
 import {
   Panel,
   PanelContext,
@@ -28,7 +28,7 @@ import {
   type PanelTab,
   type MountedSession,
   type SessionScreen,
-} from "@aigcfroge/gui-extensions/sdk"
+} from "@omnixa/gui-extensions/sdk"
 import { same } from "@/runtime/persistence/equality"
 import { Persist, persisted } from "@/runtime/persistence/storage"
 import { Persistence } from "@/runtime/persistence/schema"

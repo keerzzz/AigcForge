@@ -101,7 +101,7 @@ for (const mode of ["hidden", "compact", "full"] as const) {
       ).toHaveCount(0)
       await expect(part.locator('[data-slot="tool-summary-icon"] [data-slot="icon-svg"] use')).toHaveAttribute(
         "href",
-        "#aigcfroge-v2-icon-brain",
+        "#omnixa-v2-icon-brain",
       )
 
       if (mode === "compact") await thought.click()

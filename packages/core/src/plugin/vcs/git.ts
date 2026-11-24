@@ -4,12 +4,12 @@ import { randomUUID } from "crypto"
 import fs from "fs/promises"
 import os from "os"
 import path from "path"
-import { define } from "@aigcfroge/plugin/effect/plugin"
+import { define } from "@omnixa/plugin/effect/plugin"
 import { Effect } from "effect"
 import { ChildProcess } from "effect/process"
-import { FileDiff } from "@aigcfroge/schema/file-diff"
-import { Base, BranchList, FileStatus, Info, Mode } from "@aigcfroge/schema/vcs"
-import { AppProcess } from "@aigcfroge/util/process"
+import { FileDiff } from "@omnixa/schema/file-diff"
+import { Base, BranchList, FileStatus, Info, Mode } from "@omnixa/schema/vcs"
+import { AppProcess } from "@omnixa/util/process"
 import { Location } from "../../location.js"
 import type { Adapter, BranchOptions, DiffOptions } from "../../vcs.js"
 import { DiffError } from "../../vcs.js"
@@ -25,7 +25,7 @@ import {
 import type { Patch } from "../../vcs/patch.js"
 
 export const Plugin = define({
-  id: "aigcfroge.vcs.git",
+  id: "omnixa.vcs.git",
   effect: Effect.fn("VcsGitPlugin")(function* (ctx) {
     const location = yield* Location.Service
     // Markerless locations need this definition to initialize their first repository.
@@ -559,7 +559,7 @@ const untrackedBatch = Effect.fnUntraced(function* (
 
   return yield* Effect.acquireUseRelease(
     Effect.promise(async () => {
-      const base = path.join(os.tmpdir(), `aigcfroge-untracked-${randomUUID()}`)
+      const base = path.join(os.tmpdir(), `omnixa-untracked-${randomUUID()}`)
       await fs.writeFile(`${base}.list`, eligible.map((file) => `${file}\0`).join(""))
       return base
     }),

@@ -16,14 +16,14 @@ import {
   UnknownProviderError,
   ToolFailure,
   HttpContext,
-} from "@aigcfroge/ai"
-import { Permission } from "@aigcfroge/core/permission"
-import { ID } from "@aigcfroge/core/model"
-import { ModelResolver } from "@aigcfroge/core/model-resolver"
-import { Provider } from "@aigcfroge/core/provider"
-import { Tool } from "@aigcfroge/schema/tool"
-import { toSessionError } from "@aigcfroge/core/session/to-session-error"
-import { SessionRunnerRetry } from "@aigcfroge/core/session/runner/retry"
+} from "@omnixa/ai"
+import { Permission } from "@omnixa/core/permission"
+import { ID } from "@omnixa/core/model"
+import { ModelResolver } from "@omnixa/core/model-resolver"
+import { Provider } from "@omnixa/core/provider"
+import { Tool } from "@omnixa/schema/tool"
+import { toSessionError } from "@omnixa/core/session/to-session-error"
+import { SessionRunnerRetry } from "@omnixa/core/session/runner/retry"
 
 const llm = (reason: AIError["reason"]) => new AIError({ reason })
 
@@ -177,7 +177,7 @@ describe("toSessionError", () => {
     const configuration = new ModelResolver.ModelConfigurationError({
       providerID: Provider.ID.make("azure"),
       modelID: ID.make("gpt-5.4-nano"),
-      package: "@aigcfroge/ai/providers/azure/responses",
+      package: "@omnixa/ai/providers/azure/responses",
       detail: "Azure requires resourceName or baseURL",
     })
     expect(toSessionError(configuration)).toEqual({
@@ -187,13 +187,13 @@ describe("toSessionError", () => {
     const initialization = new ModelResolver.ModelInitializationError({
       providerID: Provider.ID.make("custom"),
       modelID: ID.make("model"),
-      package: "@aigcfroge/ai/providers/custom",
+      package: "@omnixa/ai/providers/custom",
       phase: "load",
-      detail: "Provider package @aigcfroge/ai/providers/custom is broken",
+      detail: "Provider package @omnixa/ai/providers/custom is broken",
     })
     expect(toSessionError(initialization)).toEqual({
       type: "provider.no-route",
-      message: "Cannot initialize custom/model: Provider package @aigcfroge/ai/providers/custom is broken",
+      message: "Cannot initialize custom/model: Provider package @omnixa/ai/providers/custom is broken",
     })
   })
 

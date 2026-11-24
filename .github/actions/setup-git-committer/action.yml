@@ -1,11 +1,11 @@
 name: "Setup Git Committer"
 description: "Configure git user"
 inputs:
-  aigcfroge-app-id:
-    description: "Aigcfroge GitHub App ID"
+  omnixa-app-id:
+    description: "Omnixa GitHub App ID"
     required: false
-  aigcfroge-app-secret:
-    description: "Aigcfroge GitHub App private key"
+  omnixa-app-secret:
+    description: "Omnixa GitHub App private key"
     required: false
   require-app:
     description: "Fail instead of falling back when an unattended workflow requires an App"
@@ -25,20 +25,20 @@ runs:
       if: inputs.require-app == 'true'
       shell: bash
       env:
-        APP_ID: ${{ inputs.aigcfroge-app-id }}
-        APP_PRIVATE_KEY: ${{ inputs.aigcfroge-app-secret }}
+        APP_ID: ${{ inputs.omnixa-app-id }}
+        APP_PRIVATE_KEY: ${{ inputs.omnixa-app-secret }}
       run: |
         if [ -z "$APP_ID" ] || [ -z "$APP_PRIVATE_KEY" ]; then
-          echo "::error::AIGCFROGE_APP_ID and AIGCFROGE_APP_SECRET are required for unattended release PRs"
+          echo "::error::OMNIXA_APP_ID and OMNIXA_APP_SECRET are required for unattended release PRs"
           exit 1
         fi
     - name: Create app token
       id: apptoken
-      if: inputs.aigcfroge-app-id != '' && inputs.aigcfroge-app-secret != ''
+      if: inputs.omnixa-app-id != '' && inputs.omnixa-app-secret != ''
       uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2.2.2
       with:
-        app-id: ${{ inputs.aigcfroge-app-id }}
-        private-key: ${{ inputs.aigcfroge-app-secret }}
+        app-id: ${{ inputs.omnixa-app-id }}
+        private-key: ${{ inputs.omnixa-app-secret }}
         owner: ${{ github.repository_owner }}
 
     - name: Configure git user

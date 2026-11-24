@@ -1,17 +1,17 @@
 import { describe, expect, test } from "bun:test"
 import { Effect, Layer, Schema } from "effect"
-import { FSUtil } from "@aigcfroge/util/fs-util"
-import { Hash } from "@aigcfroge/util/hash"
-import { Composition } from "@aigcfroge/schema/composition"
-import { AssetPlacement } from "@aigcfroge/schema/asset-placement"
-import { Location } from "@aigcfroge/core/location"
-import { AbsolutePath } from "@aigcfroge/core/schema"
+import { FSUtil } from "@omnixa/util/fs-util"
+import { Hash } from "@omnixa/util/hash"
+import { Composition } from "@omnixa/schema/composition"
+import { AssetPlacement } from "@omnixa/schema/asset-placement"
+import { Location } from "@omnixa/core/location"
+import { AbsolutePath } from "@omnixa/core/schema"
 import { location } from "./fixture/location"
 import { tmpdir, tmpdirScoped } from "./fixture/tmpdir"
 import fs from "fs/promises"
 import path from "path"
 import { CustomProfile } from "../src/custom-profile"
-import { decodeProfile, Description, Name, Profile, Revision } from "@aigcfroge/schema/custom-profile"
+import { decodeProfile, Description, Name, Profile, Revision } from "@omnixa/schema/custom-profile"
 import { NodeFileSystem } from "@effect/platform-node"
 import { AssetYaml } from "../src/util/asset-yaml"
 import { testEffect } from "./lib/effect"
@@ -160,7 +160,7 @@ describe("CustomProfile Registry", () => {
 
   test("loads valid custom profile YAML file", async () => {
     await withTmp(async (dir) => {
-      const profilesDir = path.join(dir, ".aigcfroge", "custom-profiles")
+      const profilesDir = path.join(dir, ".omnixa", "custom-profiles")
       await fs.mkdir(profilesDir, { recursive: true })
       await fs.writeFile(path.join(profilesDir, "dev.yaml"), sampleYaml)
 
@@ -193,7 +193,7 @@ describe("CustomProfile Registry", () => {
 
   test("marks invalid YAML as parse_error and non-conforming schema as bad_yaml", async () => {
     await withTmp(async (dir) => {
-      const profilesDir = path.join(dir, ".aigcfroge", "custom-profiles")
+      const profilesDir = path.join(dir, ".omnixa", "custom-profiles")
       await fs.mkdir(profilesDir, { recursive: true })
       await fs.writeFile(path.join(profilesDir, "corrupt.yaml"), ": bad : yaml :")
       const emptyAgentYaml = `kind: custom-profile
@@ -225,7 +225,7 @@ requestedCapabilities: []
 
   test("marks duplicate names as name_conflict and excludes both from active list", async () => {
     await withTmp(async (dir) => {
-      const profilesDir = path.join(dir, ".aigcfroge", "custom-profiles")
+      const profilesDir = path.join(dir, ".omnixa", "custom-profiles")
       await fs.mkdir(profilesDir, { recursive: true })
       await fs.writeFile(path.join(profilesDir, "first.yaml"), sampleYaml)
       await fs.writeFile(path.join(profilesDir, "second.yaml"), sampleYaml)
@@ -247,12 +247,12 @@ requestedCapabilities: []
 })
 
 const referenceTargets = [
-  { kind: "agent", path: "shared/reviewer.md", owner: ".aigcfroge/agents" },
-  { kind: "prompt", path: "shared/policy.md", owner: ".aigcfroge/prompts" },
-  { kind: "skill", path: "git-tools/SKILL.md", owner: ".aigcfroge/skills" },
-  { kind: "workflow", path: "flows/review.yaml", owner: ".aigcfroge/workflows" },
-  { kind: "command", path: "shared/check.md", owner: ".aigcfroge/commands" },
-  { kind: "mcp", path: "servers/probe.md", owner: ".aigcfroge/mcps" },
+  { kind: "agent", path: "shared/reviewer.md", owner: ".omnixa/agents" },
+  { kind: "prompt", path: "shared/policy.md", owner: ".omnixa/prompts" },
+  { kind: "skill", path: "git-tools/SKILL.md", owner: ".omnixa/skills" },
+  { kind: "workflow", path: "flows/review.yaml", owner: ".omnixa/workflows" },
+  { kind: "command", path: "shared/check.md", owner: ".omnixa/commands" },
+  { kind: "mcp", path: "servers/probe.md", owner: ".omnixa/mcps" },
 ] as const
 
 function referenceProfile(name: string, revision = "0".repeat(64)) {
@@ -288,7 +288,7 @@ describe("CustomProfile references", () => {
       const directory = yield* tmpdirScoped()
       const filesystem = yield* FSUtil.Service
       const relativePath = "roots/release.md"
-      const file = path.join(directory.path, ".aigcfroge/agents", relativePath)
+      const file = path.join(directory.path, ".omnixa/agents", relativePath)
       const bytes = "---\nkind: agent\nname: release-root\ndescription: Root\n---\nFrozen root.\n"
       yield* filesystem.writeWithDirs(file, bytes)
       const root = Schema.decodeUnknownSync(Composition.AssetRoot)({
@@ -448,12 +448,12 @@ describe("CustomProfile references", () => {
       aliases.bindings.orchestrator.commands[0].relativePath = " shared\\check.md "
       aliases.mcpBindings[0].ref.relativePath = " servers\\probe.md "
       const prefixed = referenceProfile("Prefixed")
-      prefixed.agents[0].relativePath = ".aigcfroge/agents/shared/reviewer.md"
-      prefixed.workflow.relativePath = ".aigcfroge/workflows/flows/review.yaml"
-      prefixed.bindings.orchestrator.prompts[0].relativePath = ".aigcfroge/prompts/shared/policy.md"
-      prefixed.bindings.orchestrator.skills[0].relativePath = ".aigcfroge/skills/git-tools/SKILL.md"
-      prefixed.bindings.orchestrator.commands[0].relativePath = ".aigcfroge/commands/shared/check.md"
-      prefixed.mcpBindings[0].ref.relativePath = ".aigcfroge/mcps/servers/probe.md"
+      prefixed.agents[0].relativePath = ".omnixa/agents/shared/reviewer.md"
+      prefixed.workflow.relativePath = ".omnixa/workflows/flows/review.yaml"
+      prefixed.bindings.orchestrator.prompts[0].relativePath = ".omnixa/prompts/shared/policy.md"
+      prefixed.bindings.orchestrator.skills[0].relativePath = ".omnixa/skills/git-tools/SKILL.md"
+      prefixed.bindings.orchestrator.commands[0].relativePath = ".omnixa/commands/shared/check.md"
+      prefixed.mcpBindings[0].ref.relativePath = ".omnixa/mcps/servers/probe.md"
       yield* filesystem.writeWithDirs(
         path.join(directory.path, CustomProfile.CUSTOM_PROFILES_DIR, "aliases.yaml"),
         AssetYaml.stringify(aliases),
@@ -574,17 +574,14 @@ describe("CustomProfile references", () => {
           path.join(directory.path, CustomProfile.CUSTOM_PROFILES_DIR, "invalid.yaml"),
           AssetYaml.stringify({ ...referenceProfile("Bad schema"), agents: [] }),
         )
-        yield* filesystem.writeWithDirs(
-          path.join(directory.path, ".aigcfroge/agents/shared/reviewer.md"),
-          "target asset",
-        )
+        yield* filesystem.writeWithDirs(path.join(directory.path, ".omnixa/agents/shared/reviewer.md"), "target asset")
 
         yield* Effect.gen(function* () {
           const service = yield* CustomProfile.Service
           expect(yield* service.listInvalid()).toHaveLength(3)
           const before = yield* service.references({ kind: "agent", path: "shared/reviewer.md" })
           expect(before.map((profile) => profile.relativePath)).toEqual(["valid.yaml"])
-          yield* filesystem.remove(path.join(directory.path, ".aigcfroge/agents/shared/reviewer.md"))
+          yield* filesystem.remove(path.join(directory.path, ".omnixa/agents/shared/reviewer.md"))
           expect(yield* service.references({ kind: "agent", path: "shared/reviewer.md" })).toEqual(before)
           yield* service.reload()
           expect(yield* service.references({ kind: "agent", path: "shared/reviewer.md" })).toEqual(before)

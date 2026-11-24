@@ -181,7 +181,7 @@ function buildExit(input: SplashWriterInput, ctx: ScrollbackRenderContext): Scro
   const body_left = (mark[0]?.length ?? 0) + 2
   const session = "Session  "
   const label = "Continue "
-  const command = `aigcfroge mini -s ${meta.session_id}`
+  const command = `omnixa mini -s ${meta.session_id}`
   const wide = body_left + stringWidth(label + command) <= width
   const commandHeight = wide ? 1 : Math.ceil(stringWidth(command) / width)
 
@@ -285,9 +285,9 @@ export function entrySplashLayout(input: { width: number; version: string; detai
     .map((_, index) => ellipsis + slash + segments.slice(index + 1).join(slash))
     .reverse()
     .filter((path) => stringWidth(path) < stringWidth(detail))
-  let layout = { label: Locale.takeWidth("oc mini", input.width), version: "", path: "", metadata: "" }
+  let layout = { label: Locale.takeWidth("omnixa mini", input.width), version: "", path: "", metadata: "" }
   const stages = [
-    { label: `${input.mono ? "[O]" : "▪"} oc mini` },
+    { label: `${input.mono ? "[O]" : "▪"} omnixa mini` },
     ...(leaf ? [{ path: leaf }] : []),
     ...(input.version ? [{ version: input.version }] : []),
     ...paths.concat(detail ? [detail] : []).map((path) => ({ path })),

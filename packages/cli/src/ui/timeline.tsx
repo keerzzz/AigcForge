@@ -1,7 +1,7 @@
 /** @jsxImportSource @opentui/solid */
 import { createCliRenderer, RGBA, type CliRenderer, type ColorInput, type ScrollbackWriter } from "@opentui/core"
 import { createScrollbackWriter, render, useKeyboard } from "@opentui/solid"
-import { registerOpencodeSpinner } from "@aigcfroge/tui/component/register-spinner"
+import { registerOpencodeSpinner } from "@omnixa/tui/component/register-spinner"
 import { Show, createSignal } from "solid-js"
 
 registerOpencodeSpinner()

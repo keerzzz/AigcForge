@@ -4,7 +4,7 @@ import type {
   SessionMessageAssistant,
   SessionMessageAssistantTool,
   SessionMessageInfo,
-} from "@aigcfroge/client/promise"
+} from "@omnixa/client/promise"
 import { createStore } from "solid-js/store"
 import {
   createTimelineProjection,

@@ -1,4 +1,4 @@
-import type { SessionInfo, SessionMessageUser } from "@aigcfroge/client/promise"
+import type { SessionInfo, SessionMessageUser } from "@omnixa/client/promise"
 import { Option, Predicate, Schema } from "effect"
 import { fromSelection, ModelKey } from "@/providers/models/key"
 

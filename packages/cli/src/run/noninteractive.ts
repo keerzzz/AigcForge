@@ -2,18 +2,18 @@ import type {
   EventSubscribeOutput,
   JsonValue,
   LocationRef,
-  AigcForgeClient,
+  OmnixaClient,
   SessionMessageAssistantTool,
   SessionMessageInfo,
   ToolContent,
   SessionInfo,
-} from "@aigcfroge/client/promise"
-import { SessionMessage } from "@aigcfroge/schema/session-message"
+} from "@omnixa/client/promise"
+import { SessionMessage } from "@omnixa/schema/session-message"
 import { EOL } from "node:os"
 import { readFile } from "node:fs/promises"
-import { nonEmptyToolContent, toolOutputText, type MiniToolPart } from "@aigcfroge/tui/mini/tool"
+import { nonEmptyToolContent, toolOutputText, type MiniToolPart } from "@omnixa/tui/mini/tool"
 import { UI } from "./ui"
-import { isModelGroup, toModelSelection, type ModelPreferenceModel } from "@aigcfroge/tui/model-preference"
+import { isModelGroup, toModelSelection, type ModelPreferenceModel } from "@omnixa/tui/model-preference"
 
 type File = {
   url: string
@@ -22,7 +22,7 @@ type File = {
 }
 
 type Input = {
-  client: AigcForgeClient
+  client: OmnixaClient
   sessionID: string
   location: LocationRef
   message: string
@@ -803,7 +803,7 @@ function formRequestOptions(location: LocationRef | undefined): [] | [{ headers:
   return [
     {
       headers: {
-        "x-aigcfroge-directory": encodeURIComponent(location.directory),
+        "x-omnixa-directory": encodeURIComponent(location.directory),
       },
     },
   ]

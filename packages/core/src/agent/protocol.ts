@@ -1,6 +1,6 @@
 export * as AgentProtocol from "./protocol.js"
 
-import { Agent } from "@aigcfroge/schema/agent"
+import { Agent } from "@omnixa/schema/agent"
 import { Option, Schema } from "effect"
 
 const decodeCard = Schema.decodeUnknownOption(Agent.CardValue)

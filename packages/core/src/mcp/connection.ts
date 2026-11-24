@@ -18,15 +18,15 @@ import {
 import { HttpClient, HttpClientError, HttpClientRequest } from "effect/http"
 import { ChildProcess } from "effect/process"
 import { ChildProcessSpawner } from "effect/process/ChildProcessSpawner"
-import { ToolFailure } from "@aigcfroge/ai"
-import type { Info } from "@aigcfroge/schema/tool"
-import { Composition } from "@aigcfroge/schema/composition"
-import { McpScope, McpServerBinding } from "@aigcfroge/schema/mcp-scope"
+import { ToolFailure } from "@omnixa/ai"
+import type { Info } from "@omnixa/schema/tool"
+import { Composition } from "@omnixa/schema/composition"
+import { McpScope, McpServerBinding } from "@omnixa/schema/mcp-scope"
 import { canonicalToolName, McpRegistration, SERVER_NAME_PATTERN } from "../tool/mcp-registration.js"
 import { Tool } from "../tool.js"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
-import { httpClient } from "@aigcfroge/util/effect/app-node-platform"
-import { CrossSpawnSpawner } from "@aigcfroge/util/cross-spawn-spawner"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
+import { httpClient } from "@omnixa/util/effect/app-node-platform"
+import { CrossSpawnSpawner } from "@omnixa/util/cross-spawn-spawner"
 import { McpCredentialBindingStore } from "./binding/store.js"
 import { Credential } from "../credential.js"
 import { CredentialScanner } from "../credential-scanner.js"
@@ -330,7 +330,7 @@ export interface Interface {
   readonly shutdown: () => Effect.Effect<void>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/McpConnection") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/v2/McpConnection") {}
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value)
@@ -965,7 +965,7 @@ export const layer = Layer.effect(
           wire.request("initialize", {
             protocolVersion: "2024-11-05",
             capabilities: {},
-            clientInfo: { name: "aigcfroge", version: "0" },
+            clientInfo: { name: "omnixa", version: "0" },
           }),
         )
         if (!isRecord(initResult))

@@ -1,7 +1,7 @@
 export * as BrowserFiles from "./files.js"
 
 import { Browser } from "./rpc.js"
-import { Tool } from "@aigcfroge/schema/tool"
+import { Tool } from "@omnixa/schema/tool"
 import { Effect } from "effect"
 
 // Files cross machines as bytes. Only this endpoint interprets its local paths.
@@ -69,7 +69,7 @@ export const save = Effect.fn("BrowserFiles.save")((files: readonly Browser.File
       const { mkdtemp, mkdir, writeFile } = await import("node:fs/promises")
       const { join } = await import("node:path")
       const { tmpdir } = await import("node:os")
-      const directory = await mkdtemp(join(tmpdir(), "aigcfroge-browser-"))
+      const directory = await mkdtemp(join(tmpdir(), "omnixa-browser-"))
       return Promise.all(
         files.map(async (file, index) => {
           const name = captureName(file.name)

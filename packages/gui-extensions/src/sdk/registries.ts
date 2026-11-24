@@ -1,7 +1,7 @@
 import type { JSX } from "solid-js"
-import type { IconName } from "@aigcfroge/ui/icons/catalog"
-import type { SessionFork } from "@aigcfroge/schema/session-fork"
-import type { SessionReference } from "@aigcfroge/schema/session-reference"
+import type { IconName } from "@omnixa/ui/icons/catalog"
+import type { SessionFork } from "@omnixa/schema/session-fork"
+import type { SessionReference } from "@omnixa/schema/session-reference"
 import { Registry } from "./core"
 import type {
   SessionRef,

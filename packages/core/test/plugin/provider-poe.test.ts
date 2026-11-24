@@ -1,14 +1,14 @@
-import { LLM } from "@aigcfroge/ai"
-import { LLMClient, RequestExecutor } from "@aigcfroge/ai/route"
-import { Credential } from "@aigcfroge/core/credential"
-import { Integration } from "@aigcfroge/core/integration"
-import { Model } from "@aigcfroge/core/model"
-import { ModelResolver } from "@aigcfroge/core/model-resolver"
-import { Plugin } from "@aigcfroge/core/plugin"
-import { PluginHost } from "@aigcfroge/core/plugin/host"
-import { ProviderPlugins } from "@aigcfroge/core/plugin/provider"
-import { PoePlugin } from "@aigcfroge/core/plugin/provider/poe"
-import { Provider } from "@aigcfroge/core/provider"
+import { LLM } from "@omnixa/ai"
+import { LLMClient, RequestExecutor } from "@omnixa/ai/route"
+import { Credential } from "@omnixa/core/credential"
+import { Integration } from "@omnixa/core/integration"
+import { Model } from "@omnixa/core/model"
+import { ModelResolver } from "@omnixa/core/model-resolver"
+import { Plugin } from "@omnixa/core/plugin"
+import { PluginHost } from "@omnixa/core/plugin/host"
+import { ProviderPlugins } from "@omnixa/core/plugin/provider"
+import { PoePlugin } from "@omnixa/core/plugin/provider/poe"
+import { Provider } from "@omnixa/core/provider"
 import { expect } from "bun:test"
 import { Clock, Deferred, Effect, Fiber, Layer, Schedule, Stream } from "effect"
 import { TestClock } from "effect/testing"
@@ -42,7 +42,7 @@ const fixture = Effect.gen(function* () {
   })
   yield* providers.transform((editor) => {
     editor.update(providerID, (provider) => {
-      provider.package = "@aigcfroge/ai/providers/openai-compatible"
+      provider.package = "@omnixa/ai/providers/openai-compatible"
       provider.settings = { baseURL: "https://api.poe.com/v1" }
     })
     editor.models.update(providerID, modelID, () => {})

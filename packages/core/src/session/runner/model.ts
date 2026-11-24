@@ -1,10 +1,10 @@
 export * as SessionRunnerModel from "./model.js"
 
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
-import { AIError, LanguageModel } from "@aigcfroge/ai"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
+import { AIError, LanguageModel } from "@omnixa/ai"
 import { Model } from "../../model.js"
 import { ModelGroup } from "../../model-group.js"
-import type { ModelSource } from "@aigcfroge/schema/model-source"
+import type { ModelSource } from "@omnixa/schema/model-source"
 import { Provider } from "../../provider.js"
 import { Context, DateTime, Effect, Layer, Schema } from "effect"
 import { ModelResolver } from "../../model-resolver.js"
@@ -21,7 +21,7 @@ import { SessionMessageTable, SessionTable } from "../sql.js"
 import { sameModel } from "../error.js"
 import { isDeepStrictEqual } from "node:util"
 import { and, asc, eq, isNull, or } from "drizzle-orm"
-import type { SessionAttempt } from "@aigcfroge/schema/session-attempt"
+import type { SessionAttempt } from "@omnixa/schema/session-attempt"
 
 export class ModelNotSelectedError extends Schema.TaggedError<ModelNotSelectedError>()(
   "SessionRunnerModel.ModelNotSelectedError",
@@ -88,7 +88,7 @@ export interface Interface {
   ) => Effect.Effect<Resolved, Error>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/SessionRunnerModel") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/SessionRunnerModel") {}
 
 /** Builds a Resolved whose catalog identity mirrors the route model. Test or embedding seam. */
 export const resolved = (

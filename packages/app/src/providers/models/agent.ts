@@ -1,4 +1,4 @@
-import type { SessionExecutorPreference } from "@aigcfroge/client/promise"
+import type { SessionExecutorPreference } from "@omnixa/client/promise"
 import { fromSelection, sameKey } from "./key"
 
 export function hasCustomAgent(items: Array<{ originKind?: "builtin" | "user"; native?: boolean }>) {

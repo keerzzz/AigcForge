@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { Effect } from "effect"
-import { ProductModePolicy } from "@aigcfroge/core/product-mode-policy"
-import { ProductModeAgentPolicy } from "@aigcfroge/core/product-mode-agent-policy"
+import { ProductModePolicy } from "@omnixa/core/product-mode-policy"
+import { ProductModeAgentPolicy } from "@omnixa/core/product-mode-agent-policy"
 import { withCustomModeFlag } from "./lib/product-mode"
 
 describe("ProductModePolicy & AgentPolicy Governance", () => {
@@ -158,13 +158,13 @@ describe("custom mode kill switch default (M3 Phase G §7.2)", () => {
     // The helper is what makes the assertions above order-independent, so its
     // finally-path is part of the guarantee, not an implementation detail.
     await withCustomModeFlag("true", async () => {
-      const before = process.env["AIGCFROGE_CUSTOM_MODE"]
+      const before = process.env["OMNIXA_CUSTOM_MODE"]
       await expect(
         withCustomModeFlag(undefined, () => {
           throw new Error("boom")
         }),
       ).rejects.toThrow("boom")
-      expect(process.env["AIGCFROGE_CUSTOM_MODE"]).toBe(before)
+      expect(process.env["OMNIXA_CUSTOM_MODE"]).toBe(before)
     })
   })
 })

@@ -1,4 +1,4 @@
-// Top-level orchestrator for `aigcfroge mini`.
+// Top-level orchestrator for `omnixa mini`.
 //
 // Wires the boot sequence, lifecycle (renderer + footer), stream transport,
 // and prompt queue together into a single session loop. The frontend paints
@@ -8,8 +8,8 @@
 //   3. starts the stream transport (SDK event subscription), lazily for fresh
 //      local sessions,
 //   4. runs the prompt queue until the footer closes.
-import { SessionMessage } from "@aigcfroge/schema/session-message"
-import type { LocationRef, ModelGroupCurrent } from "@aigcfroge/client/promise"
+import { SessionMessage } from "@omnixa/schema/session-message"
+import type { LocationRef, ModelGroupCurrent } from "@omnixa/client/promise"
 import type { Config } from "../config"
 import { newSessionLocation } from "../config/new-session-location"
 import { errorMessage } from "../util/error"
@@ -164,7 +164,7 @@ function formRequestOptions(location: LocationRef | undefined) {
   if (!location) return
   return {
     headers: {
-      "x-aigcfroge-directory": encodeURIComponent(location.directory),
+      "x-omnixa-directory": encodeURIComponent(location.directory),
     },
   }
 }

@@ -3,12 +3,12 @@ import { Credential } from "../../credential"
 
 /**
  * Module-level seam for resolving provider API-key credentials from the
- * application layer (aigcfroge `Auth.Service` / auth.json) into the V2
+ * application layer (omnixa `Auth.Service` / auth.json) into the V2
  * `SessionRunnerModel.resolve` credential lookup.
  *
  * Why a seam (not a Layer Service): `SessionRunnerModel` is provided inside
- * `LocationServiceMap` (core), which cannot depend on aigcfroge's `Auth.Service`.
- * The aigcfroge composition root calls `register()` once at startup to install
+ * `LocationServiceMap` (core), which cannot depend on omnixa's `Auth.Service`.
+ * The omnixa composition root calls `register()` once at startup to install
  * a resolver that reads auth.json. Same pattern as `TaskDriver`.
  *
  * Without this seam, V2 `SessionRunnerModel.resolve` only checks core

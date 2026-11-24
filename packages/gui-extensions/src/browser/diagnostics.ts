@@ -1,4 +1,4 @@
-import { Browser } from "@aigcfroge/plugin-browser/rpc"
+import { Browser } from "@omnixa/plugin-browser/rpc"
 import type { Protocol } from "devtools-protocol"
 import type { Cdp } from "./cdp"
 

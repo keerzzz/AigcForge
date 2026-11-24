@@ -1,5 +1,5 @@
 import { Effect } from "effect"
-import { Service } from "@aigcfroge/client/effect/service"
+import { Service } from "@omnixa/client/effect/service"
 import path from "node:path"
 import { Standalone } from "../../src/services/standalone"
 

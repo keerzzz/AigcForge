@@ -1,5 +1,5 @@
-import { encodeFilePath, getFilename } from "@aigcfroge/util/path"
-import type { SessionReference } from "@aigcfroge/schema/session-reference"
+import { encodeFilePath, getFilename } from "@omnixa/util/path"
+import type { SessionReference } from "@omnixa/schema/session-reference"
 import type { FileSelection } from "@/workspaces/files/model"
 import type {
   AgentPart,

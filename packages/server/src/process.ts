@@ -1,14 +1,14 @@
 export * as ServerProcess from "./process"
 
 import { NodeHttpServer } from "@effect/platform-node"
-import { Bus } from "@aigcfroge/core/bus"
-import { SessionRestart } from "@aigcfroge/core/session/execution/restart"
-import { ScheduleExecution } from "@aigcfroge/core/session/schedule-execution"
-import { InstallationEvent } from "@aigcfroge/schema/installation-event"
-import { hasPtyConnectTicketURL } from "@aigcfroge/protocol/groups/pty"
-import { hasPersistentPtyConnectTicketURL } from "@aigcfroge/protocol/groups/persistent-pty"
-import { isPairingConnectURL } from "@aigcfroge/protocol/groups/server"
-import { Global } from "@aigcfroge/util/global"
+import { Bus } from "@omnixa/core/bus"
+import { SessionRestart } from "@omnixa/core/session/execution/restart"
+import { ScheduleExecution } from "@omnixa/core/session/schedule-execution"
+import { InstallationEvent } from "@omnixa/schema/installation-event"
+import { hasPtyConnectTicketURL } from "@omnixa/protocol/groups/pty"
+import { hasPersistentPtyConnectTicketURL } from "@omnixa/protocol/groups/persistent-pty"
+import { isPairingConnectURL } from "@omnixa/protocol/groups/server"
+import { Global } from "@omnixa/util/global"
 import { Cause, Context, Effect, Exit, Latch, Layer, Option, Ref, Scope } from "effect"
 import { HttpMiddleware, HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http"
 import { NetAddress } from "effect/net"
@@ -186,7 +186,7 @@ function dispatch(
   urls: () => ReadonlyArray<string>,
   tmp: string,
 ): App {
-  const auth = ServerAuth.Config.of({ password: Option.some(password), username: "aigcfroge" })
+  const auth = ServerAuth.Config.of({ password: Option.some(password), username: "omnixa" })
   return Effect.gen(function* () {
     const request = yield* HttpServerRequest.HttpServerRequest
     const url = new URL(request.url, "http://localhost")
@@ -230,7 +230,7 @@ function unavailable(status: Status.State) {
       {
         code: "service_failed",
         message: "The background service could not start.",
-        action: "Run `aigcfroge service restart` after checking the service logs.",
+        action: "Run `omnixa service restart` after checking the service logs.",
       },
       { status: 503 },
     )

@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 import { createTestRenderer } from "@opentui/core/testing"
-import { Global } from "@aigcfroge/util/global"
+import { Global } from "@omnixa/util/global"
 import { Effect, FileSystem } from "effect"
 import { createEventStream, createFetch, json } from "./fixture/tui-client"
 import { tmpdir } from "./fixture/fixture"
@@ -73,7 +73,7 @@ test("stats shows only this year and returns after errors or success", async () 
       setup
         .captureCharFrame()
         .split("\n")
-        .find((line) => line.includes("aigcfroge / stats")),
+        .find((line) => line.includes("omnixa / stats")),
     ).not.toContain("tab")
     setup.mockInput.pressKey("RETURN")
     setup.mockInput.pressKey("SPACE")
@@ -85,7 +85,7 @@ test("stats shows only this year and returns after errors or success", async () 
     expect(setup.captureCharFrame()).toContain("TOKENS")
     expect(setup.captureCharFrame()).not.toContain("headline")
     setup.mockInput.pressKey("ESCAPE")
-    await setup.waitForFrame((frame) => frame.includes("commands") && !frame.includes("aigcfroge / stats"))
+    await setup.waitForFrame((frame) => frame.includes("commands") && !frame.includes("omnixa / stats"))
   } finally {
     if (!setup.renderer.isDestroyed) setup.renderer.destroy()
     await task.finally(() => server.stop(true))

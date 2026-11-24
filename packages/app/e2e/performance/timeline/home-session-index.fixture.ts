@@ -28,7 +28,7 @@ export type HomeIndexDirectory = {
 }
 
 const repos = [
-  "aigcfroge",
+  "omnixa",
   "storefront-api",
   "billing-worker",
   "design-system",

@@ -6,16 +6,16 @@ import {
   ToolResultPart,
   type ContentPart,
   type ProviderMetadata,
-} from "@aigcfroge/ai"
-import { Model } from "@aigcfroge/schema/model"
-import { SessionCommunication } from "@aigcfroge/schema/session-communication"
-import { SessionID } from "@aigcfroge/schema/session-id"
+} from "@omnixa/ai"
+import { Model } from "@omnixa/schema/model"
+import { SessionCommunication } from "@omnixa/schema/session-communication"
+import { SessionID } from "@omnixa/schema/session-id"
 import { Option, Schema } from "effect"
 import { absurd } from "effect/Function"
 import { fileURLToPath } from "url"
 import { SessionMessage } from "../message.js"
 import { SessionProviderContext } from "../provider-context.js"
-import type { FileAttachment } from "@aigcfroge/schema/prompt"
+import type { FileAttachment } from "@omnixa/schema/prompt"
 
 const imageMimes = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"])
 
@@ -364,7 +364,7 @@ function toLLMMessage(
   return absurd(message)
 }
 
-/** Translate projected Session history into canonical @aigcfroge/ai context. */
+/** Translate projected Session history into canonical @omnixa/ai context. */
 export const toLLMMessages = (
   messages: readonly SessionMessage.Info[],
   model: Model.Ref,

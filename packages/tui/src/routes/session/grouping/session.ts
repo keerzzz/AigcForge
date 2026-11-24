@@ -1,4 +1,4 @@
-import type { SessionMessageAssistant, SessionMessageInfo } from "@aigcfroge/client"
+import type { SessionMessageAssistant, SessionMessageInfo } from "@omnixa/client"
 import { groupEntries, mergeGroups, splitGroups, type GroupNode } from "./tree"
 
 export type PartRef = {

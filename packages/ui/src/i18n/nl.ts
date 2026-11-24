@@ -102,16 +102,6 @@ export const dict: Record<string, string> = {
   "ui.sessionTurn.retry.attempt": "poging #{{attempt}}",
   "ui.sessionTurn.retry.attemptLine": "{{line}} - poging #{{attempt}}",
   "ui.sessionTurn.retry.geminiHot": "Gemini is momenteel overbelast",
-  "ui.sessionTurn.error.freeUsageExceeded": "Gratis gebruik overschreden",
-  "ui.sessionTurn.error.addCredits": "Tegoed toevoegen",
-  "dialog.usageExceeded.freeTier.title": "Gratis limiet bereikt",
-  "dialog.usageExceeded.freeTier.description":
-    "Abonneer je voor $ 10 per maand op AigcForge Go voor betrouwbare toegang tot de beste open-sourcemodellen.",
-  "dialog.usageExceeded.freeTier.actionLabel": "Abonneer je",
-  "dialog.usageExceeded.accountRateLimit.title": "Go-limiet bereikt",
-  "dialog.usageExceeded.accountRateLimit.description":
-    "Gebruikslimiet bereikt. Schakel betalen met je beschikbare saldo in om dit model nu te blijven gebruiken",
-  "dialog.usageExceeded.accountRateLimit.actionLabel": "Instellingen openen",
   "ui.sessionTurn.status.delegating": "Werk delegeren",
   "ui.sessionTurn.status.planning": "Volgende stappen plannen",
   "ui.sessionTurn.status.gatheringContext": "Verkennen",

@@ -24,9 +24,14 @@ export function readWindowSnapshot(userData: string, names: readonly string[]): 
           names.map((name) => [
             name,
             {
-              // SAFETY: the journaled state table declares both selected columns TEXT NOT NULL.
+              // Non-STRICT TEXT affinity permits blobs; window state contains only text keys and values.
               items: Object.fromEntries(
-                (rows.all(name) as { key: string; value: string }[]).map((row) => [row.key, row.value]),
+                rows.all(name).map((row) => {
+                  if (typeof row.key !== "string" || typeof row.value !== "string") {
+                    throw new TypeError("Invalid persisted window state")
+                  }
+                  return [row.key, row.value]
+                }),
               ),
               revision: 0,
             },

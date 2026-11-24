@@ -66,16 +66,6 @@ export const dict: Record<string, string> = {
   "ui.sessionTurn.retry.attempt": "mēģinājums #{{attempt}}",
   "ui.sessionTurn.retry.attemptLine": "{{line}} – mēģinājums #{{attempt}}",
   "ui.sessionTurn.retry.geminiHot": "gemini šobrīd ir pārāk noslogots",
-  "ui.sessionTurn.error.freeUsageExceeded": "Bezmaksas limits pārsniegts",
-  "ui.sessionTurn.error.addCredits": "Pievienot kredītus",
-  "dialog.usageExceeded.freeTier.title": "Sasniegts bezmaksas limits",
-  "dialog.usageExceeded.freeTier.description":
-    "Abonē AigcForge Go par $10/mēn., lai iegūtu uzticamu piekļuvi labākajiem atvērtā koda modeļiem.",
-  "dialog.usageExceeded.freeTier.actionLabel": "Abonēt",
-  "dialog.usageExceeded.accountRateLimit.title": "Sasniegts Go limits",
-  "dialog.usageExceeded.accountRateLimit.description":
-    "Lietojuma limits sasniegts. Lai turpinātu izmantot šo modeli, aktivizē lietošanu no sava atlikuma",
-  "dialog.usageExceeded.accountRateLimit.actionLabel": "Atvērt iestatījumus",
   "ui.sessionTurn.status.delegating": "Deleģē darbu",
   "ui.sessionTurn.status.planning": "Plāno nākamos soļus",
   "ui.sessionTurn.status.gatheringContext": "Izpēta",

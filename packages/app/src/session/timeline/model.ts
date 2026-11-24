@@ -1,5 +1,5 @@
 import { createMemo, createResource, type Accessor } from "solid-js"
-import type { SessionMessageInfo } from "@aigcfroge/client/promise"
+import type { SessionMessageInfo } from "@omnixa/client/promise"
 import { useData } from "@/runtime/server/current"
 import { getSessionMessageHandoff } from "@/session/handoff"
 import type { SessionModel } from "../model"

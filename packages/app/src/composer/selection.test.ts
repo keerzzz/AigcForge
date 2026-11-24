@@ -2,8 +2,8 @@ import { afterEach, expect, mock, test } from "bun:test"
 import { createRequire } from "node:module"
 import { fileURLToPath } from "node:url"
 import type {
-  AigcForgeClient,
-  AigcForgeEvent,
+  OmnixaClient,
+  OmnixaEvent,
   SessionExecutorPreference,
   SessionInfo,
   SessionPromptInput,
@@ -11,8 +11,8 @@ import type {
   ModelGroupCurrent,
   ModelListOutput,
   ProviderListOutput,
-} from "@aigcfroge/client/promise"
-import type { CreateDataInput, Data } from "@aigcfroge/client/solid"
+} from "@omnixa/client/promise"
+import type { CreateDataInput, Data } from "@omnixa/client/solid"
 import type { ComposerAdapter, ComposerSelection, ComposerSession } from "./adapter"
 import type { ModelKey } from "@/providers/models/selection"
 import type { Agent } from "@/runtime/server/types"
@@ -22,11 +22,11 @@ type PromptBody = Omit<SessionPromptInput, "sessionID">
 // Keep browser conditions and module substitutes isolated from the unit suite.
 // The existing browser fixture covers legacy agent/model choices; these cases
 // exercise Meta/executor choices through the same real providers and persistence.
-const browser = process.env.AIGCFROGE_COMPOSER_SELECTION_BROWSER_TEST === "1"
+const browser = process.env.OMNIXA_COMPOSER_SELECTION_BROWSER_TEST === "1"
 
 if (!browser) {
   test("Agent selection LocalProvider integration", async () => {
-    const pattern = process.env.AIGCFROGE_COMPOSER_SELECTION_BROWSER_PATTERN
+    const pattern = process.env.OMNIXA_COMPOSER_SELECTION_BROWSER_PATTERN
 
     const child = Bun.spawn(
       [
@@ -41,7 +41,7 @@ if (!browser) {
       ],
       {
         cwd: fileURLToPath(new URL("../../", import.meta.url)),
-        env: { ...process.env, AIGCFROGE_COMPOSER_SELECTION_BROWSER_TEST: "1" },
+        env: { ...process.env, OMNIXA_COMPOSER_SELECTION_BROWSER_TEST: "1" },
         stdout: "pipe",
         stderr: "pipe",
       },
@@ -135,14 +135,14 @@ async function browserKeepers() {
   const { createMemoryComposerState } = await import("@/composer/state")
   const { createComposerControls, createComposerModelSelection } = await import("@/composer/selection")
   const { ServerScope } = await import("@/runtime/server/scope")
-  const { AigcForge } = await import("@aigcfroge/client/promise")
-  const { createData } = await import("@aigcfroge/client/solid")
+  const { Omnixa } = await import("@omnixa/client/promise")
+  const { createData } = await import("@omnixa/client/solid")
   const { createComposerSubmit, SelectionReadbackError } = await import("@/composer/submit")
   const { createActiveComposerAdapter } = await import("@/session/composer/adapter")
   const { createNewSessionComposerAdapter } = await import("@/new-session/composer-adapter")
 
   function client(input: { baseUrl: string; fetch: (...args: Parameters<typeof fetch>) => ReturnType<typeof fetch> }) {
-    return AigcForge.make({
+    return Omnixa.make({
       ...input,
       fetch: Object.assign(input.fetch, { preconnect() {} }),
     })
@@ -196,7 +196,7 @@ async function browserKeepers() {
       empty?: boolean
       preferredVariants?: Record<string, string>
       data?: Pick<Data, "session">
-      api?: () => AigcForgeClient
+      api?: () => OmnixaClient
     } = {},
   ) {
     const directory = "/agent-selection-test/" + crypto.randomUUID()
@@ -205,7 +205,7 @@ async function browserKeepers() {
       api:
         input.api?.() ??
         client({
-          baseUrl: "http://aigcfroge.local",
+          baseUrl: "http://omnixa.local",
           fetch: async () => {
             throw new Error("Unexpected selection fixture request")
           },
@@ -597,7 +597,7 @@ async function browserKeepers() {
 
     const owner = {
       api: client({
-        baseUrl: "http://aigcfroge.local",
+        baseUrl: "http://omnixa.local",
         fetch: async (input, init) => {
           const request = input instanceof Request ? input : new Request(input, init)
           requests.push(request.clone())
@@ -665,7 +665,7 @@ async function browserKeepers() {
       dispose: view.dispose,
       requests,
       admissions,
-      emit: (details: AigcForgeEvent) => listeners.forEach((listener) => listener({ name: details.type, details })),
+      emit: (details: OmnixaEvent) => listeners.forEach((listener) => listener({ name: details.type, details })),
     }
   }
 
@@ -1318,7 +1318,7 @@ async function browserKeepers() {
     const failed = Promise.withResolvers<never>()
 
     const api = client({
-      baseUrl: "http://aigcfroge.local",
+      baseUrl: "http://omnixa.local",
       fetch: async (input, init) => {
         const request = input instanceof Request ? input : new Request(input, init)
         const path = new URL(request.url).pathname
@@ -1360,7 +1360,7 @@ async function browserKeepers() {
           if (!info?.model) throw new Error("Created Session was not found")
           const selected: SessionInfo = { ...info, time: { ...info.time, updated: 2 } }
 
-          const event: AigcForgeEvent = {
+          const event: OmnixaEvent = {
             id: "evt_new_ack_selected",
             type: "session.model.selected",
             created: 2,
@@ -1823,7 +1823,7 @@ async function browserKeepers() {
     const completed = Promise.withResolvers<void>()
 
     const api = client({
-      baseUrl: "http://aigcfroge.local",
+      baseUrl: "http://omnixa.local",
       fetch: async (input, init) => {
         const request = input instanceof Request ? input : new Request(input, init)
         const path = new URL(request.url).pathname
@@ -1941,7 +1941,7 @@ async function browserKeepers() {
       const requests: string[] = []
 
       const api = client({
-        baseUrl: "http://aigcfroge.local",
+        baseUrl: "http://omnixa.local",
         fetch: async (input, init) => {
           const request = input instanceof Request ? input : new Request(input, init)
           const path = new URL(request.url).pathname
@@ -2048,7 +2048,7 @@ async function browserKeepers() {
       const requests: string[] = []
 
       const api = client({
-        baseUrl: "http://aigcfroge.local",
+        baseUrl: "http://omnixa.local",
         fetch: async (input, init) => {
           const request = input instanceof Request ? input : new Request(input, init)
           const path = new URL(request.url).pathname
@@ -2166,7 +2166,7 @@ async function browserKeepers() {
     const state = { observed: false, executions: 0 }
 
     const api = client({
-      baseUrl: "http://aigcfroge.local",
+      baseUrl: "http://omnixa.local",
       fetch: async (input, init) => {
         const request = input instanceof Request ? input : new Request(input, init)
         const path = new URL(request.url).pathname
@@ -2291,7 +2291,7 @@ async function browserKeepers() {
       const requests: string[] = []
 
       const api = client({
-        baseUrl: "http://aigcfroge.local",
+        baseUrl: "http://omnixa.local",
         fetch: async (input, init) => {
           const request = input instanceof Request ? input : new Request(input, init)
           const path = new URL(request.url).pathname
@@ -2395,7 +2395,7 @@ async function browserKeepers() {
       const replacementRequests: string[] = []
 
       const owner = client({
-        baseUrl: "http://aigcfroge.local",
+        baseUrl: "http://omnixa.local",
         fetch: async (input, init) => {
           const request = input instanceof Request ? input : new Request(input, init)
           const path = new URL(request.url).pathname

@@ -3,22 +3,22 @@ import { describe, expect, test } from "bun:test"
 import { $ } from "bun"
 import { Context, Deferred, Effect, Fiber, Layer, Schema, Scope, Stream } from "effect"
 import { systemError } from "effect/PlatformError"
-import { Candidate, Revision } from "@aigcfroge/schema/prompt-asset"
-import { PromptAssetService } from "@aigcfroge/core/prompt-asset-service"
-import { PromptAsset } from "@aigcfroge/core/prompt-asset"
-import { AssetPlacement } from "@aigcfroge/core/asset-placement"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { Environment } from "@aigcfroge/core/environment/index"
-import { FileMutation } from "@aigcfroge/core/file-mutation"
-import { LocationMutation } from "@aigcfroge/core/location-mutation"
-import { Project } from "@aigcfroge/core/project"
-import { FSUtil } from "@aigcfroge/util/fs-util"
-import { Global } from "@aigcfroge/util/global"
-import { Hash } from "@aigcfroge/util/hash"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { Location } from "@aigcfroge/core/location"
-import { Bus } from "@aigcfroge/core/bus"
-import { AbsolutePath } from "@aigcfroge/core/schema"
+import { Candidate, Revision } from "@omnixa/schema/prompt-asset"
+import { PromptAssetService } from "@omnixa/core/prompt-asset-service"
+import { PromptAsset } from "@omnixa/core/prompt-asset"
+import { AssetPlacement } from "@omnixa/core/asset-placement"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { Environment } from "@omnixa/core/environment/index"
+import { FileMutation } from "@omnixa/core/file-mutation"
+import { LocationMutation } from "@omnixa/core/location-mutation"
+import { Project } from "@omnixa/core/project"
+import { FSUtil } from "@omnixa/util/fs-util"
+import { Global } from "@omnixa/util/global"
+import { Hash } from "@omnixa/util/hash"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { Location } from "@omnixa/core/location"
+import { Bus } from "@omnixa/core/bus"
+import { AbsolutePath } from "@omnixa/core/schema"
 import { location } from "./fixture/location"
 import { tmpdir, tmpdirScoped } from "./fixture/tmpdir"
 import { hostEnvironmentLayer, transformEnvironmentFiles } from "./fixture/environment"
@@ -26,7 +26,7 @@ import { tempGlobalLayer } from "./fixture/global"
 import { initRepo } from "./fixture/git"
 import { awaitWithTimeout, testEffect } from "./lib/effect"
 import { NodeFileSystem } from "@effect/platform-node"
-import { Event } from "@aigcfroge/schema/event"
+import { Event } from "@omnixa/schema/event"
 import fs from "fs/promises"
 
 const fsLayer = FSUtil.layer.pipe(Layer.provide(NodeFileSystem.layer))
@@ -69,7 +69,7 @@ async function withTmp<T>(fn: (dir: string) => Promise<T>): Promise<T> {
 }
 
 async function initAsset(dir: string, name: string) {
-  const d = path.join(dir, ".aigcfroge", "prompts")
+  const d = path.join(dir, ".omnixa", "prompts")
   await fs.mkdir(d, { recursive: true })
   await fs.writeFile(
     path.join(d, `${name}.md`),
@@ -189,7 +189,7 @@ const concurrentOwners = Effect.fnUntraced(function* (mode: "legacy" | "project"
     second,
     selected,
     secondSelected,
-    absolute: path.join(selected?.target.root ?? path.join(firstDirectory, ".aigcfroge/prompts"), "review.md"),
+    absolute: path.join(selected?.target.root ?? path.join(firstDirectory, ".omnixa/prompts"), "review.md"),
   }
 })
 
@@ -318,7 +318,7 @@ describe("PromptAssetService.apply creates", () => {
 
   test("rolls back when the registry rejects a duplicate name", async () => {
     await withTmp(async (dir) => {
-      const promptsDir = path.join(dir, ".aigcfroge", "prompts")
+      const promptsDir = path.join(dir, ".omnixa", "prompts")
       await fs.mkdir(promptsDir, { recursive: true })
       await fs.writeFile(
         path.join(promptsDir, "existing.md"),
@@ -497,7 +497,7 @@ describe("PromptAssetService serializes concurrent writes", () => {
 describe("PromptAssetService.delete", () => {
   async function fileExists(dir: string, name: string): Promise<boolean> {
     try {
-      await fs.access(path.join(dir, ".aigcfroge", "prompts", `${name}.md`))
+      await fs.access(path.join(dir, ".omnixa", "prompts", `${name}.md`))
       return true
     } catch {
       return false
@@ -624,7 +624,7 @@ describe("Prompt selected owner", () => {
           const root =
             scope === "global"
               ? path.join(global.config, "prompts")
-              : path.join(scope === "project" ? tmp.path : child, ".aigcfroge/prompts")
+              : path.join(scope === "project" ? tmp.path : child, ".omnixa/prompts")
           expect(view.target).toEqual({ scope, root: AbsolutePath.make(root) })
           expect(yield* view.list()).toEqual([])
           expect(yield* view.listInvalid()).toEqual([])
@@ -643,9 +643,9 @@ describe("Prompt selected owner", () => {
         }),
       )
       expect(yield* graph.registry.list()).toEqual([])
-      expect(yield* fs.exists(path.join(child, ".aigcfroge"))).toBe(false)
-      expect(yield* fs.exists(path.join(tmp.path, ".aigcfroge"))).toBe(false)
-      expect(yield* fs.exists(path.join(global.config, ".aigcfroge/prompts"))).toBe(false)
+      expect(yield* fs.exists(path.join(child, ".omnixa"))).toBe(false)
+      expect(yield* fs.exists(path.join(tmp.path, ".omnixa"))).toBe(false)
+      expect(yield* fs.exists(path.join(global.config, ".omnixa/prompts"))).toBe(false)
     }),
   )
 
@@ -663,7 +663,7 @@ describe("Prompt selected owner", () => {
       const facts = yield* graph.service.inspect({ candidate: candidate(), scope: "project" })
       expect(facts.target).toEqual({
         scope: "project",
-        root: AbsolutePath.make(path.join(tmp.path, ".aigcfroge/prompts")),
+        root: AbsolutePath.make(path.join(tmp.path, ".omnixa/prompts")),
       })
       expect(view.target).toEqual(facts.target)
       const saved = yield* graph.service.apply({
@@ -678,7 +678,7 @@ describe("Prompt selected owner", () => {
       )
       expect(yield* view.getByPath("review.md")).toEqual(saved)
       expect(yield* graph.registry.list()).toEqual([])
-      expect(yield* fs.exists(path.join(child, ".aigcfroge/prompts/review.md"))).toBe(false)
+      expect(yield* fs.exists(path.join(child, ".omnixa/prompts/review.md"))).toBe(false)
 
       const legacy = yield* graph.service.apply({
         candidate: candidate("Location prompt", "ignored-by-legacy.md"),
@@ -692,7 +692,7 @@ describe("Prompt selected owner", () => {
       const local = yield* graph.registry.select("location")
       expect(local.target).toEqual({
         scope: "location",
-        root: AbsolutePath.make(path.join(child, ".aigcfroge/prompts")),
+        root: AbsolutePath.make(path.join(child, ".omnixa/prompts")),
       })
       const updated = yield* graph.service.apply({
         candidate: candidate("explicit Location"),
@@ -768,7 +768,7 @@ describe("Prompt selected owner", () => {
       expect(first.location.project.directory).toBe(AbsolutePath.make(firstDirectory))
       const project = yield* first.registry.select("project")
       const local = yield* first.registry.select("location")
-      expect(project.target.root).toBe(AbsolutePath.make(path.join(firstDirectory, ".aigcfroge/prompts")))
+      expect(project.target.root).toBe(AbsolutePath.make(path.join(firstDirectory, ".omnixa/prompts")))
       expect(local.target.root).toBe(project.target.root)
       expect(AssetPlacement.targetMismatch(project.target, local.target)).toBeInstanceOf(
         AssetPlacement.TargetMismatchError,
@@ -794,7 +794,7 @@ describe("Prompt selected owner", () => {
       expect((yield* second.service.inspect({ candidate: candidate(), scope: "global" })).revision).toBe(
         Revision.make(updated.revision),
       )
-      expect(yield* fs.exists(path.join(global.config, ".aigcfroge/prompts"))).toBe(false)
+      expect(yield* fs.exists(path.join(global.config, ".omnixa/prompts"))).toBe(false)
       expect(yield* first.registry.list()).toEqual([])
       expect(yield* second.registry.list()).toEqual([])
       yield* second.service.delete({ relativePath: "review.md", target: view.target, baseRevision: updated.revision })
@@ -824,7 +824,7 @@ describe("Prompt selected owner", () => {
       const views = yield* Effect.forEach(graphs, (graph) => graph.registry.select("project"))
       expect(views.map((view) => view.target.root)).toEqual(
         [roots.main, roots.clone, roots.linked].map((directory) =>
-          AbsolutePath.make(path.join(directory, ".aigcfroge/prompts")),
+          AbsolutePath.make(path.join(directory, ".omnixa/prompts")),
         ),
       )
       const saved = yield* Effect.forEach(graphs, (graph, index) =>
@@ -884,15 +884,7 @@ it.live("binds selected Prompt candidates to the short path derived from the nor
     const graph = yield* openLocation(tmp.path)
     const view = yield* graph.registry.select("project")
     yield* Effect.forEach(
-      [
-        "",
-        "other.md",
-        "../review.md",
-        "nested/review.md",
-        ".aigcfroge/prompts/review.md",
-        "/review.md",
-        "C:\\review.md",
-      ],
+      ["", "other.md", "../review.md", "nested/review.md", ".omnixa/prompts/review.md", "/review.md", "C:\\review.md"],
       (relativePath) =>
         Effect.gen(function* () {
           expect(
@@ -1037,7 +1029,7 @@ it.live("preserves five legacy proposal facts, name-derived paths and missing-fi
     })
     expect(saved.relativePath).toBe("review.md")
     expect(saved).not.toHaveProperty("target")
-    expect(yield* graph.fs.exists(path.join(tmp.path, ".aigcfroge/prompts/ignored.md"))).toBe(false)
+    expect(yield* graph.fs.exists(path.join(tmp.path, ".omnixa/prompts/ignored.md"))).toBe(false)
     expect(yield* graph.service.propose(candidate("legacy proposal", ""))).toEqual({
       relativePath: "review.md",
       exists: true,
@@ -1055,7 +1047,7 @@ it.live("loads existing Prompt files when the graph is built and uses frontmatte
   Effect.gen(function* () {
     const tmp = yield* tmpdirScoped()
     const fs = yield* FSUtil.Service
-    const owner = path.join(tmp.path, ".aigcfroge/prompts")
+    const owner = path.join(tmp.path, ".omnixa/prompts")
     const existing =
       '---\nkind: prompt\nname: "review"\ndescription: "Existing name"\n---\n\uFEFF  Existing {{CODE}}.\r\n'
     const pathConflict = '---\nkind: prompt\nname: "another-name"\ndescription: "Existing path"\n---\nOther body\r\n'
@@ -1111,16 +1103,16 @@ it.live("accepts a configured Global alias but rejects Prompt owner, child and d
       overwrite: false,
     })
     expect(yield* globalView.getByPath("review.md")).toEqual(globalSaved)
-    expect(yield* fs.exists(path.join(outside, ".aigcfroge/prompts"))).toBe(false)
-    yield* fs.symlink(outside, path.join(directory, ".aigcfroge"))
+    expect(yield* fs.exists(path.join(outside, ".omnixa/prompts"))).toBe(false)
+    yield* fs.symlink(outside, path.join(directory, ".omnixa"))
     expect(yield* graph.registry.select("project").pipe(Effect.flip)).toBeInstanceOf(AssetPlacement.PathError)
-    yield* fs.remove(path.join(directory, ".aigcfroge"))
-    yield* fs.makeDirectory(path.join(directory, ".aigcfroge"))
-    yield* fs.symlink(outside, path.join(directory, ".aigcfroge/prompts"))
+    yield* fs.remove(path.join(directory, ".omnixa"))
+    yield* fs.makeDirectory(path.join(directory, ".omnixa"))
+    yield* fs.symlink(outside, path.join(directory, ".omnixa/prompts"))
     expect(yield* graph.service.inspect({ candidate: candidate(), scope: "project" }).pipe(Effect.flip)).toBeInstanceOf(
       AssetPlacement.PathError,
     )
-    yield* fs.remove(path.join(directory, ".aigcfroge/prompts"))
+    yield* fs.remove(path.join(directory, ".omnixa/prompts"))
     const view = yield* graph.registry.select("project")
     yield* fs.makeDirectory(view.target.root)
     const external = path.join(outside, "external.md")
@@ -1461,7 +1453,7 @@ for (const mode of ["legacy", "project"] as const) {
               overwrite: false,
             })
           : undefined
-        const absolute = path.join(selected?.target.root ?? path.join(tmp.path, ".aigcfroge/prompts"), "review.md")
+        const absolute = path.join(selected?.target.root ?? path.join(tmp.path, ".omnixa/prompts"), "review.md")
         const previous = saved ? yield* graph.fs.readFile(absolute) : null
         const calls = { writes: 0, failures: 0 }
         const injected = yield* faultService(graph, {
@@ -1528,7 +1520,7 @@ for (const mode of ["legacy", "project"] as const) {
         baseRevision: null,
         overwrite: false,
       })
-      const absolute = path.join(selected?.target.root ?? path.join(tmp.path, ".aigcfroge/prompts"), "review.md")
+      const absolute = path.join(selected?.target.root ?? path.join(tmp.path, ".omnixa/prompts"), "review.md")
       const external = (yield* graph.fs.readFileString(absolute)).replace("original", "external writer")
       const calls = { writes: 0 }
       const injected = yield* faultService(graph, {
@@ -1574,7 +1566,7 @@ for (const mode of ["legacy", "project"] as const) {
           baseRevision: null,
           overwrite: false,
         })
-        const absolute = path.join(selected?.target.root ?? path.join(tmp.path, ".aigcfroge/prompts"), "review.md")
+        const absolute = path.join(selected?.target.root ?? path.join(tmp.path, ".omnixa/prompts"), "review.md")
         const calls = { writes: 0, failedReads: 0 }
         const injected = yield* faultService(graph, {
           files: {
@@ -1643,7 +1635,7 @@ for (const mode of ["legacy", "project"] as const) {
           baseRevision: null,
           overwrite: false,
         })
-        const absolute = path.join(selected?.target.root ?? path.join(tmp.path, ".aigcfroge/prompts"), "review.md")
+        const absolute = path.join(selected?.target.root ?? path.join(tmp.path, ".omnixa/prompts"), "review.md")
         const previous = yield* graph.fs.readFile(absolute)
         const state = { writes: 0, corruptions: 0 }
         const corrupt = (info: PromptAsset.Info) => {
@@ -1723,7 +1715,7 @@ for (const mode of ["legacy", "project"] as const) {
         baseRevision: null,
         overwrite: false,
       })
-      const absolute = path.join(selected?.target.root ?? path.join(tmp.path, ".aigcfroge/prompts"), "review.md")
+      const absolute = path.join(selected?.target.root ?? path.join(tmp.path, ".omnixa/prompts"), "review.md")
       const previous = yield* graph.fs.readFile(absolute)
       const state = { deleted: false, failures: 0, restores: 0 }
       const reload = <E>(actual: () => Effect.Effect<void, E>) =>
@@ -1791,7 +1783,7 @@ for (const mode of ["legacy", "project"] as const) {
           baseRevision: null,
           overwrite: false,
         })
-        const absolute = path.join(selected?.target.root ?? path.join(tmp.path, ".aigcfroge/prompts"), "review.md")
+        const absolute = path.join(selected?.target.root ?? path.join(tmp.path, ".omnixa/prompts"), "review.md")
         const previous = yield* graph.fs.readFileString(absolute)
         const external = recreation === "same" ? previous : previous.replace("original", "external recreation")
         const calls = { restores: 0 }

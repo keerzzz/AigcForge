@@ -11,8 +11,8 @@ import type {
   FormFields,
   FormValue,
   LocationRef,
-} from "@aigcfroge/client"
-import { openUrl } from "@aigcfroge/util/open"
+} from "@omnixa/client"
+import { openUrl } from "@omnixa/util/open"
 import { createEffect, createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-js"
 import { createStore } from "solid-js/store"
 import { useClipboard } from "../context/clipboard"

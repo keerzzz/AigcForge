@@ -3,15 +3,15 @@ import fs from "fs/promises"
 import path from "path"
 import { pathToFileURL } from "node:url"
 import {
-  AigcForge,
+  Omnixa,
   type EventSubscribeOutput,
   type FormInfo,
   type MessageListOutput,
-  type AigcForgeClient,
+  type OmnixaClient,
   type PermissionRequest,
   type SessionInboxInfo,
   type ToolContent,
-} from "@aigcfroge/client/promise"
+} from "@omnixa/client/promise"
 import { createSessionTransport } from "../../src/mini/stream-v2.transport"
 import { runPromptQueue } from "../../src/mini/runtime.queue"
 import { entryBody } from "../../src/mini/entry.body"
@@ -79,7 +79,7 @@ function durable(sessionID: string, seq = 0, version: 1 | 2 = 1) {
   return { aggregateID: sessionID, seq, version }
 }
 
-function promptAdmission(input: Parameters<AigcForgeClient["session"]["prompt"]>[0], sessionID = "ses_1") {
+function promptAdmission(input: Parameters<OmnixaClient["session"]["prompt"]>[0], sessionID = "ses_1") {
   return {
     id: input.id ?? "msg_prompt",
     sessionID,
@@ -152,10 +152,10 @@ function sdk(input: {
   globals?: FormInfo[]
   globalLocation?: { directory: string; workspaceID?: string }
   permissions?: Record<string, PermissionRequest[]>
-  pending?: Record<string, Awaited<ReturnType<AigcForgeClient["session"]["inbox"]["list"]>>>
+  pending?: Record<string, Awaited<ReturnType<OmnixaClient["session"]["inbox"]["list"]>>>
   wait?: () => Promise<void>
 }) {
-  const client = AigcForge.make({ baseUrl: "https://aigcfroge.test" })
+  const client = Omnixa.make({ baseUrl: "https://omnixa.test" })
   let subscription = 0
   const raw = client.event.subscribe.raw
   spyOn(client.event, "subscribe").mockImplementation(
@@ -1407,7 +1407,7 @@ describe("V2 mini transport", () => {
       thinking: false,
       footer: ui.api,
     })
-    let request: Parameters<AigcForgeClient["session"]["prompt"]>[0] | undefined
+    let request: Parameters<OmnixaClient["session"]["prompt"]>[0] | undefined
     spyOn(client.session, "prompt").mockImplementation((input) => {
       request = input
       queueMicrotask(() => {
@@ -1494,7 +1494,7 @@ describe("V2 mini transport", () => {
       thinking: false,
       footer: ui.api,
     })
-    let request: Parameters<AigcForgeClient["session"]["prompt"]>[0] | undefined
+    let request: Parameters<OmnixaClient["session"]["prompt"]>[0] | undefined
     // The generated method has conditional return types for throwOnError; this mock represents the successful branch.
     // @ts-expect-error successful SDK response is valid for both modes at runtime
     spyOn(client.session, "prompt").mockImplementation((input) => {
@@ -1582,7 +1582,7 @@ describe("V2 mini transport", () => {
       thinking: false,
       footer: ui.api,
     })
-    let request: Parameters<AigcForgeClient["session"]["prompt"]>[0] | undefined
+    let request: Parameters<OmnixaClient["session"]["prompt"]>[0] | undefined
     // The generated method has conditional return types for throwOnError; this mock represents the successful branch.
     // @ts-expect-error successful SDK response is valid for both modes at runtime
     spyOn(client.session, "prompt").mockImplementation((input) => {
@@ -1885,7 +1885,7 @@ describe("V2 mini transport", () => {
         cursor: {},
       })
     })
-    const current: AigcForgeClient[] = []
+    const current: OmnixaClient[] = []
     const ui = footer()
     const transport = await createSessionTransport({
       sdk: first,
@@ -3055,7 +3055,7 @@ describe("V2 mini transport", () => {
       thinking: false,
       footer: ui.api,
     })
-    let request: Parameters<AigcForgeClient["session"]["shell"]>[0] | undefined
+    let request: Parameters<OmnixaClient["session"]["shell"]>[0] | undefined
     spyOn(client.session, "shell").mockImplementation((input) => {
       request = input
       queueMicrotask(() => {
@@ -3072,7 +3072,7 @@ describe("V2 mini transport", () => {
               command: "ls",
               cwd: "/tmp",
               shell: "/bin/sh",
-              file: "/tmp/aigcfroge-shell",
+              file: "/tmp/omnixa-shell",
               metadata: {},
               time: { started: 0 },
             },
@@ -3091,7 +3091,7 @@ describe("V2 mini transport", () => {
               command: "ls",
               cwd: "/tmp",
               shell: "/bin/sh",
-              file: "/tmp/aigcfroge-shell",
+              file: "/tmp/omnixa-shell",
               exit: 0,
               metadata: {},
               time: { started: 0, completed: 1 },
@@ -3180,7 +3180,7 @@ describe("V2 mini transport", () => {
       thinking: false,
       footer: ui.api,
     })
-    let request: Parameters<AigcForgeClient["session"]["shell"]>[0] | undefined
+    let request: Parameters<OmnixaClient["session"]["shell"]>[0] | undefined
     let complete!: () => void
     spyOn(client.session, "shell").mockImplementation((input) => {
       request = input
@@ -3336,7 +3336,7 @@ describe("V2 mini transport", () => {
           command: "ls",
           cwd: "/tmp",
           shell: "/bin/sh",
-          file: "/tmp/aigcfroge-shell",
+          file: "/tmp/omnixa-shell",
           exit: 0,
           metadata: {},
           time: { started: 0, completed: 1 },
@@ -3442,7 +3442,7 @@ describe("V2 mini transport", () => {
       thinking: false,
       footer: ui.api,
     })
-    let request: Parameters<AigcForgeClient["session"]["command"]>[0] | undefined
+    let request: Parameters<OmnixaClient["session"]["command"]>[0] | undefined
     spyOn(client.session, "command").mockImplementation((input) => {
       request = input
       queueMicrotask(() => {
@@ -3524,7 +3524,7 @@ describe("V2 mini transport", () => {
       thinking: false,
       footer: ui.api,
     })
-    let request: Parameters<AigcForgeClient["session"]["prompt"]>[0] | undefined
+    let request: Parameters<OmnixaClient["session"]["prompt"]>[0] | undefined
     spyOn(client.session, "prompt").mockImplementation((input) => {
       request = input
       queueMicrotask(() => {

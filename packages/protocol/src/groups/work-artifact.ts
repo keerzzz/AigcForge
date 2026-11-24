@@ -1,4 +1,4 @@
-import { Session } from "@aigcfroge/schema/session"
+import { Session } from "@omnixa/schema/session"
 import { Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/http-api"
 import { ConflictError, InvalidRequestError } from "../errors.js"

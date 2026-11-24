@@ -25,7 +25,7 @@ const setup: MainSetup<typeof definition> = async (ctx) => {
     createSshController({
       version: cli.version,
       development: cli.development,
-      binary: cli.binary ?? cli.command[0] ?? "aigcfroge",
+      binary: cli.binary ?? cli.command[0] ?? "omnixa",
       command: cli.command,
       configs: saved.value,
       save: (configs) => Effect.try({ try: () => saved.set(configs), catch: SshFailure.from }),

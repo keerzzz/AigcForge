@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import type { FormField, FormInfo } from "@aigcfroge/client/promise"
+import type { FormField, FormInfo } from "@omnixa/client/promise"
 import {
   createFormBodyState,
   formAcknowledge,

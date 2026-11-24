@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
-APP=aigcfroge
-SOURCE_APP=aigcfroge
+APP=omnixa
+SOURCE_APP=omnixa
 
 MUTED='\033[0;2m'
 RED='\033[0;31m'
@@ -10,20 +10,20 @@ NC='\033[0m' # No Color
 
 usage() {
     cat <<EOF
-AigcForge Installer
+Omnixa Installer
 
 Usage: install.sh [options]
 
 Options:
     -h, --help              Display this help message
-    -v, --version <version> Install a specific version (e.g., 0.0.0-beta-17236)
+    -v, --version <version> Install a specific version from the configured download source
     -b, --binary <path>     Install from a local binary instead of downloading
         --no-modify-path    Don't modify shell config files (.zshrc, .bashrc, etc.)
 
-Examples:
-    curl -fsSL https://aigcfroge.ai/v2/install | bash
-    curl -fsSL https://aigcfroge.ai/v2/install | bash -s -- --version 0.0.0-beta-17236
-    ./install --binary /path/to/aigcfroge
+Remote downloads require OMNIXA_UPDATE_URL. Use --binary for a local build.
+
+Example:
+    ./install --binary /path/to/omnixa
 EOF
 }
 
@@ -66,7 +66,13 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-INSTALL_DIR=$HOME/.aigcfroge/bin
+if [[ -z "$binary_path" && -z "${OMNIXA_UPDATE_URL:-}" ]]; then
+    echo -e "${RED}Remote installation is disabled: no Omnixa download source is configured.${NC}" >&2
+    echo "Use ./install --binary /path/to/omnixa, or set OMNIXA_UPDATE_URL to a configured download source." >&2
+    exit 1
+fi
+
+INSTALL_DIR=$HOME/.omnixa/bin
 mkdir -p "$INSTALL_DIR"
 
 # If --binary is provided, skip all download/detection logic
@@ -166,17 +172,19 @@ else
         exit 1
     fi
 
-    package_scope="@aigcfroge"
+    package_scope="@omnixa"
     if [ -z "$requested_version" ]; then
-        metadata=$(curl -fsSL https://aigcfroge.ai/update/api/latest/cli/npm || true)
+        metadata=$(curl -fsSL "${OMNIXA_UPDATE_URL%/}/update/api/latest/cli/npm" || true)
         specific_version=$(echo "$metadata" | sed -n 's/.*"version":"\([^"]*\)".*/\1/p')
         package=$(echo "$metadata" | sed -n 's/.*"package":"\([^"]*\)".*/\1/p')
+        if [ -n "$package" ]; then
+            package_scope="${package%/cli}"
+        fi
 
-        if [ -z "$specific_version" ] || [ -z "$package" ]; then
-            echo -e "${RED}Failed to fetch version information${NC}"
+        if [ -z "$specific_version" ]; then
+            echo -e "${RED}Failed to fetch version information. Specify --version or set OMNIXA_UPDATE_URL.${NC}"
             exit 1
         fi
-        package_scope="${package%/cli}"
     else
         # Strip leading 'v' if present
         requested_version="${requested_version#v}"
@@ -185,11 +193,6 @@ else
 
     package_name="$package_scope/cli-$target"
     http_status=$(curl -s -o /dev/null -w "%{http_code}" "https://registry.npmjs.org/$package_scope%2fcli-$target/$specific_version" || true)
-    # Older clients install the minimum release before they can migrate package names.
-    if [ "$http_status" = "404" ] && [ -n "$requested_version" ]; then
-        package_name="@opencode-ai/cli-$target"
-        http_status=$(curl -s -o /dev/null -w "%{http_code}" "https://registry.npmjs.org/@aigcfroge-ai%2fcli-$target/$specific_version" || true)
-    fi
     if [ "$http_status" = "404" ]; then
         echo -e "${RED}Error: Version ${specific_version} is not available for $target${NC}"
         echo -e "${MUTED}Available versions: https://www.npmjs.com/package/$package_name?activeTab=versions${NC}"
@@ -224,7 +227,7 @@ print_message() {
 
 check_version() {
     if command -v "$APP" >/dev/null 2>&1; then
-        aigcfroge_path=$(which "$APP")
+        omnixa_path=$(which "$APP")
 
         ## Check the installed version
         installed_version=$("$APP" --version 2>/dev/null || echo "")
@@ -276,7 +279,7 @@ download_with_progress() {
     fi
 
     local tmp_dir=${TMPDIR:-/tmp}
-    local basename="${tmp_dir}/aigcfroge_install_$$"
+    local basename="${tmp_dir}/omnixa_install_$$"
     local tracefile="${basename}.trace"
 
     rm -f "$tracefile"
@@ -327,7 +330,7 @@ download_with_progress() {
 
 download_and_install() {
     print_message info "\n${MUTED}Installing ${NC}$APP ${MUTED}version: ${NC}$specific_version"
-    local tmp_dir="${TMPDIR:-/tmp}/aigcfroge_install_$$"
+    local tmp_dir="${TMPDIR:-/tmp}/omnixa_install_$$"
     mkdir -p "$tmp_dir"
 
     if [[ "$os" == "windows" ]] || ! [ -t 2 ] || ! download_with_progress "$url" "$tmp_dir/$filename"; then
@@ -362,20 +365,20 @@ install_legacy_shim() {
             MINGW*|MSYS*|CYGWIN*) shim_os="windows" ;;
         esac
     fi
-    rm -f "$INSTALL_DIR/aigcfroge2" "$INSTALL_DIR/aigcfroge2.exe" "$INSTALL_DIR/aigcfroge2.cmd"
+    rm -f "$INSTALL_DIR/omnixa2" "$INSTALL_DIR/omnixa2.exe" "$INSTALL_DIR/omnixa2.cmd"
     if [[ "$shim_os" == "windows" ]]; then
-        cat > "$INSTALL_DIR/aigcfroge2.cmd" <<'EOF'
+        cat > "$INSTALL_DIR/omnixa2.cmd" <<'EOF'
 @echo off
-"%~dp0aigcfroge.exe" %*
+"%~dp0omnixa.exe" %*
 exit /b %errorlevel%
 EOF
         return
     fi
-    cat > "$INSTALL_DIR/aigcfroge2" <<'EOF'
+    cat > "$INSTALL_DIR/omnixa2" <<'EOF'
 #!/bin/sh
-exec "$(dirname "$0")/aigcfroge" "$@"
+exec "$(dirname "$0")/omnixa" "$@"
 EOF
-    chmod 755 "$INSTALL_DIR/aigcfroge2"
+    chmod 755 "$INSTALL_DIR/omnixa2"
 }
 
 if [ -n "$binary_path" ]; then
@@ -394,9 +397,9 @@ add_to_path() {
     if grep -Fxq "$command" "$config_file"; then
         print_message info "Command already exists in $config_file, skipping write."
     elif [[ -w $config_file ]]; then
-        echo -e "\n# aigcfroge" >> "$config_file"
+        echo -e "\n# omnixa" >> "$config_file"
         echo "$command" >> "$config_file"
-        print_message info "${MUTED}Successfully added ${NC}aigcfroge ${MUTED}to \$PATH in ${NC}$config_file"
+        print_message info "${MUTED}Successfully added ${NC}omnixa ${MUTED}to \$PATH in ${NC}$config_file"
     else
         print_message warning "Manually add the directory to $config_file (or similar):"
         print_message info "  $command"
@@ -472,17 +475,11 @@ if [ -n "${GITHUB_ACTIONS-}" ] && [ "${GITHUB_ACTIONS}" == "true" ]; then
 fi
 
 echo -e ""
-echo -e "${MUTED}                    ${NC}             ▄     "
-echo -e "${MUTED}█▀▀█ █▀▀█ █▀▀█ █▀▀▄ ${NC}█▀▀▀ █▀▀█ █▀▀█ █▀▀█"
-echo -e "${MUTED}█░░█ █░░█ █▀▀▀ █░░█ ${NC}█░░░ █░░█ █░░█ █▀▀▀"
-echo -e "${MUTED}▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀  ▀ ${NC}▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀"
-echo -e ""
-echo -e ""
-echo -e "${MUTED}AigcForge includes free models, to start:${NC}"
+echo -e "${MUTED}Omnixa installed. Connect a provider or configure a local model to start:${NC}"
 echo -e ""
 echo -e "cd <project>  ${MUTED}# Open directory${NC}"
-echo -e "aigcfroge      ${MUTED}# Run command${NC}"
+echo -e "omnixa      ${MUTED}# Run command${NC}"
 echo -e ""
-echo -e "${MUTED}For more information visit ${NC}https://aigcfroge.ai/v2/docs"
+echo -e "${MUTED}For more information visit ${NC}https://github.com/keerzzz/AigcForge"
 echo -e ""
 echo -e ""

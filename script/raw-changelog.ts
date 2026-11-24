@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-import { Release } from "@aigcfroge/script/release"
+import { Release } from "@omnixa/script/release"
 
 import { $ } from "bun"
 import { parseArgs } from "util"
@@ -25,7 +25,7 @@ type Diff = {
 }
 
 const repo = process.env.GH_REPO ?? "keerzzz/AigcForge"
-const bot = ["actions-user", "github-actions[bot]", "aigcfroge", "aigcfroge-agent[bot]"]
+const bot = ["actions-user", "github-actions[bot]", "omnixa", "omnixa-agent[bot]"]
 const team = [
   ...(await Bun.file(new URL("../.github/TEAM_MEMBERS", import.meta.url))
     .text()

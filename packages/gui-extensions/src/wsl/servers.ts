@@ -2,7 +2,7 @@ import type { MainContext } from "../sdk/main"
 import type {
   WslDistroProbe,
   WslJob,
-  WslAigcfrogeCheck,
+  WslOmnixaCheck,
   WslServerConfig,
   WslServerItem,
   WslServerRuntime,
@@ -79,10 +79,10 @@ export function createWslServersController(options: WslServersControllerOptions)
     updateServer(id, (item) => ({ ...item, runtime }))
   }
 
-  const setCliCheck = (distro: string, check: WslAigcfrogeCheck) => {
+  const setCliCheck = (distro: string, check: WslOmnixaCheck) => {
     setState({
-      aigcfrogeChecks: {
-        ...state.aigcfrogeChecks,
+      omnixaChecks: {
+        ...state.omnixaChecks,
         [distro]: check,
       },
     })
@@ -115,16 +115,16 @@ export function createWslServersController(options: WslServersControllerOptions)
       setState({ distroProbes: { ...state.distroProbes, ...Object.fromEntries(distroProbes) } })
     }
 
-    const aigcfrogeChecks = await Promise.all(
+    const omnixaChecks = await Promise.all(
       unique.flatMap((distro) =>
-        distroProbeReady(state.distroProbes[distro]) && !state.aigcfrogeChecks[distro]
+        distroProbeReady(state.distroProbes[distro]) && !state.omnixaChecks[distro]
           ? [inspectCli(distro).then((check) => [distro, check] as const)]
           : [],
       ),
     )
 
-    if (aigcfrogeChecks.length) {
-      setState({ aigcfrogeChecks: { ...state.aigcfrogeChecks, ...Object.fromEntries(aigcfrogeChecks) } })
+    if (omnixaChecks.length) {
+      setState({ omnixaChecks: { ...state.omnixaChecks, ...Object.fromEntries(omnixaChecks) } })
     }
   }
 
@@ -280,8 +280,8 @@ export function createWslServersController(options: WslServersControllerOptions)
       await runJob({ kind: "probe-addable", distros, startedAt: Date.now() }, () => probeAddableDistros(distros))
     },
 
-    async installAigcfroge(distro: string) {
-      await runJob({ kind: "install-aigcfroge", distro, startedAt: Date.now() }, async () => {
+    async installOmnixa(distro: string) {
+      await runJob({ kind: "install-omnixa", distro, startedAt: Date.now() }, async () => {
         const id = state.servers.find((item) => item.config.distro === distro)?.config.id
 
         if (id) await stopServer(id)
@@ -345,7 +345,7 @@ function initialState(): WslServersState {
     installed: [],
     online: [],
     distroProbes: {},
-    aigcfrogeChecks: {},
+    omnixaChecks: {},
     pendingRestart: false,
     servers: [],
     job: null,
@@ -358,7 +358,7 @@ function cliCheck(
   resolvedPath: string | null,
   version: string | null,
   expectedVersion: string,
-): WslAigcfrogeCheck {
+): WslOmnixaCheck {
   if (!resolvedPath) {
     return {
       distro,
@@ -366,7 +366,7 @@ function cliCheck(
       version: null,
       expectedVersion,
       matchesDesktop: null,
-      error: t("error.aigcfrogeMissing"),
+      error: t("error.omnixaMissing"),
     }
   }
 
@@ -377,7 +377,7 @@ function cliCheck(
       version: null,
       expectedVersion,
       matchesDesktop: null,
-      error: t("error.aigcfrogeCannotRun"),
+      error: t("error.omnixaCannotRun"),
     }
   }
 
@@ -391,7 +391,7 @@ function cliCheck(
   }
 }
 
-function requireMatchingCli(t: MainContext["t"], check: WslAigcfrogeCheck, expected: string) {
+function requireMatchingCli(t: MainContext["t"], check: WslOmnixaCheck, expected: string) {
   if (check.version === expected) return
   throw new Error(
     t("error.updateVersion", {
@@ -404,13 +404,13 @@ function requireMatchingCli(t: MainContext["t"], check: WslAigcfrogeCheck, expec
 
 function removeDistroState(state: WslServersState, distro: string) {
   const distroProbes = { ...state.distroProbes }
-  const aigcfrogeChecks = { ...state.aigcfrogeChecks }
+  const omnixaChecks = { ...state.omnixaChecks }
   delete distroProbes[distro]
-  delete aigcfrogeChecks[distro]
+  delete omnixaChecks[distro]
 
-  return { distroProbes, aigcfrogeChecks }
+  return { distroProbes, omnixaChecks }
 }
 
 function distroProbeReady(probe: WslDistroProbe | undefined) {
-  return !!probe?.canExecute && probe.hasBash && probe.hasCurl
+  return !!probe?.canExecute && probe.hasBash
 }

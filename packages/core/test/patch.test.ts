@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { Patch } from "@aigcfroge/util/patch"
+import { Patch } from "@omnixa/util/patch"
 import { Result } from "effect"
 
 const parse = (input: string) => Result.getOrThrow(Patch.parse(input))

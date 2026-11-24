@@ -1,6 +1,6 @@
 export * as Image from "./image.js"
 
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
 import { Context, Effect, Layer, Schema } from "effect"
 import { FileSystem } from "./filesystem.js"
 import { State } from "./state.js"
@@ -53,7 +53,7 @@ export interface Interface extends State.Transformable<Editor> {
   >
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/Image") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/Image") {}
 
 const layer = Layer.effect(
   Service,

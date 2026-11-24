@@ -1,5 +1,5 @@
-import { Tabs } from "@aigcfroge/ui/tabs"
-import { useDialog } from "@aigcfroge/ui/context/dialog"
+import { Tabs } from "@omnixa/ui/tabs"
+import { useDialog } from "@omnixa/ui/context/dialog"
 import {
   createEffect,
   createMemo,

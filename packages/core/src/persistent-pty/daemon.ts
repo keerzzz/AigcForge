@@ -3,7 +3,7 @@ import { mkdir, readFile, rename } from "node:fs/promises"
 import net from "node:net"
 import path from "node:path"
 import { Cause, Data, Duration, Effect, Schema, Semaphore } from "effect"
-import type { Handoff } from "@aigcfroge/schema/persistent-pty"
+import type { Handoff } from "@omnixa/schema/persistent-pty"
 
 const ProtocolVersion = 7
 const MaxFrameBytes = 8 * 1024 * 1024
@@ -158,7 +158,7 @@ export interface DaemonTransport {
 export const makeDaemonTransport = Effect.fn("PersistentPty.makeDaemonTransport")(function* (
   root: string,
   initialID: string,
-  binary: () => Promise<string> = () => Promise.resolve(process.env.AIGCFROGE_PTY_BIN || "aigcfroge-pty"),
+  binary: () => Promise<string> = () => Promise.resolve(process.env.OMNIXA_PTY_BIN || "omnixa-pty"),
   inherited?: Handoff,
 ) {
   const startup = Semaphore.makeUnsafe(1)
@@ -210,7 +210,7 @@ export const makeDaemonTransport = Effect.fn("PersistentPty.makeDaemonTransport"
       return yield* Effect.fail(
         new DaemonError({
           kind: "protocol",
-          message: `aigcfroge-pty protocol mismatch: daemon=${decoded.protocol}, client=${ProtocolVersion}`,
+          message: `omnixa-pty protocol mismatch: daemon=${decoded.protocol}, client=${ProtocolVersion}`,
           pid: decoded.pid,
         }),
       )
@@ -221,7 +221,7 @@ export const makeDaemonTransport = Effect.fn("PersistentPty.makeDaemonTransport"
       response.pid !== decoded.pid ||
       response.protocol !== ProtocolVersion
     )
-      return yield* Effect.fail(new DaemonError({ kind: "protocol", message: "aigcfroge-pty registration mismatch" }))
+      return yield* Effect.fail(new DaemonError({ kind: "protocol", message: "omnixa-pty registration mismatch" }))
     return decoded
   })
 
@@ -261,7 +261,7 @@ export const makeDaemonTransport = Effect.fn("PersistentPty.makeDaemonTransport"
         yield* Effect.sleep(50)
       }
       return yield* Effect.fail(
-        last ?? new DaemonError({ kind: "connect", message: "aigcfroge-pty did not become ready" }),
+        last ?? new DaemonError({ kind: "connect", message: "omnixa-pty did not become ready" }),
       )
     }).pipe(
       Effect.onError(() =>
@@ -277,7 +277,7 @@ export const makeDaemonTransport = Effect.fn("PersistentPty.makeDaemonTransport"
     spawnDaemon().pipe(
       Effect.catch((error) =>
         Effect.gen(function* () {
-          yield* Effect.logWarning("Starting aigcfroge-pty in a fresh runtime directory", { cause: error.message })
+          yield* Effect.logWarning("Starting omnixa-pty in a fresh runtime directory", { cause: error.message })
           abandon()
           return yield* spawnDaemon()
         }),
@@ -350,7 +350,7 @@ export const makeDaemonTransport = Effect.fn("PersistentPty.makeDaemonTransport"
       if (!running) return response
       yield* Effect.sleep(50)
     }
-    return yield* Effect.fail(new DaemonError({ kind: "connect", message: "aigcfroge-pty did not stop" }))
+    return yield* Effect.fail(new DaemonError({ kind: "connect", message: "omnixa-pty did not stop" }))
   })
 
   const handoff = startup.withPermit(
@@ -512,7 +512,7 @@ const oneShot = Effect.fn("PersistentPty.daemon.oneShot")(function* (registratio
             signal.addEventListener("abort", abort, { once: true })
             try {
               const frame = await frames.next()
-              if (frame.done) throw new Error("aigcfroge-pty closed without response")
+              if (frame.done) throw new Error("omnixa-pty closed without response")
               return frame.value
             } finally {
               signal.removeEventListener("abort", abort)
@@ -541,7 +541,7 @@ const oneShot = Effect.fn("PersistentPty.daemon.oneShot")(function* (registratio
         Effect.fail(
           new DaemonError({
             kind: dispatched ? "response" : "connect",
-            message: "aigcfroge-pty request timed out",
+            message: "omnixa-pty request timed out",
           }),
         ),
     }),
@@ -574,20 +574,20 @@ async function subscribePromise(
       }),
     )
     const initial = await frames.next()
-    if (initial.done) throw new Error("aigcfroge-pty closed before attachment")
+    if (initial.done) throw new Error("omnixa-pty closed before attachment")
     const response = decode(initial.value)
     if (response.type === "error")
       throw new DaemonError({
         kind: response.message === "authentication failed" ? "registration" : "protocol",
         message: response.message,
       })
-    if (response.type !== "attached") throw new Error(`unexpected aigcfroge-pty response: ${response.type}`)
+    if (response.type !== "attached") throw new Error(`unexpected omnixa-pty response: ${response.type}`)
     let detached = false
     const pump = async () => {
       try {
         for await (const frame of frames) {
           if (frame[0] === 0) {
-            if (frame.length < 17) throw new Error("invalid aigcfroge-pty output frame")
+            if (frame.length < 17) throw new Error("invalid omnixa-pty output frame")
             input.onEvent({
               type: "output",
               start: Number(frame.readBigUInt64BE(1)),
@@ -658,7 +658,7 @@ async function subscribePromise(
 
 function encode(value: unknown) {
   const payload = Buffer.from(JSON.stringify(value))
-  if (payload.length > MaxFrameBytes) throw new Error("aigcfroge-pty frame too large")
+  if (payload.length > MaxFrameBytes) throw new Error("omnixa-pty frame too large")
   const output = Buffer.allocUnsafe(payload.length + 4)
   output.writeUInt32BE(payload.length)
   payload.copy(output, 4)
@@ -672,13 +672,13 @@ async function* decoder(socket: net.Socket) {
     pending = pending.length === 0 ? chunk : Buffer.concat([pending, chunk])
     while (pending.length >= 4) {
       const length = pending.readUInt32BE(0)
-      if (length > MaxFrameBytes) throw new Error("aigcfroge-pty frame too large")
+      if (length > MaxFrameBytes) throw new Error("omnixa-pty frame too large")
       if (pending.length < length + 4) break
       yield pending.subarray(4, length + 4)
       pending = pending.subarray(length + 4)
     }
   }
-  if (pending.length !== 0) throw new Error("aigcfroge-pty truncated frame")
+  if (pending.length !== 0) throw new Error("omnixa-pty truncated frame")
 }
 
 function decode(payload: Uint8Array) {

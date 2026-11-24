@@ -1,7 +1,7 @@
 export * as ConfigMigration from "./migrate"
 
-import { TuiKeybind } from "@aigcfroge/tui/config/v1/keybind"
-import { Definitions } from "@aigcfroge/tui/config/keybind"
+import { TuiKeybind } from "@omnixa/tui/config/v1/keybind"
+import { Definitions } from "@omnixa/tui/config/keybind"
 import { Effect, FileSystem, Option, Schema } from "effect"
 import { randomUUID } from "crypto"
 import { applyEdits, createScanner, modify, parse, parseTree, type Node, type ParseError } from "jsonc-parser"
@@ -9,8 +9,9 @@ import path from "path"
 import { Info } from "./schema"
 
 const decodeInfo = Schema.decodeUnknownOption(Info)
-const decodeRecord = Schema.decodeUnknownOption(Schema.Record(Schema.String, Schema.Any))
-const LegacyKeybindTargets = new Set<string>(Object.values(TuiKeybind.CommandMap))
+const decodeRecord = Schema.decodeUnknownOption(Schema.Record(Schema.String, Schema.Unknown))
+const LegacyKeybinds = new Map<string, string>(Object.entries(TuiKeybind.CommandMap))
+const LegacyKeybindTargets = new Set(LegacyKeybinds.values())
 
 export const run = Effect.fn("cli.config.migrate")(function* (input: {
   readonly file: string
@@ -32,13 +33,13 @@ export const run = Effect.fn("cli.config.migrate")(function* (input: {
     return cause === undefined ? { info } : { info, cause }
   })
 
-  if (!(yield* fs.exists(input.file).pipe(Effect.orElseSucceed(() => false)))) return
+  if (!(yield* fs.exists(input.file).pipe(Effect.orElseSucceed(() => false)))) return undefined
   const text = yield* fs.readFileString(input.file)
   const errors: ParseError[] = []
-  const value: any = parse(text, errors, { allowTrailingComma: true })
-  if (errors.length) return
+  const value: unknown = parse(text, errors, { allowTrailingComma: true })
+  if (errors.length) return undefined
   const config = Option.getOrUndefined(decodeRecord(value))
-  if (config === undefined) return
+  if (config === undefined) return undefined
   const terminal = Option.getOrUndefined(decodeRecord(config.terminal))
   const legacyCopy = terminal?.copy_on_select
   const copy =
@@ -64,8 +65,7 @@ export const run = Effect.fn("cli.config.migrate")(function* (input: {
       : Object.keys(keybinds).reduce(
           (text, name) => {
             const target =
-              TuiKeybind.CommandMap[name as keyof typeof TuiKeybind.CommandMap] ??
-              (name in Definitions || LegacyKeybindTargets.has(name) ? name : undefined)
+              LegacyKeybinds.get(name) ?? (name in Definitions || LegacyKeybindTargets.has(name) ? name : undefined)
             if (target === undefined) return text
             const properties = findKeybindProperties(text, name)
             if (!properties.length) return text
@@ -88,10 +88,10 @@ export const run = Effect.fn("cli.config.migrate")(function* (input: {
               return property === undefined ? text : removeProperty(text, property)
             }, renamed),
         )
-  if (updated === text) return
+  if (updated === text) return undefined
   const updatedErrors: ParseError[] = []
   const info = Option.getOrUndefined(decodeInfo(parse(updated, updatedErrors, { allowTrailingComma: true })))
-  if (updatedErrors.length || info === undefined) return
+  if (updatedErrors.length || info === undefined) return undefined
   return yield* persist(updated, info)
 })
 

@@ -1,10 +1,10 @@
 import { expect, test } from "bun:test"
-import { resolveThemeDocument, type HueScale, type ResolvedTheme } from "@aigcfroge/theme/tui"
+import { resolveThemeDocument, type HueScale, type ResolvedTheme } from "@omnixa/theme/tui"
 import { terminalPalette } from "../../src/component/terminal-pane"
-import { getAigcForgeTheme } from "../../src/theme"
+import { getOmnixaTheme } from "../../src/theme"
 
 test.each(["light", "dark"] as const)("builds the %s ANSI palette from semantic colors", (mode) => {
-  const theme = resolveThemeDocument(getAigcForgeTheme(), mode)
+  const theme = resolveThemeDocument(getOmnixaTheme(), mode)
   const hues = allHues(theme)
   const black = theme.hue.neutral[mode === "dark" ? 800 : 200]
   const white = theme.hue.neutral[mode === "dark" ? 200 : 800]
@@ -38,7 +38,7 @@ test.each(["light", "dark"] as const)("builds the %s ANSI palette from semantic 
 })
 
 test("falls back to accent when no hue is confidently blue or magenta", () => {
-  const resolved = resolveThemeDocument(getAigcForgeTheme(), "dark")
+  const resolved = resolveThemeDocument(getOmnixaTheme(), "dark")
   const hues = allHues(resolved)
   const hue = {
     ...Object.fromEntries(Object.keys(hues).map((name) => [name, hues.red])),

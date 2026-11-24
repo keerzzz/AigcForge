@@ -1,4 +1,4 @@
-import type { PromptFileAttachment, SessionForkBoundary } from "@aigcfroge/client/promise"
+import type { PromptFileAttachment, SessionForkBoundary } from "@omnixa/client/promise"
 import type { JSX } from "solid-js"
 
 /** Cached facts for actions on one ordinary answer text block. */

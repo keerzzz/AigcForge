@@ -1,4 +1,4 @@
-import { Browser } from "@aigcfroge/plugin-browser/rpc"
+import { Browser } from "@omnixa/plugin-browser/rpc"
 import { Schema } from "effect"
 import type { MainStoreFrom, Storage } from "../sdk/main"
 
@@ -11,9 +11,9 @@ type Stored = typeof Stored.Type
 
 const empty: Stored = { tabs: [], focusedTabID: null }
 
-/** Tab URLs and focus per `${server}\n${session}`, imported once from the desktop's own `aigcfroge.browser.dat` rows. */
+/** Tab URLs and focus per `${server}\n${session}`, imported once from the desktop's own `omnixa.browser.dat` rows. */
 export function createBrowserRestoreStore(storage: Storage) {
-  const from = (key: string): MainStoreFrom => ({ state: ["aigcfroge.browser.dat", key] })
+  const from = (key: string): MainStoreFrom => ({ state: ["omnixa.browser.dat", key] })
   const open = (key: string) => storage.store(`restore:${key}`, { schema: Stored, initial: empty, from: from(key) })
 
   const stores = new Map<string, ReturnType<typeof open>>()

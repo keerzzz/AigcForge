@@ -19,13 +19,8 @@ export default {
   "error.input":
     "Masukkan hos atau perintah sambungan SSH. Perintah jauh dan pilihan SSH yang tidak disokong tidak dibenarkan.",
   "error.connection": "Tidak dapat mewujudkan sambungan SSH. Semak rangkaian dan konfigurasi SSH anda.",
-  "error.platform":
-    "Platform jauh ini tidak disokong. Penetapan automatik kini memerlukan Linux atau macOS pada x64 atau arm64.",
   "error.version": "Perkhidmatan jauh mesti sepadan dengan versi Desktop ini sebelum menyambung.",
-  "error.install": "Gagal memasang pelayan jauh. Semak sambungan, ruang cakera, dan pastikan tar dipasang.",
-  "error.unpublished":
-    "Versi Desktop ini tidak mempunyai pelayan jauh yang diterbitkan. Untuk binaan pembangunan, pasang dan mulakan V2 pada hos, kemudian cuba lagi.",
-  "error.service": "SSH bersambung, tetapi pelayan AigcForge tidak bersedia.",
+  "error.service": "SSH bersambung, tetapi pelayan Omnixa tidak bersedia.",
   "error.host-key":
     "Identiti hos tidak dapat disahkan. Sahkan cap jarinya sebelum mengemaskini hos yang diketahui dalam SSH anda.",
   "error.ssh-missing": "OpenSSH tidak dijumpai. Pasang klien OpenSSH dan pastikan ssh tersedia dalam PATH.",

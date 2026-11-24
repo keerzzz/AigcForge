@@ -7,10 +7,10 @@ describe("persist targets", () => {
     const raw = Persist.workspace("C:\\Users\\foo", "vcs")
     const normalized = Persist.workspace("C:/Users/foo", "vcs")
 
-    expect(raw.storage).toMatch(/^aigcfroge\.workspace\.[a-zA-Z0-9._-]+\.dat$/)
+    expect(raw.storage).toMatch(/^omnixa\.workspace\.[a-zA-Z0-9._-]+\.dat$/)
     expect(raw.storage).toBe(normalized.storage)
     expect(raw.workspaceStorageAliases).toHaveLength(1)
-    expect(raw.workspaceStorageAliases![0]).toMatch(/^aigcfroge\.workspace\.[a-zA-Z0-9._-]+\.dat$/)
+    expect(raw.workspaceStorageAliases![0]).toMatch(/^omnixa\.workspace\.[a-zA-Z0-9._-]+\.dat$/)
     expect(raw.workspaceStorageAliases![0]).not.toBe(raw.storage)
     expect(normalized.workspaceStorageAliases).toEqual(raw.workspaceStorageAliases)
     expect(Persist.workspace("/home/luke/repo", "vcs").workspaceStorageAliases).toBeUndefined()
@@ -59,7 +59,7 @@ describe("persist targets", () => {
   test("server global target preserves local key and isolates remote keys", () => {
     expect(Persist.serverGlobal(ServerScope.local, "notification")).toEqual(Persist.global("notification"))
     expect(Persist.serverGlobal("https://debian.example" as ServerScope, "notification")).toEqual({
-      storage: "aigcfroge.global.dat",
+      storage: "omnixa.global.dat",
       key: "https://debian.example\0notification",
     })
   })

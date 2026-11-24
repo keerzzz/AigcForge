@@ -1,33 +1,25 @@
 import path from "node:path"
 import { mkdir, rm } from "node:fs/promises"
 import { expect } from "bun:test"
-import { TestLLM } from "@aigcfroge/ai/testing"
-import { Agent } from "@aigcfroge/core/agent"
-import { Environment } from "@aigcfroge/core/environment/index"
-import { Watcher } from "@aigcfroge/core/filesystem/watcher"
-import { Location } from "@aigcfroge/core/location"
-import { Model } from "@aigcfroge/core/model"
-import { Plugin } from "@aigcfroge/core/plugin"
-import { Provider } from "@aigcfroge/core/provider"
-import { Session } from "@aigcfroge/core/session"
-import { SessionInputResult } from "@aigcfroge/core/session/input-result"
-import { SessionMessage } from "@aigcfroge/core/session/message"
-import { Skill } from "@aigcfroge/core/skill"
-import { SkillAsset } from "@aigcfroge/core/skill-asset"
-import { SkillAssetService } from "@aigcfroge/core/skill-asset-service"
-import { AssetPlacement } from "@aigcfroge/schema/asset-placement"
-import { AbsolutePath } from "@aigcfroge/schema/schema"
-import {
-  BaseRevision,
-  Candidate,
-  Info,
-  Inspection,
-  InvalidEntry,
-  Revision,
-  Summary,
-} from "@aigcfroge/schema/skill-asset"
-import { Workspace } from "@aigcfroge/schema/workspace"
-import { Hash } from "@aigcfroge/util/hash"
+import { TestLLM } from "@omnixa/ai/testing"
+import { Agent } from "@omnixa/core/agent"
+import { Environment } from "@omnixa/core/environment/index"
+import { Watcher } from "@omnixa/core/filesystem/watcher"
+import { Location } from "@omnixa/core/location"
+import { Model } from "@omnixa/core/model"
+import { Plugin } from "@omnixa/core/plugin"
+import { Provider } from "@omnixa/core/provider"
+import { Session } from "@omnixa/core/session"
+import { SessionInputResult } from "@omnixa/core/session/input-result"
+import { SessionMessage } from "@omnixa/core/session/message"
+import { Skill } from "@omnixa/core/skill"
+import { SkillAsset } from "@omnixa/core/skill-asset"
+import { SkillAssetService } from "@omnixa/core/skill-asset-service"
+import { AssetPlacement } from "@omnixa/schema/asset-placement"
+import { AbsolutePath } from "@omnixa/schema/schema"
+import { BaseRevision, Candidate, Info, Inspection, InvalidEntry, Revision, Summary } from "@omnixa/schema/skill-asset"
+import { Workspace } from "@omnixa/schema/workspace"
+import { Hash } from "@omnixa/util/hash"
 import { Context, Deferred, Effect, Layer, Option, Schema } from "effect"
 import { withEnv } from "../../core/test/fixture/env"
 import { initRepo } from "../../core/test/fixture/git"
@@ -58,8 +50,8 @@ const setup = (
 ) => {
   const watchers = AssetHttpFixture.observeWatchers()
   return AssetHttpFixture.setup({
-    prefix: "aigcfroge-skill-http-",
-    assetDirectory: ".aigcfroge/skills",
+    prefix: "omnixa-skill-http-",
+    assetDirectory: ".omnixa/skills",
     model,
     files,
     prepare,
@@ -96,10 +88,10 @@ const setup = (
 it.live(
   "persists Skill proposal facts and hands real HTTP writes to native Skill and Session consumption",
   () =>
-    withEnv({ AIGCFROGE_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
+    withEnv({ OMNIXA_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
       Effect.gen(function* () {
         const fixture = yield* setup()
-        const target = path.join(fixture.directory, ".aigcfroge/skills/review-basics.md")
+        const target = path.join(fixture.directory, ".omnixa/skills/review-basics.md")
         const session = yield* fixture.sessions.create({
           title: "Skill review",
           mode: "chat",
@@ -137,7 +129,7 @@ it.live(
           revision: null,
           nameConflict: false,
           pathConflict: false,
-          target: { scope: "project", root: AbsolutePath.make(path.join(fixture.directory, ".aigcfroge/skills")) },
+          target: { scope: "project", root: AbsolutePath.make(path.join(fixture.directory, ".omnixa/skills")) },
         })
         expect(proposed.metadata).not.toHaveProperty("candidate")
         expect(proposed.metadata).not.toHaveProperty("input")
@@ -178,9 +170,7 @@ it.live(
         })
         expect(yield* Effect.promise(() => Bun.file(target).exists())).toBe(false)
         expect(
-          yield* Effect.promise(() =>
-            Bun.file(path.join(fixture.other, ".aigcfroge/skills/review-basics.md")).exists(),
-          ),
+          yield* Effect.promise(() => Bun.file(path.join(fixture.other, ".omnixa/skills/review-basics.md")).exists()),
         ).toBe(false)
 
         const added = yield* nativeReady(fixture, target, input.content)
@@ -400,11 +390,11 @@ it.live(
 it.live(
   "persists a Project Inspection from a Git child without writing or migrating any Skill owner",
   () =>
-    withEnv({ AIGCFROGE_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
+    withEnv({ OMNIXA_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
       Effect.gen(function* () {
         const fixture = yield* setup([], async (directory) => {
           await prepareProject(directory)
-          await rm(path.join(directory, ".aigcfroge"), { recursive: true })
+          await rm(path.join(directory, ".omnixa"), { recursive: true })
           const legacy = path.join(directory, "packages/first/.claude/skills/legacy/SKILL.md")
           await mkdir(path.dirname(legacy), { recursive: true })
           await Bun.write(
@@ -457,7 +447,7 @@ it.live(
           revision: null,
           nameConflict: false,
           pathConflict: false,
-          target: { scope: "project", root: path.join(fixture.directory, ".aigcfroge/skills") },
+          target: { scope: "project", root: path.join(fixture.directory, ".omnixa/skills") },
           truncated: false,
         })
         const inspection = Schema.decodeUnknownSync(Inspection)(
@@ -474,8 +464,8 @@ it.live(
         expect(saved.facts).toEqual(inspection)
         yield* Effect.forEach(
           [
-            path.join(fixture.directory, ".aigcfroge"),
-            path.join(directory, ".aigcfroge"),
+            path.join(fixture.directory, ".omnixa"),
+            path.join(directory, ".omnixa"),
             path.join(fixture.global.config, "skills"),
           ],
           (root) =>
@@ -495,19 +485,19 @@ it.live(
 for (const initial of [
   { label: "Project skills exists", scope: "project", missing: "none" },
   { label: "Project skills is missing", scope: "project", missing: "skills" },
-  { label: "Project .aigcfroge is missing", scope: "project", missing: "config" },
+  { label: "Project .omnixa is missing", scope: "project", missing: "config" },
   { label: "global skills is missing", scope: "global", missing: "skills" },
 ] as const) {
   it.live(
     `refreshes two real Locations through create, replace and delete when ${initial.label}`,
     () =>
-      withEnv({ AIGCFROGE_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
+      withEnv({ OMNIXA_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
         Effect.gen(function* () {
           const fixture = yield* setup([], async (directory) => {
             await prepareProject(directory)
             await prepareProject(path.join(path.dirname(directory), "other"))
             if (initial.scope === "project" && initial.missing !== "none")
-              await rm(path.join(directory, initial.missing === "config" ? ".aigcfroge" : ".aigcfroge/skills"), {
+              await rm(path.join(directory, initial.missing === "config" ? ".omnixa" : ".omnixa/skills"), {
                 recursive: true,
               })
           })
@@ -534,7 +524,7 @@ for (const initial of [
           const root =
             initial.scope === "global"
               ? path.join(fixture.global.config, "skills")
-              : path.join(fixture.directory, ".aigcfroge/skills")
+              : path.join(fixture.directory, ".omnixa/skills")
           const target = path.join(root, "review-basics.md")
           const environment = Context.get(fixture.local, Environment.Service)
           expect(yield* isDirectory(environment, root)).toBe(initial.missing === "none")
@@ -567,7 +557,7 @@ for (const initial of [
             fixture,
             directories,
             initial.missing === "config"
-              ? { type: "entries", path: fixture.directory, names: [".aigcfroge"] }
+              ? { type: "entries", path: fixture.directory, names: [".omnixa"] }
               : initial.missing === "none"
                 ? { type: "directory", path: root }
                 : { type: "file", path: root },
@@ -595,9 +585,7 @@ for (const initial of [
                 content: candidate.content,
               })
               expect(
-                yield* Effect.promise(() =>
-                  Bun.file(path.join(directory, ".aigcfroge/skills/review-basics.md")).exists(),
-                ),
+                yield* Effect.promise(() => Bun.file(path.join(directory, ".omnixa/skills/review-basics.md")).exists()),
               ).toBe(false)
             }),
           )
@@ -669,7 +657,7 @@ for (const initial of [
 it.live(
   "keeps the Project native winner after a global save and exposes global fallback after Project deletion",
   () =>
-    withEnv({ AIGCFROGE_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
+    withEnv({ OMNIXA_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
       Effect.gen(function* () {
         const projectContent = "Project winner: inspect the repository diff."
         const globalContent = "Global fallback: inspect the shared review checklist."
@@ -843,7 +831,7 @@ for (const conflict of [
   it.live(
     `retains ${conflict.label} conflict facts through real proposer Tool.Success and HTTP readback`,
     () =>
-      withEnv({ AIGCFROGE_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
+      withEnv({ OMNIXA_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
         Effect.gen(function* () {
           const content = `---\nname: ${conflict.existingName}\ndescription: Existing Skill\n---\nExisting content.`
           const fixture = yield* setup([{ relativePath: conflict.relativePath, content }])
@@ -884,7 +872,7 @@ for (const conflict of [
             ),
             nameConflict: conflict.nameConflict,
             pathConflict: conflict.pathConflict,
-            target: { scope: "project", root: AbsolutePath.make(path.join(fixture.directory, ".aigcfroge/skills")) },
+            target: { scope: "project", root: AbsolutePath.make(path.join(fixture.directory, ".omnixa/skills")) },
           })
           const inspected = Schema.decodeUnknownSync(Inspection)(
             yield* readBody(
@@ -898,16 +886,16 @@ for (const conflict of [
           )
           expect(inspected).toEqual({
             ...saved.facts,
-            target: { scope: "location", root: AbsolutePath.make(path.join(fixture.directory, ".aigcfroge/skills")) },
+            target: { scope: "location", root: AbsolutePath.make(path.join(fixture.directory, ".omnixa/skills")) },
           })
           expect(
             yield* Effect.promise(() =>
-              Bun.file(path.join(fixture.directory, ".aigcfroge/skills", conflict.relativePath)).text(),
+              Bun.file(path.join(fixture.directory, ".omnixa/skills", conflict.relativePath)).text(),
             ),
           ).toBe(content)
           expect(
             yield* Effect.promise(() =>
-              Bun.file(path.join(fixture.directory, ".aigcfroge/skills/review-basics.md")).exists(),
+              Bun.file(path.join(fixture.directory, ".omnixa/skills/review-basics.md")).exists(),
             ),
           ).toBe(conflict.exists)
           const readback = Schema.decodeUnknownSync(Info)(
@@ -931,7 +919,7 @@ for (const conflict of [
 it.live(
   "inspects and writes selected Skill owners while omitted scope and target stay at the Session Location",
   () =>
-    withEnv({ AIGCFROGE_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
+    withEnv({ OMNIXA_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
       Effect.gen(function* () {
         const fixture = yield* setup([], prepareProject)
         const directory = path.join(fixture.directory, "packages/first")
@@ -957,7 +945,7 @@ it.live(
           [
             {
               scope: "project",
-              root: path.join(fixture.directory, ".aigcfroge/skills"),
+              root: path.join(fixture.directory, ".omnixa/skills"),
               content: "Project body.\n\nPreserve `backticks`, $HOME, and 中文.",
             },
             {
@@ -1065,7 +1053,7 @@ it.live(
         )
         expect(selectedLocal).toEqual({
           ...legacy,
-          target: { scope: "location", root: AbsolutePath.make(path.join(directory, ".aigcfroge/skills")) },
+          target: { scope: "location", root: AbsolutePath.make(path.join(directory, ".omnixa/skills")) },
         })
         const listedLocal = Schema.decodeUnknownSync(listResponse)(
           yield* readBody(yield* fixture.request("/skill-asset", { directory })),
@@ -1086,7 +1074,7 @@ it.live(
 it.live(
   "keeps selected target validation separate from Session placement and cross-Location Skill CAS",
   () =>
-    withEnv({ AIGCFROGE_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
+    withEnv({ OMNIXA_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
       Effect.gen(function* () {
         const fixture = yield* setup([], prepareProject)
         const directory = path.join(fixture.directory, "packages/first")
@@ -1133,7 +1121,7 @@ it.live(
         expect(inspected).toMatchObject({
           exists: false,
           revision: null,
-          target: { scope: "project", root: path.join(fixture.directory, ".aigcfroge/skills") },
+          target: { scope: "project", root: path.join(fixture.directory, ".omnixa/skills") },
         })
         yield* Effect.forEach(
           [
@@ -1246,10 +1234,10 @@ it.live(
         )
         yield* Effect.forEach(
           [
-            { scope: "project", root: path.join(directory, ".aigcfroge/skills") },
+            { scope: "project", root: path.join(directory, ".omnixa/skills") },
             { scope: "global", root: inspected.target.root },
             { scope: "location", root: inspected.target.root },
-            { scope: "project", root: path.join(fixture.other, ".aigcfroge/skills") },
+            { scope: "project", root: path.join(fixture.other, ".omnixa/skills") },
           ],
           (target) =>
             Effect.forEach(
@@ -1278,7 +1266,7 @@ it.live(
         expect(yield* Effect.promise(() => Bun.file(file).arrayBuffer())).toEqual(bytes)
         expect(
           yield* Effect.promise(() =>
-            Bun.file(path.join(fixture.other, ".aigcfroge/skills", candidate.relativePath)).exists(),
+            Bun.file(path.join(fixture.other, ".omnixa/skills", candidate.relativePath)).exists(),
           ),
         ).toBe(false)
         const replacement = { ...candidate, content: "Updated after both Locations inspected the same revision." }

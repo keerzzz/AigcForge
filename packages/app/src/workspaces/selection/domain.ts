@@ -278,7 +278,7 @@ export function nativePickerPath(path: string) {
   return value
 }
 
-import { getFilename } from "@aigcfroge/util/path"
+import { getFilename } from "@omnixa/util/path"
 import fuzzysort from "fuzzysort"
 import { ServerSDK } from "@/runtime/server/client"
 

@@ -1,9 +1,9 @@
 import { expect, test } from "bun:test"
-import { ProductMode } from "@aigcfroge/schema/product-mode"
+import { ProductMode } from "@omnixa/schema/product-mode"
 import { authFromToken, authTokenFromCredentials, createApiForServer } from "./api"
 
 test.each([
-  [btoa("aigcfroge:secret"), { password: "secret" }],
+  [btoa("omnixa:secret"), { password: "secret" }],
   [btoa("legacy:secret:with:colons"), { password: "secret:with:colons" }],
   [btoa(":secret"), { password: "secret" }],
   ["not base64", undefined],
@@ -14,7 +14,7 @@ test.each([
 
 test("authTokenFromCredentials ignores usernames in legacy saved credentials", () => {
   const credentials = { username: "legacy", password: "secret" }
-  expect(authTokenFromCredentials(credentials)).toBe(btoa("aigcfroge:secret"))
+  expect(authTokenFromCredentials(credentials)).toBe(btoa("omnixa:secret"))
 })
 
 test.each([undefined, "secret"])(
@@ -42,6 +42,6 @@ test.each([undefined, "secret"])(
     expect(requests).toHaveLength(1)
     expect(new URL(requests[0].url).pathname).toBe("/api/event")
     expect(requests[0].headers.get(ProductMode.CAPABILITIES_HEADER)).toBe(ProductMode.CAPABILITY_CUSTOM_V1)
-    expect(requests[0].headers.get("Authorization")).toBe(password ? `Basic ${btoa("aigcfroge:secret")}` : null)
+    expect(requests[0].headers.get("Authorization")).toBe(password ? `Basic ${btoa("omnixa:secret")}` : null)
   },
 )

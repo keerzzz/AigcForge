@@ -66,15 +66,15 @@ test("decodes ui.matches text params", () => {
       jsonrpc: "2.0",
       id: 1,
       method: "ui.matches",
-      params: { text: "AigcForge [ready].*" },
+      params: { text: "Omnixa [ready].*" },
     }),
-  ).toMatchObject({ method: "ui.matches", params: { text: "AigcForge [ready].*" } })
+  ).toMatchObject({ method: "ui.matches", params: { text: "Omnixa [ready].*" } })
   expect(() =>
     Frontend.decodeRequest({
       jsonrpc: "2.0",
       id: 1,
       method: "ui.matches",
-      params: { pattern: "AigcForge.*" },
+      params: { pattern: "Omnixa.*" },
     }),
   ).toThrow()
 })
@@ -119,7 +119,7 @@ test("decodes semantic UI snapshots", () => {
   const decode = Schema.decodeUnknownSync(Frontend.SemanticSnapshot)
   expect(
     decode({
-      format: "aigcfroge-ui-snapshot-v1",
+      format: "omnixa-ui-snapshot-v1",
       nodes: [
         {
           id: "session.permission",
@@ -133,7 +133,7 @@ test("decodes semantic UI snapshots", () => {
   ).toMatchObject({ nodes: [{ role: "dialog", expanded: false }] })
   expect(() =>
     decode({
-      format: "aigcfroge-ui-snapshot-v1",
+      format: "omnixa-ui-snapshot-v1",
       nodes: [{ id: "", role: "dialog", element: 0 }],
     }),
   ).toThrow()
@@ -152,7 +152,7 @@ test("decodes semantic UI snapshots", () => {
       { id: "second", parent: "first", role: "option", element: 2 },
     ],
   ])
-    expect(() => decode({ format: "aigcfroge-ui-snapshot-v1", nodes })).toThrow()
+    expect(() => decode({ format: "omnixa-ui-snapshot-v1", nodes })).toThrow()
 })
 
 test("decodes the simulated tool lifecycle", () => {
@@ -246,7 +246,7 @@ test("decodes the simulated tool lifecycle", () => {
 })
 
 const params: Handshake.Params = {
-  client: { name: "aigcfroge-drive", version: "test" },
+  client: { name: "omnixa-drive", version: "test" },
   expectedRole: "ui",
   offeredVersions: [1],
   requiredCapabilities: ["ui.state"],
@@ -255,7 +255,7 @@ const params: Handshake.Params = {
 
 const ui: Handshake.DispatchAction = {
   role: "ui",
-  server: { name: "aigcfroge", version: "test" },
+  server: { name: "omnixa", version: "test" },
   capabilities: Frontend.Capabilities,
 }
 
@@ -305,7 +305,7 @@ describe("simulation.handshake", () => {
     await expect(Effect.runPromise(Handshake.dispatch(ui, params))).resolves.toEqual({
       protocolVersion: 1,
       role: "ui",
-      server: { name: "aigcfroge", version: "test" },
+      server: { name: "omnixa", version: "test" },
       capabilities: [...Frontend.Capabilities],
     })
   })

@@ -1,8 +1,8 @@
 import { confirm, log, multiselect, password, select, text, type Option } from "@clack/prompts"
 import { Effect, Schema } from "effect"
-import { Form } from "@aigcfroge/schema/form"
-import { formValidateValue } from "@aigcfroge/tui/util/form"
-import type { FormAnswer, FormField, FormFields } from "@aigcfroge/client"
+import { Form } from "@omnixa/schema/form"
+import { formValidateValue } from "@omnixa/tui/util/form"
+import type { FormAnswer, FormField, FormFields } from "@omnixa/client"
 import { openUrl, prompt, requireInteractive } from "../../../ui/prompt"
 
 const skip = Symbol("skip")

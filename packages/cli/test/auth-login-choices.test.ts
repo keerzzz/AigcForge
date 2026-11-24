@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import type { IntegrationInfo } from "@aigcfroge/client"
+import type { IntegrationInfo } from "@omnixa/client"
 import { loginChoices } from "../src/commands/handlers/auth/login"
 
 const integration = (value: Partial<IntegrationInfo> & Pick<IntegrationInfo, "id" | "name">): IntegrationInfo => ({

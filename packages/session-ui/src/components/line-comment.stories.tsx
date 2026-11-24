@@ -27,7 +27,7 @@ Pair with \`Diff\` or \`Code\` to align comments to lines.
 `
 
 export default {
-  title: "AigcForge/Review/Line comments",
+  title: "Omnixa/Review/Line comments",
   id: "components-line-comment",
   component: LineComment,
   tags: ["autodocs"],

@@ -16,7 +16,7 @@ import {
   type CliRenderer,
   type ScrollbackWriter,
 } from "@opentui/core"
-import { isFallbackTitle } from "@aigcfroge/util/session-title-fallback"
+import { isFallbackTitle } from "@omnixa/util/session-title-fallback"
 import { monoSnapshot } from "./mono"
 import { entrySplash, exitSplash } from "./splash"
 import { resolveRunTheme } from "./theme"
@@ -181,8 +181,8 @@ export async function createRuntimeLifecycle(input: LifecycleInput): Promise<Lif
   if (mono) renderer.on(CliRenderEvents.EXTERNAL_OUTPUT, monoSnapshot)
   const setTitle = (title?: string) => {
     if (input.host.platform !== "linux") return
-    if (!title || isFallbackTitle(title)) return renderer.setTerminalTitle("AigcForge")
-    renderer.setTerminalTitle(`OC | ${title.length > 40 ? title.slice(0, 37) + "…" : title}`)
+    if (!title || isFallbackTitle(title)) return renderer.setTerminalTitle("Omnixa")
+    renderer.setTerminalTitle(`Omnixa | ${title.length > 40 ? title.slice(0, 37) + "…" : title}`)
   }
   setTitle(input.sessionTitle)
   const theme = await resolveRunTheme(renderer, tuiConfig.theme, mono)

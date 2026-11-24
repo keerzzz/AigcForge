@@ -1,5 +1,5 @@
-import { Location } from "@aigcfroge/schema/location"
-import { Plugin } from "@aigcfroge/schema/plugin"
+import { Location } from "@omnixa/schema/location"
+import { Plugin } from "@omnixa/schema/plugin"
 import { Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "effect/http-api"
 import { InvalidRequestError, ServiceUnavailableError } from "../errors.js"

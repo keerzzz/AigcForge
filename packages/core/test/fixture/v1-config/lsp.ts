@@ -17,7 +17,7 @@ export const Entry = Schema.Union([
   }),
 ])
 
-// Keep this list aligned with the builtin servers in aigcfroge's LSP runtime.
+// Keep this list aligned with the builtin servers in omnixa's LSP runtime.
 // Custom servers must declare extensions because the runtime cannot infer them.
 export const builtinServerIds = [
   "deno",

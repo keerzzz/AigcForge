@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test"
 import { fixture, installStressSessionTabs } from "../utils/session-fixture"
 import { sessionHref } from "../utils/app"
 import { openWithDirection } from "../utils/direction"
-import { mockAigcForgeServer } from "../utils/mock-server"
+import { mockOmnixaServer } from "../utils/mock-server"
 
 for (const { width, direction } of [
   { width: 390, direction: "ltr" },
@@ -64,7 +64,7 @@ test.describe("touch submission", () => {
 
 async function openSubmitSession(page: Page, width: number, direction: "ltr" | "rtl") {
   await page.setViewportSize({ width, height: 844 })
-  await mockAigcForgeServer(page, {
+  await mockOmnixaServer(page, {
     directory: fixture.directory,
     project: fixture.project,
     sessions: fixture.sessions,

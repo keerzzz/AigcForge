@@ -2,16 +2,16 @@ export * as WorkArtifact from "./artifact"
 
 import { Context, DateTime, Effect, Layer, Schema } from "effect"
 import path from "path"
-import { WorkflowAsset } from "@aigcfroge/schema/workflow-asset"
+import { WorkflowAsset } from "@omnixa/schema/workflow-asset"
 import { Bus } from "../bus"
 import { FileMutation } from "../file-mutation"
 import { LocationMutation } from "../location-mutation"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { FSUtil } from "@omnixa/util/fs-util"
 import { Environment } from "../environment/index"
 import { Identifier } from "../id/id"
-import { Hash } from "@aigcfroge/util/hash"
+import { Hash } from "@omnixa/util/hash"
 import { SessionSchema } from "./schema"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
 
 /**
  * M1 Artifact 契约（D2 定案：内存态事件，不落库，对齐 ADR-15 §5）。
@@ -86,7 +86,7 @@ export interface Interface {
   readonly get: (sessionID: SessionSchema.ID) => Effect.Effect<ArtifactSnapshot | undefined>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/WorkArtifact") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/v2/WorkArtifact") {}
 
 export const layer = Layer.effect(
   Service,

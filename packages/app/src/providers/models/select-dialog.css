@@ -21,18 +21,4 @@
     margin-inline: -12px;
     padding-inline: 12px;
   }
-
-  .settings-models-console-groups {
-    margin-inline-start: 4px;
-    padding-inline-start: 8px;
-  }
-
-  .provider-model-group-trigger,
-  .provider-model-group-models {
-    padding-inline: 12px;
-  }
-
-  .provider-model-group-models > [data-component="settings-list"] {
-    padding-inline: 0;
-  }
 }

@@ -1,4 +1,4 @@
-import { Plugin } from "@aigcfroge/plugin"
+import { Plugin } from "@omnixa/plugin"
 
 export default Plugin.define({
   id: "greeting",

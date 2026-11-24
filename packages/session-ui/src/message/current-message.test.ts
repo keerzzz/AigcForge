@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import type { JsonValue, SessionMessageAssistantTool } from "@aigcfroge/client/promise"
+import type { JsonValue, SessionMessageAssistantTool } from "@omnixa/client/promise"
 import { currentContentDefaultOpen } from "./current-tool-state"
 
 function tool(name: string, files: JsonValue[] = []): SessionMessageAssistantTool {

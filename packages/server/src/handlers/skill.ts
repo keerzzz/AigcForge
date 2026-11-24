@@ -1,4 +1,4 @@
-import { Skill } from "@aigcfroge/core/skill"
+import { Skill } from "@omnixa/core/skill"
 import { HttpApiBuilder } from "effect/http-api"
 import { Api } from "../api"
 import { response } from "../location"

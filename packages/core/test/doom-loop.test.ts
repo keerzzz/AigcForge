@@ -1,7 +1,7 @@
 import { describe, expect } from "bun:test"
 import { Cause, Effect, Exit, Layer, Result, Stream } from "effect"
 import { Config } from "../src/config"
-import { Document, Info } from "@aigcfroge/schema/config"
+import { Document, Info } from "@omnixa/schema/config"
 import { ConfigMeta } from "../src/config/meta"
 import { DoomLoop } from "../src/session/doom-loop"
 import { Session } from "../src/session"

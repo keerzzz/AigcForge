@@ -133,7 +133,7 @@ describe("Delegation Schema and Branded IDs", () => {
   test("ReviewEnvelope validates verdict, findings, and revision digest", () => {
     const dummyDigest = "rev_" + "a".repeat(64)
     const validEnvelope = {
-      kind: "aigcfroge.review.v1",
+      kind: "omnixa.review.v1",
       reviewed_revision_digest: dummyDigest,
       verdict: "approved",
       findings: [

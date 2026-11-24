@@ -1,4 +1,4 @@
-import type { SessionMessageAssistant, SessionMessageShell } from "@aigcfroge/client/promise"
+import type { SessionMessageAssistant, SessionMessageShell } from "@omnixa/client/promise"
 import { Match } from "effect"
 import { createMemo, createSignal } from "solid-js"
 import { createStore } from "solid-js/store"
@@ -20,7 +20,7 @@ import { storyDocument, storyTool } from "../storybook/current-session-scenarios
 import { SessionTimeline } from "./session-timeline"
 
 export default {
-  title: "AigcForge/Work/Terminal",
+  title: "Omnixa/Work/Terminal",
   id: "current-session-terminal-work",
   component: SessionTimeline,
   parameters: {
@@ -210,7 +210,7 @@ export const ExecuteFailed = {
           "execute",
           "completed",
           {
-            code: 'const tab = await tools.browser.tabs.open({\n  url: "file:///C:/tmp/aigcfroge/throne-of-glass-luke.html",\n  focus: true\n});\nconst shot = await tools.browser.screenshot({ tabID: tab.id, fullPage: true });\nreturn { tab, shot };\n',
+            code: 'const tab = await tools.browser.tabs.open({\n  url: "file:///C:/tmp/omnixa/throne-of-glass-luke.html",\n  focus: true\n});\nconst shot = await tools.browser.screenshot({ tabID: tab.id, fullPage: true });\nreturn { tab, shot };\n',
           },
           {
             output:
@@ -229,7 +229,7 @@ export const ExecuteFailed = {
           "completed",
           {
             command:
-              "bun -e \"Bun.serve({ port: 4399, fetch() { return new Response(Bun.file('C:/tmp/aigcfroge/throne-of-glass-luke.html'), { headers: { 'content-type': 'text/html' } }) } })\"",
+              "bun -e \"Bun.serve({ port: 4399, fetch() { return new Response(Bun.file('C:/tmp/omnixa/throne-of-glass-luke.html'), { headers: { 'content-type': 'text/html' } }) } })\"",
           },
           { output: "", metadata: { exit: 0 } },
         ),

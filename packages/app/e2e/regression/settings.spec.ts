@@ -1,18 +1,18 @@
 import { expect, test, type Page } from "@playwright/test"
 import type {
   ConfigEntry,
-  AigcForgeEvent,
+  OmnixaEvent,
   WorktreeDirectory,
   ModelGroupRead,
   ModelGroupDefinition,
-} from "@aigcfroge/client/promise"
-import type { ProviderDefinition } from "@aigcfroge/schema/provider-definition"
-import type { ProviderDiscovery } from "@aigcfroge/schema/provider-discovery"
+} from "@omnixa/client/promise"
+import type { ProviderDefinition } from "@omnixa/schema/provider-definition"
+import type { ProviderDiscovery } from "@omnixa/schema/provider-discovery"
 import { Schema } from "effect"
-import { ModelGroup } from "@aigcfroge/schema/model-group"
-import { ModelSource } from "@aigcfroge/schema/model-source"
+import { ModelGroup } from "@omnixa/schema/model-group"
+import { ModelSource } from "@omnixa/schema/model-source"
 import { NO_PROVIDER, REMOTE_SERVER, SERVER, holdRoute, project, seed, session, sessionHref } from "../utils/app"
-import { mockAigcForgeServer } from "../utils/mock-server"
+import { mockOmnixaServer } from "../utils/mock-server"
 import { mockRemoteServer, mockWorkspace, openSettings, type WorkspaceInput } from "../utils/workspace"
 
 function mutableGroupDefinition(value: typeof ModelGroup.Definition.Encoded): ModelGroupDefinition {
@@ -44,8 +44,8 @@ function open(page: Page, input: Partial<WorkspaceInput> = {}) {
     project: { icon: { color: "orange", override }, commands: { start: "echo setup" }, sandboxes },
     provider: NO_PROVIDER,
     configEntries: [
-      { type: "document", path: "/home/test/.config/aigcfroge/aigcfroge.jsonc", info: { shell: "/bin/zsh" } },
-      { type: "directory", path: "/home/test/.config/aigcfroge" },
+      { type: "document", path: "/home/test/.config/omnixa/omnixa.jsonc", info: { shell: "/bin/zsh" } },
+      { type: "directory", path: "/home/test/.config/omnixa" },
     ],
     shells: [
       { path: "/bin/zsh", name: "zsh", acceptable: true },
@@ -93,7 +93,7 @@ test("model groups preserve member order, variants, target conflicts and selecti
 }) => {
   const globalTarget = {
     scope: "global" as const,
-    path: "/home/test/.config/aigcfroge/aigcfroge.jsonc",
+    path: "/home/test/.config/omnixa/omnixa.jsonc",
     digest: "global-0",
     preferred: true,
     writable: true,
@@ -101,7 +101,7 @@ test("model groups preserve member order, variants, target conflicts and selecti
 
   const projectTarget = {
     scope: "project" as const,
-    path: `${directory}/aigcfroge.jsonc`,
+    path: `${directory}/omnixa.jsonc`,
     digest: "project-0",
     preferred: false,
     writable: true,
@@ -425,7 +425,7 @@ test("model groups and direct models keep distinct picker identities", async ({ 
   await open(page, {
     seed: {
       storage: {
-        "aigcfroge.global.dat:model": {
+        "omnixa.global.dat:model": {
           user: [
             { providerID: "group", modelID: "base", visibility: "show" },
             { providerID: "group", modelID: '"route"', visibility: "show" },
@@ -506,7 +506,7 @@ test("model groups preserve dynamic strategies, connection facts and draft weigh
 
   const target = {
     scope: "global" as const,
-    path: "/home/test/.config/aigcfroge/aigcfroge.jsonc",
+    path: "/home/test/.config/omnixa/omnixa.jsonc",
     digest: "dynamic-0",
     preferred: true,
     writable: true,
@@ -856,7 +856,7 @@ test("provider definitions discover and import models, resume saves, and preserv
 
   const target = {
     scope: "global" as const,
-    path: "/home/test/.config/aigcfroge/aigcfroge.jsonc",
+    path: "/home/test/.config/omnixa/omnixa.jsonc",
     digest: "initial",
     preferred: true,
     writable: true,
@@ -1192,7 +1192,7 @@ test("provider definitions discover and import models, resume saves, and preserv
   await expect(form.getByRole("textbox", { name: "Provider ID", exact: true })).toBeDisabled()
   await expect(authentication).toBeDisabled()
   expect(state.saves).toHaveLength(1)
-  expect(state.saves[0]?.patch.set?.package).toBe("@aigcfroge/ai/providers/openai-compatible")
+  expect(state.saves[0]?.patch.set?.package).toBe("@omnixa/ai/providers/openai-compatible")
   expect(state.saves[0]?.target).toEqual({ scope: "global", path: target.path })
   expect(state.saves[0]?.patch.set?.models?.["model-b"]).toEqual({
     modelID: "model-b",
@@ -1442,7 +1442,7 @@ test("single-server settings expose scoped pages without a server picker", async
 })
 
 test("project list menus rename, close, edit, add, and stay inside the scrollport", async ({ page }) => {
-  const projects = ["rebase", "dinocms", "aigcfroge", "Playground"].map((name, index) =>
+  const projects = ["rebase", "dinocms", "omnixa", "Playground"].map((name, index) =>
     project({ id: `project-${index}`, directory: `/projects/${name}`, name }),
   )
 
@@ -1657,7 +1657,7 @@ test("clearing project fields sends explicit removal values", async ({ page }) =
 
 test("the new session shortcut waits for a shortcut recording, then leaves settings", async ({ page }) => {
   const { settings } = await open(page, {
-    seed: { storage: { "aigcfroge.global.dat:layout": { home: { sessionMode: "coding" } } } },
+    seed: { storage: { "omnixa.global.dat:layout": { home: { sessionMode: "coding" } } } },
   })
   await settings.getByRole("tab", { name: "Shortcuts", exact: true }).click()
   const binding = settings.locator('[data-keybind-id="tab.new"]')
@@ -1718,7 +1718,7 @@ test.describe("pages open before slow data", () => {
     await expect(settings.getByRole("switch", { name: "demo-mcp" })).toBeChecked()
   })
 
-  test("about identifies AigcForge, its repository, maintainers and upstream", async ({ page }) => {
+  test("about identifies Omnixa, its repository, maintainers and upstream", async ({ page }) => {
     const { settings } = await open(page)
     await settings.getByRole("tab", { name: "About", exact: true }).click()
     await expect(settings.getByText("Released under the MIT License", { exact: true })).toBeVisible()
@@ -1796,7 +1796,7 @@ test("worktrees follow inventory events, wait for session counts, and delete by 
   // SAFETY: a worktree.updated event carries only the project ID, which is all the app reads from it.
   await view.push([
     { id: "evt_settings_worktree_updated", created: Date.now(), type: "worktree.updated", data: { projectID } },
-  ] as AigcForgeEvent[])
+  ] as OmnixaEvent[])
   expect((await listed).ok()).toBe(true)
   await expect(settings.getByText(discovered, { exact: true })).toBeVisible()
   expect((await read).ok()).toBe(true)
@@ -1925,12 +1925,12 @@ test.describe("worktrees prefetch", () => {
 const lsp: ConfigEntry[] = [
   {
     type: "document",
-    path: "/config/aigcfroge.json",
+    path: "/config/omnixa.json",
     info: { lsp: { typescript: { command: ["typescript-language-server", "--stdio"], extensions: [".ts", ".tsx"] } } },
   },
   {
     type: "document",
-    path: `${directory}/aigcfroge.jsonc`,
+    path: `${directory}/omnixa.jsonc`,
     info: { lsp: { typescript: { disabled: true }, rust: { command: ["rust-analyzer"], extensions: [".rs"] } } },
   },
 ]
@@ -1979,53 +1979,58 @@ for (const row of ["configured", "disabled", "failure"] as const) {
   })
 }
 
-// Zen and the Console account share the id `aigcfroge`: the provider comes from models.dev, the
-// integration carries the account sign-in.
 for (const row of [
-  { name: "a fresh install offers the Console sign-in", paid: false, connections: [], console: true },
   {
-    name: "a stored Zen API key keeps the Console sign-in",
-    paid: true,
-    connections: [{ type: "credential", id: "cred_v1", label: "API key", method: "key" }],
-    console: true,
+    name: "custom IDs with zero-priced models remain connected",
+    cost: { input: 0, output: 0 },
+    metadata: { quote: { status: "free" } },
+    connections: [],
+    tag: "Config",
   },
   {
-    name: "a Console account hides the sign-in row",
-    paid: true,
-    connections: [{ type: "credential", id: "cred_account", label: "Clara Team", method: "oauth" }],
-    console: false,
+    name: "custom IDs with unknown prices keep their API key connections",
+    cost: undefined,
+    metadata: { quote: { status: "unknown" } },
+    connections: [{ type: "credential", id: "cred_v1", label: "API key", method: "key" }],
+    tag: "API key",
+  },
+  {
+    name: "custom IDs with paid models keep their OAuth accounts",
+    cost: { input: 3, output: 1 },
+    metadata: undefined,
+    connections: [{ type: "credential", id: "cred_account", label: "Gateway account", method: "oauth" }],
+    tag: "Account",
   },
 ]) {
   test(`providers: ${row.name}`, async ({ page }) => {
     const { settings } = await open(page, {
       provider: {
-        all: [
-          {
-            id: "aigcfroge",
-            name: "AigcForge Zen",
-            models: {
-              "claude-sonnet-4-6": {
-                id: "claude-sonnet-4-6",
-                name: "Claude Sonnet 4.6",
-                cost: { input: row.paid ? 3 : 0, output: 0 },
-              },
+        all: ["omnixa", "omnixa-go"].map((id) => ({
+          id,
+          integrationID: "gateway-auth",
+          name: `Local ${id} gateway`,
+          models: {
+            "custom-model": {
+              id: "custom-model",
+              name: "Custom model",
+              cost: row.cost,
+              metadata: row.metadata,
             },
           },
-        ],
-        connected: ["aigcfroge"],
+        })),
+        connected: ["omnixa", "omnixa-go"],
         default: {},
       },
       integrations: [
         {
-          id: "aigcfroge",
-          name: "AigcForge Console",
+          id: "gateway-auth",
+          name: "Gateway authentication",
           methods: [
-            { id: "device", type: "oauth", label: "AigcForge Console account" },
-            { type: "key", label: "API key (service account)" },
+            { id: "gateway-oauth", type: "oauth", label: "Gateway account" },
+            { type: "key", label: "API key" },
           ],
           connections: row.connections,
         },
-        { id: "aigcfroge-go", name: "AigcForge Go", methods: [{ type: "key" }], connections: [] },
         { id: "anthropic", name: "Anthropic", methods: [{ type: "key" }], connections: [] },
       ],
     })
@@ -2034,14 +2039,425 @@ for (const row of [
     await expect(settings.getByRole("heading", { name: "Popular providers" })).toBeVisible()
     const connected = settings.locator('[data-component="connected-providers-section"]')
 
-    if (row.paid) await expect(connected.getByText("AigcForge Zen", { exact: true })).toBeVisible()
-
-    if (!row.paid) await expect(settings.getByText("No connected providers")).toBeVisible()
-    // Anthropic only exists in the integration fixture, so its row proves the integration list has loaded.
+    await expect(connected.locator(".settings-provider-name")).toHaveText([
+      "Local omnixa gateway",
+      "Local omnixa-go gateway",
+    ])
+    await expect(connected.locator(".settings-provider-main").getByText(row.tag, { exact: true })).toHaveCount(2)
     await expect(settings.getByText("Anthropic", { exact: true })).toBeVisible()
-    await expect(settings.getByText("AigcForge Console", { exact: true })).toHaveCount(row.console ? 1 : 0)
   })
 }
+
+for (const method of ["key", "oauth"] as const) {
+  test(`providers: ${method} authentication retries catalog refresh without reconnecting or first-run onboarding`, async ({
+    page,
+  }) => {
+    const state = {
+      connected: false,
+      fail: true,
+      connects: new Array<{ integrationID: string; body: unknown }>(),
+      reads: new Array<string>(),
+    }
+    const { settings } = await open(page, {
+      provider: () => ({
+        all: [
+          {
+            id: "omnixa",
+            name: "Local gateway",
+            models: { local: { id: "local", name: "Local model", cost: { input: 0, output: 0 } } },
+          },
+          ...(state.connected
+            ? [
+                {
+                  id: "cloud-models",
+                  integrationID: "anthropic",
+                  name: "Cloud models",
+                  models: { cloud: { id: "cloud", name: "Cloud model" } },
+                },
+              ]
+            : []),
+        ],
+        connected: state.connected ? ["omnixa", "cloud-models"] : ["omnixa"],
+        default: {},
+      }),
+      integrations: [
+        {
+          id: "anthropic",
+          name: "Anthropic",
+          methods:
+            method === "oauth"
+              ? [{ id: "provider-oauth", type: "oauth", label: "Provider account" }]
+              : [{ type: "key" }],
+          connections: [],
+        },
+      ],
+      onConnectKey: (input) => {
+        state.connects.push(input)
+        state.connected = true
+      },
+      onIntegrationOAuth: (input) => {
+        state.connects.push(input)
+
+        return { url: "https://auth.example.test/authorize" }
+      },
+    })
+    await settings.getByRole("tab", { name: "Providers", exact: true }).click()
+    await expect(settings.getByText("Local gateway", { exact: true })).toBeVisible()
+    await page.route(
+      (url) => ["/api/integration", "/api/provider", "/api/model"].includes(url.pathname),
+      async (route) => {
+        state.reads.push(new URL(route.request().url()).pathname)
+
+        if (state.fail && new URL(route.request().url()).pathname === "/api/model")
+          return route.fulfill({
+            status: 400,
+            json: { _tag: "InvalidRequestError", message: "Model catalog unavailable" },
+          })
+        await route.fallback()
+      },
+    )
+    await page.route(
+      (url) => url.pathname === "/api/integration/anthropic/connect/oauth/con_mock_1",
+      async (route) => {
+        state.connected = true
+        await route.fulfill({
+          json: {
+            location: { directory },
+            data: { status: "complete", time: { created: 1, expires: 2 } },
+          },
+        })
+      },
+    )
+    await settings.locator(".settings-provider-row").filter({ hasText: "Anthropic" }).getByRole("button").click()
+    const connection = page.getByRole("dialog", { name: "Connect Anthropic", exact: true })
+
+    if (method === "key") {
+      await connection.locator('[data-input="provider-api-key"]').fill("keeper-key")
+      await connection.getByRole("button", { name: "Continue", exact: true }).click()
+    }
+
+    await expect(connection.getByRole("alert")).toContainText("Connected, but could not refresh providers and models:")
+    expect(state.connects).toHaveLength(1)
+    expect(state.connects[0]?.integrationID).toBe("anthropic")
+    expect(state.connects[0]?.body).toMatchObject(
+      method === "oauth" ? { methodID: "provider-oauth" } : { key: "keeper-key" },
+    )
+    state.fail = false
+    await connection.getByRole("button", { name: "Try again", exact: true }).click()
+    await expect(page.getByRole("dialog")).toHaveCount(0)
+    expect(state.connects).toHaveLength(1)
+    expect(state.reads.filter((path) => path === "/api/model")).toHaveLength(2)
+    await expect(settings.getByText("Cloud models", { exact: true })).toBeVisible()
+    await settings.getByRole("tab", { name: "Models", exact: true }).click()
+    const model = settings
+      .locator('[data-component="settings-row"]')
+      .filter({ has: page.getByRole("switch", { name: "Cloud model", exact: true }) })
+    await expect(model.locator('[data-slot="settings-row-title"]')).toBeVisible()
+    await expect(model.getByRole("switch")).toBeEnabled()
+    await expect(model.getByRole("switch")).toBeChecked()
+  })
+}
+
+for (const method of ["key", "code"] as const) {
+  test(`providers: ${method} authentication owns one pending submission across method changes`, async ({ page }) => {
+    const pending = Promise.withResolvers<void>()
+    const started = Promise.withResolvers<void>()
+    const state = {
+      connected: false,
+      keys: new Array<{ integrationID: string; body: unknown }>(),
+      starts: new Array<{ integrationID: string; directory: string; body: unknown }>(),
+      completes: new Array<{ integrationID: string; attemptID: string; directory: string; body: unknown }>(),
+      canceled: new Array<string>(),
+    }
+    page.on("request", (request) => {
+      if (request.method() === "DELETE" && /\/connect\/oauth\//.test(new URL(request.url()).pathname))
+        state.canceled.push(new URL(request.url()).pathname.split("/").at(-1)!)
+    })
+    const { settings } = await open(page, {
+      provider: () => ({
+        all: [
+          { id: "omnixa", name: "Local gateway", models: { local: { id: "local", name: "Local model" } } },
+          ...(state.connected
+            ? [{ id: "anthropic", name: "Anthropic", models: { cloud: { id: "cloud", name: "Cloud model" } } }]
+            : []),
+        ],
+        connected: state.connected ? ["omnixa", "anthropic"] : ["omnixa"],
+        default: {},
+      }),
+      integrations: [
+        {
+          id: "anthropic",
+          name: "Anthropic",
+          methods: [
+            { type: "key", label: "API key" },
+            { id: "manual-code", type: "oauth", label: "Manual account" },
+            { id: "another-account", type: "oauth", label: "Another account" },
+          ],
+          connections: [],
+        },
+      ],
+      onConnectKey: async (input) => {
+        state.keys.push(input)
+        state.connected = true
+        started.resolve()
+        await pending.promise
+      },
+      onIntegrationOAuth: (input) => {
+        state.starts.push(input)
+
+        return { url: "https://auth.example.test/authorize", mode: "code" }
+      },
+      onIntegrationOAuthComplete: async (input) => {
+        state.completes.push(input)
+        state.connected = true
+
+        if (method === "code" && state.completes.length === 1) {
+          started.resolve()
+          await pending.promise
+        }
+      },
+    })
+    await settings.getByRole("tab", { name: "Providers", exact: true }).click()
+    await settings.locator(".settings-provider-row").filter({ hasText: "Anthropic" }).getByRole("button").click()
+    const connection = page.getByRole("dialog", { name: "Connect Anthropic", exact: true })
+    await connection
+      .getByRole("button", { name: method === "key" ? "API key Browser" : "Manual account", exact: true })
+      .click()
+    const input = connection.getByLabel(method === "key" ? "Anthropic API key" : "Manual account authorization code", {
+      exact: true,
+    })
+    await input.fill("first-secret")
+    const firstPath =
+      method === "key"
+        ? "/api/integration/anthropic/connect/key"
+        : "/api/integration/anthropic/connect/oauth/con_mock_1/complete"
+    const replied = page.waitForResponse(
+      (response) => response.request().method() === "POST" && new URL(response.url()).pathname === firstPath,
+    )
+    await connection.getByRole("button", { name: "Continue", exact: true }).dblclick()
+    await started.promise
+    await expect(input).toBeDisabled()
+    await expect(connection.getByRole("button", { name: "Continue", exact: true })).toBeDisabled()
+    expect(method === "key" ? state.keys : state.completes).toHaveLength(1)
+
+    await connection.getByRole("button", { name: "Navigate back", exact: true }).click()
+    await connection.getByRole("button", { name: "Another account", exact: true }).click()
+    const current = connection.getByLabel("Another account authorization code", { exact: true })
+    await expect(current).toBeEnabled()
+    await current.fill("current-secret")
+    pending.resolve()
+    await replied
+    await expect(current).toHaveValue("current-secret")
+    await expect(current).toBeEnabled()
+
+    // Completing the selected attempt proves the late response did not finish the replacement flow.
+    const currentAttempt = method === "key" ? "con_mock_1" : "con_mock_2"
+    const completed = page.waitForRequest(
+      (request) =>
+        request.method() === "POST" &&
+        new URL(request.url()).pathname === `/api/integration/anthropic/connect/oauth/${currentAttempt}/complete`,
+    )
+    await connection.getByRole("button", { name: "Continue", exact: true }).click()
+    expect((await completed).postDataJSON()).toEqual({ code: "current-secret" })
+    await expect(page.getByRole("dialog")).toHaveCount(0)
+    expect(state.keys).toEqual(method === "key" ? [{ integrationID: "anthropic", body: { key: "first-secret" } }] : [])
+    expect(state.starts.map((entry) => entry.body)).toEqual(
+      method === "key"
+        ? [{ methodID: "another-account" }]
+        : [{ methodID: "manual-code" }, { methodID: "another-account" }],
+    )
+    expect(state.starts.every((entry) => entry.directory === directory)).toBe(true)
+    expect(state.completes.map((entry) => ({ attemptID: entry.attemptID, body: entry.body }))).toEqual(
+      method === "key"
+        ? [{ attemptID: "con_mock_1", body: { code: "current-secret" } }]
+        : [
+            { attemptID: "con_mock_1", body: { code: "first-secret" } },
+            { attemptID: "con_mock_2", body: { code: "current-secret" } },
+          ],
+    )
+    expect(state.completes.every((entry) => entry.integrationID === "anthropic" && entry.directory === directory)).toBe(
+      true,
+    )
+    expect(state.canceled).toEqual(method === "code" ? ["con_mock_1"] : [])
+    await expect(settings.getByText("Anthropic", { exact: true })).toBeVisible()
+  })
+}
+
+test("providers: transient manual-code completion errors retry the same OAuth attempt without reconnecting", async ({
+  page,
+}) => {
+  const state = {
+    connected: false,
+    starts: new Array<{ integrationID: string; directory: string; body: unknown }>(),
+    completes: new Array<{ integrationID: string; attemptID: string; directory: string; body: unknown }>(),
+  }
+  const { settings } = await open(page, {
+    provider: () => ({
+      all: [
+        { id: "omnixa", name: "Local gateway", models: { local: { id: "local", name: "Local model" } } },
+        ...(state.connected
+          ? [{ id: "anthropic", name: "Anthropic", models: { cloud: { id: "cloud", name: "Cloud model" } } }]
+          : []),
+      ],
+      connected: state.connected ? ["omnixa", "anthropic"] : ["omnixa"],
+      default: {},
+    }),
+    integrations: [
+      {
+        id: "anthropic",
+        name: "Anthropic",
+        methods: [{ id: "manual-code", type: "oauth", label: "Manual account" }],
+        connections: [],
+      },
+    ],
+    onIntegrationOAuth: (input) => {
+      state.starts.push(input)
+
+      return { url: "https://auth.example.test/authorize", mode: "code" }
+    },
+    onIntegrationOAuthComplete: (input) => {
+      state.completes.push(input)
+
+      if (state.completes.length === 1)
+        return { status: 503, body: { message: "Code completion temporarily unavailable" } }
+      state.connected = true
+      return undefined
+    },
+  })
+  await settings.getByRole("tab", { name: "Providers", exact: true }).click()
+  await settings.locator(".settings-provider-row").filter({ hasText: "Anthropic" }).getByRole("button").click()
+  const connection = page.getByRole("dialog", { name: "Connect Anthropic", exact: true })
+  const input = connection.getByLabel("Manual account authorization code", { exact: true })
+  await input.fill("first-code")
+  await connection.getByRole("button", { name: "Continue", exact: true }).click()
+  await expect(connection.getByRole("alert")).toHaveText("UnexpectedStatus: 503")
+  await expect(input).toHaveValue("first-code")
+  await expect(input).toBeEnabled()
+  await input.fill("accepted-code")
+  await connection.getByRole("button", { name: "Continue", exact: true }).click()
+  await expect(page.getByRole("dialog")).toHaveCount(0)
+  expect(state.starts).toEqual([{ integrationID: "anthropic", directory, body: { methodID: "manual-code" } }])
+  expect(state.completes).toEqual([
+    { integrationID: "anthropic", attemptID: "con_mock_1", directory, body: { code: "first-code" } },
+    { integrationID: "anthropic", attemptID: "con_mock_1", directory, body: { code: "accepted-code" } },
+  ])
+  await expect(settings.getByText("Anthropic", { exact: true })).toBeVisible()
+})
+
+test("providers: terminal manual-code failure cannot connect through a repeated completion acknowledgement", async ({
+  page,
+}) => {
+  const state = {
+    starts: new Array<{ integrationID: string; directory: string; body: unknown }>(),
+    callbacks: new Array<{ integrationID: string; attemptID: string; directory: string; body: unknown }>(),
+    completes: new Array<{ attemptID: string; body: unknown }>(),
+    statuses: new Array<string>(),
+    credentials: new Array<{ integrationID: string; attemptID: string }>(),
+  }
+  page.on("request", (request) => {
+    const path = new URL(request.url()).pathname.match(
+      /^\/api\/integration\/anthropic\/connect\/oauth\/([^/]+)(\/complete)?$/,
+    )
+
+    if (!path) return
+    if (request.method() === "GET" && !path[2]) state.statuses.push(path[1])
+    if (request.method() === "POST" && path[2])
+      state.completes.push({ attemptID: path[1], body: request.postDataJSON() })
+  })
+  const { settings } = await open(page, {
+    provider: () => ({
+      all: [
+        { id: "omnixa", name: "Local gateway", models: { local: { id: "local", name: "Local model" } } },
+        ...(state.credentials.length
+          ? [{ id: "anthropic", name: "Anthropic", models: { cloud: { id: "cloud", name: "Cloud model" } } }]
+          : []),
+      ],
+      connected: state.credentials.length ? ["omnixa", "anthropic"] : ["omnixa"],
+      default: {},
+    }),
+    integrations: [
+      {
+        id: "anthropic",
+        name: "Anthropic",
+        methods: [{ id: "manual-code", type: "oauth", label: "Manual account" }],
+        connections: [],
+      },
+    ],
+    onIntegrationOAuth: (input) => {
+      state.starts.push(input)
+
+      return { url: "https://auth.example.test/authorize", mode: "code" }
+    },
+    onIntegrationOAuthComplete: (input) => {
+      state.callbacks.push(input)
+
+      if (input.attemptID === "con_mock_1")
+        return {
+          status: 400,
+          body: { _tag: "InvalidRequestError", message: "Authentication failed", kind: "integration_authorization" },
+          failed: "Provider rejected authorization code",
+        }
+      state.credentials.push({ integrationID: input.integrationID, attemptID: input.attemptID })
+      return undefined
+    },
+  })
+  await settings.getByRole("tab", { name: "Providers", exact: true }).click()
+  await expect(settings.getByText("Local gateway", { exact: true })).toBeVisible()
+  await settings.locator(".settings-provider-row").filter({ hasText: "Anthropic" }).getByRole("button").click()
+  const connection = page.getByRole("dialog", { name: "Connect Anthropic", exact: true })
+  const input = connection.getByLabel("Manual account authorization code", { exact: true })
+  await input.fill("rejected-code")
+  const failed = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      new URL(response.url()).pathname === "/api/integration/anthropic/connect/oauth/con_mock_1/complete",
+  )
+  await connection.getByRole("button", { name: "Continue", exact: true }).click()
+  expect((await failed).status()).toBe(400)
+  await expect(connection.getByRole("alert")).toHaveText("Authentication failed")
+  await expect(input).toBeEnabled()
+  expect(state.credentials).toEqual([])
+  await input.fill("ignored-code")
+  const acknowledged = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      new URL(response.url()).pathname === "/api/integration/anthropic/connect/oauth/con_mock_1/complete",
+  )
+  await connection.getByRole("button", { name: "Continue", exact: true }).click()
+  expect((await acknowledged).status()).toBe(204)
+  expect(state.callbacks).toEqual([
+    { integrationID: "anthropic", attemptID: "con_mock_1", directory, body: { code: "rejected-code" } },
+  ])
+  expect(state.credentials).toEqual([])
+  await expect.poll(() => state.statuses).toEqual(["con_mock_1"])
+  await expect(connection.getByRole("alert")).toHaveText("Authorization failed: Provider rejected authorization code")
+  await expect(
+    settings.locator('[data-component="connected-providers-section"]').getByText("Anthropic", { exact: true }),
+  ).toHaveCount(0)
+  await connection.getByRole("button", { name: "Try again", exact: true }).click()
+  await expect(input).toHaveValue("")
+  await input.fill("accepted-code")
+  await connection.getByRole("button", { name: "Continue", exact: true }).click()
+  await expect(page.getByRole("dialog")).toHaveCount(0)
+  expect(state.starts).toEqual([
+    { integrationID: "anthropic", directory, body: { methodID: "manual-code" } },
+    { integrationID: "anthropic", directory, body: { methodID: "manual-code" } },
+  ])
+  expect(state.completes).toEqual([
+    { attemptID: "con_mock_1", body: { code: "rejected-code" } },
+    { attemptID: "con_mock_1", body: { code: "ignored-code" } },
+    { attemptID: "con_mock_2", body: { code: "accepted-code" } },
+  ])
+  expect(state.callbacks).toEqual([
+    { integrationID: "anthropic", attemptID: "con_mock_1", directory, body: { code: "rejected-code" } },
+    { integrationID: "anthropic", attemptID: "con_mock_2", directory, body: { code: "accepted-code" } },
+  ])
+  expect(state.credentials).toEqual([{ integrationID: "anthropic", attemptID: "con_mock_2" }])
+  expect(state.statuses).toEqual(["con_mock_1", "con_mock_2"])
+  await expect(
+    settings.locator('[data-component="connected-providers-section"]').getByText("Anthropic", { exact: true }),
+  ).toBeVisible()
+})
 
 test("the add server dialog keeps focus above fullscreen settings", async ({ page }) => {
   await mockRemoteServer(page, { directory: "/remote/settings-demo" })
@@ -2068,7 +2484,7 @@ test("the add server dialog keeps focus above fullscreen settings", async ({ pag
 test("the add server dialog pairs from a one-time link and explains a spent one", async ({ page }) => {
   const paired = "http://127.0.0.1:4098"
   await mockRemoteServer(page, { directory: "/remote/settings-demo" })
-  await mockAigcForgeServer(page, {
+  await mockOmnixaServer(page, {
     server: paired,
     directory: "/remote/paired",
     project: project({ id: "proj_paired", directory: "/remote/paired" }),
@@ -2098,7 +2514,7 @@ test("the add server dialog pairs from a one-time link and explains a spent one"
 
   const spent = await addServer()
   await expect(spent.getByRole("alert")).toHaveText(
-    "This pairing link expired or was already used. Run aigcfroge pair to get a new one.",
+    "This pairing link expired or was already used. Run omnixa pair to get a new one.",
   )
 })
 
@@ -2113,7 +2529,7 @@ test("a pairing code with several addresses keeps the first one that works with 
     [first, { code: "spent-by-the-other-address", token: "session-token" }],
     [second, { code: "one-time-code", token: "session-token" }],
   ] as const) {
-    await mockAigcForgeServer(page, {
+    await mockOmnixaServer(page, {
       server,
       directory: "/remote/paired",
       project: project({ id: "proj_paired", directory: "/remote/paired" }),
@@ -2156,9 +2572,6 @@ for (const viewport of [
   { name: "mobile", width: 390, height: 844, bottom: true },
 ]) {
   test(`settings layout (${viewport.name}): every page scrolls inside its panel with room below`, async ({ page }) => {
-    await page.route("https://api.github.com/repos/anomalyco/aigcfroge/contributors?*", (route) =>
-      route.fulfill({ json: [] }),
-    )
     const { settings } = await open(page)
     await page.setViewportSize(viewport)
     const panel = settings.locator(".settings-content > .settings-panel:visible")

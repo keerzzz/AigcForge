@@ -1,4 +1,4 @@
-import { isFallbackTitle } from "@aigcfroge/util/session-title-fallback"
+import { isFallbackTitle } from "@omnixa/util/session-title-fallback"
 
 // Draft, preparing, and untitled session tabs share one localized label.
 export function sessionTabTitle(title: string | undefined, fallback: string) {

@@ -345,7 +345,7 @@ async function installReviewPaneScalingProbe(page: Page, input: { expectedFile: 
 
           if (!toggle?.hasAttribute("data-review-pane-scaling-toggle")) return
           probe.startedAt = performance.now()
-          performance.mark("aigcfroge.review-pane-scaling.click")
+          performance.mark("omnixa.review-pane-scaling.click")
           requestAnimationFrame(sample)
         },
         { capture: true, once: true },

@@ -1,14 +1,14 @@
-# AigcForge V2 Effect Plugin API
+# Omnixa V2 Effect Plugin API
 
 The Effect plugin API grants plugins two in-process capabilities:
 
-- `hook` installs behavior at an AigcForge extension point.
+- `hook` installs behavior at an Omnixa extension point.
 - `reload` reruns every transform hook for a stateful domain.
 
 ## Defining A Plugin
 
 ```ts
-import { Plugin } from "@aigcfroge/plugin/effect"
+import { Plugin } from "@omnixa/plugin/effect"
 import { Effect } from "effect"
 
 export default Plugin.define({

@@ -1,19 +1,19 @@
 import { describe, expect } from "bun:test"
-import { Money } from "@aigcfroge/schema/money"
-import { Document, Info, type Entry } from "@aigcfroge/schema/config"
+import { Money } from "@omnixa/schema/money"
+import { Document, Info, type Entry } from "@omnixa/schema/config"
 import { Effect, Schema } from "effect"
-import { Config } from "@aigcfroge/core/config"
-import { ConfigProviderPlugin } from "@aigcfroge/core/config/plugin/provider"
-import { ConfigNormalize } from "@aigcfroge/core/config/normalize"
-import { Integration } from "@aigcfroge/core/integration"
-import { Model } from "@aigcfroge/core/model"
-import { ModelResolver } from "@aigcfroge/core/model-resolver"
-import { Plugin } from "@aigcfroge/core/plugin"
-import { PluginHost } from "@aigcfroge/core/plugin/host"
-import { AzurePlugin } from "@aigcfroge/core/plugin/provider/azure"
-import { OpenAIPlugin } from "@aigcfroge/core/plugin/provider/openai"
-import { XAIPlugin } from "@aigcfroge/core/plugin/provider/xai"
-import { Provider } from "@aigcfroge/core/provider"
+import { Config } from "@omnixa/core/config"
+import { ConfigProviderPlugin } from "@omnixa/core/config/plugin/provider"
+import { ConfigNormalize } from "@omnixa/core/config/normalize"
+import { Integration } from "@omnixa/core/integration"
+import { Model } from "@omnixa/core/model"
+import { ModelResolver } from "@omnixa/core/model-resolver"
+import { Plugin } from "@omnixa/core/plugin"
+import { PluginHost } from "@omnixa/core/plugin/host"
+import { AzurePlugin } from "@omnixa/core/plugin/provider/azure"
+import { OpenAIPlugin } from "@omnixa/core/plugin/provider/openai"
+import { XAIPlugin } from "@omnixa/core/plugin/provider/xai"
+import { Provider } from "@omnixa/core/provider"
 import { withEnv } from "../fixture/env"
 import { testEffect } from "../lib/effect"
 import { PluginTestLayer } from "../plugin/fixture"
@@ -44,18 +44,18 @@ describe("ConfigProviderPlugin.Plugin", () => {
           info: decode({
             providers: {
               custom: {
-                package: "@aigcfroge/ai/providers/openai/responses",
+                package: "@omnixa/ai/providers/openai/responses",
                 settings: { compaction: { type: "native" } },
                 models: {
                   native: {},
                   local: {
                     settings: { compaction: { type: "summary" } },
-                    package: "@aigcfroge/ai/providers/openai/chat",
+                    package: "@omnixa/ai/providers/openai/chat",
                   },
-                  unsupported: { package: "@aigcfroge/ai/providers/openai/chat" },
+                  unsupported: { package: "@omnixa/ai/providers/openai/chat" },
                 },
               },
-              default: { package: "@aigcfroge/ai/providers/openai/chat", models: { chat: {} } },
+              default: { package: "@omnixa/ai/providers/openai/chat", models: { chat: {} } },
             },
           }),
         }),
@@ -88,7 +88,7 @@ describe("ConfigProviderPlugin.Plugin", () => {
           info: decode({
             providers: {
               custom: {
-                package: "@aigcfroge/ai/providers/openai/responses",
+                package: "@omnixa/ai/providers/openai/responses",
                 settings: { transport: "http", timeout: 100, chunkTimeout: 200, shared: "provider" },
                 models: {
                   inherited: {
@@ -96,7 +96,7 @@ describe("ConfigProviderPlugin.Plugin", () => {
                   },
                 },
               },
-              default: { package: "@aigcfroge/ai/providers/openai/responses", models: { untouched: {} } },
+              default: { package: "@omnixa/ai/providers/openai/responses", models: { untouched: {} } },
             },
           }),
         }),
@@ -110,13 +110,13 @@ describe("ConfigProviderPlugin.Plugin", () => {
   )
 
   for (const builtin of [
-    { id: "openai", model: "gpt-5.6-sol", package: "@aigcfroge/ai/providers/openai/responses", plugin: OpenAIPlugin },
-    { id: "xai", model: "grok-4.6", package: "@aigcfroge/ai/providers/xai", plugin: XAIPlugin },
-    { id: "azure", model: "gpt-5.6-sol", package: "@aigcfroge/ai/providers/azure/responses", plugin: AzurePlugin },
+    { id: "openai", model: "gpt-5.6-sol", package: "@omnixa/ai/providers/openai/responses", plugin: OpenAIPlugin },
+    { id: "xai", model: "grok-4.6", package: "@omnixa/ai/providers/xai", plugin: XAIPlugin },
+    { id: "azure", model: "gpt-5.6-sol", package: "@omnixa/ai/providers/azure/responses", plugin: AzurePlugin },
     {
       id: "custom-azure",
       model: "deployment",
-      package: "@aigcfroge/ai/providers/azure/responses",
+      package: "@omnixa/ai/providers/azure/responses",
       plugin: AzurePlugin,
     },
   ]) {
@@ -515,7 +515,7 @@ describe("ConfigProviderPlugin.Plugin", () => {
       ])
 
       const model = required(yield* models.get(Provider.ID.make("custom"), Model.ID.make("claude")))
-      expect(model.package).toBe("@aigcfroge/ai/providers/anthropic")
+      expect(model.package).toBe("@omnixa/ai/providers/anthropic")
       expect(model.variants.map((variant) => variant.id)).toEqual([
         Model.VariantID.make("low"),
         Model.VariantID.make("medium"),
@@ -529,16 +529,16 @@ describe("ConfigProviderPlugin.Plugin", () => {
   it.effect("keeps configured model variant bodies unchanged", () =>
     Effect.gen(function* () {
       const models = yield* Model.Service
-      const providerID = Provider.ID.aigcfroge
+      const providerID = Provider.ID.omnixa
       const modelID = Model.ID.make("alpha-gpt-next")
       const entries = [
         new Document({
           type: "document",
           info: decode({
             providers: {
-              aigcfroge: {
+              omnixa: {
                 package: "aisdk:@ai-sdk/openai",
-                settings: { baseURL: "https://aigcfroge.test/v1" },
+                settings: { baseURL: "https://omnixa.test/v1" },
                 models: {
                   "alpha-gpt-next": {
                     variants: [
@@ -578,16 +578,16 @@ describe("ConfigProviderPlugin.Plugin", () => {
   it.effect("keeps layered model variant bodies unchanged", () =>
     Effect.gen(function* () {
       const models = yield* Model.Service
-      const providerID = Provider.ID.aigcfroge
+      const providerID = Provider.ID.omnixa
       const modelID = Model.ID.make("alpha-gpt-next")
       const entries = [
         new Document({
           type: "document",
           info: decode({
             providers: {
-              aigcfroge: {
+              omnixa: {
                 package: "aisdk:@ai-sdk/openai",
-                settings: { baseURL: "https://aigcfroge.test/v1" },
+                settings: { baseURL: "https://omnixa.test/v1" },
               },
             },
           }),
@@ -596,7 +596,7 @@ describe("ConfigProviderPlugin.Plugin", () => {
           type: "document",
           info: decode({
             providers: {
-              aigcfroge: {
+              omnixa: {
                 models: {
                   "alpha-gpt-next": {
                     variants: [{ id: "high", body: { reasoningEffort: "high" } }],

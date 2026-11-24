@@ -10,11 +10,11 @@
 
 import { describe, expect, test } from "bun:test"
 import { Effect, Layer } from "effect"
-import { Config } from "@aigcfroge/schema/config"
-import { CliAdapter } from "@aigcfroge/core/tool/cli-adapter"
-import { CodexAppServer } from "@aigcfroge/core/tool/codex-app-server"
+import { Config } from "@omnixa/schema/config"
+import { CliAdapter } from "@omnixa/core/tool/cli-adapter"
+import { CodexAppServer } from "@omnixa/core/tool/codex-app-server"
 import { testEffect } from "./lib/effect"
-import { fromConfig } from "@aigcfroge/core/tool/cli-config-adapter"
+import { fromConfig } from "@omnixa/core/tool/cli-config-adapter"
 
 describe("ConfigCliAdapter factory", () => {
   test("interpolates {prompt} and {resumeId} placeholders into argv", () => {

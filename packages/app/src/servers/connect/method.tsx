@@ -1,9 +1,9 @@
-import { Button } from "@aigcfroge/ui/button"
+import { Button } from "@omnixa/ui/button"
 import { useLanguage } from "@/runtime/i18n/language"
 
 export type ConnectMethod = "link" | "password"
 
-// Deliberately quiet, like the Console's API key switch: a pairing link is the way in, the password is the fallback.
+// A pairing link is the primary connection method; the password is the fallback.
 export function ConnectMethodSwitch(props: {
   method: ConnectMethod
   disabled?: boolean

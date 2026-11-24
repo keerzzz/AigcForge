@@ -1,5 +1,5 @@
 import { createMemo } from "solid-js"
-import { Command } from "@aigcfroge/gui-extensions/sdk"
+import { Command } from "@omnixa/gui-extensions/sdk"
 import { useCommand } from "@/shell/commands/command"
 import { useSettings } from "@/settings/model"
 import { migrateKeybinds } from "@/settings/keybinds/migration"

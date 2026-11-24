@@ -9,8 +9,8 @@ export * as ProductModeAgentPolicy from "./product-mode-agent-policy"
  */
 
 import { Effect, Schema } from "effect"
-import { PermissionTier } from "@aigcfroge/schema/permission-tier"
-import { ProductMode } from "@aigcfroge/schema/product-mode"
+import { PermissionTier } from "@omnixa/schema/permission-tier"
+import { ProductMode } from "@omnixa/schema/product-mode"
 
 export class AgentNotAllowedError extends Schema.TaggedError<AgentNotAllowedError>()("AgentNotAllowedError", {
   mode: Schema.String,

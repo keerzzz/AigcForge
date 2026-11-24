@@ -1,9 +1,9 @@
 export * as SessionRunnerRetry from "./retry.js"
 
-import { AIError, isRetryable } from "@aigcfroge/ai"
-import { Agent } from "@aigcfroge/schema/agent"
-import { Model } from "@aigcfroge/schema/model"
-import { SessionError } from "@aigcfroge/schema/session-error"
+import { AIError, isRetryable } from "@omnixa/ai"
+import { Agent } from "@omnixa/schema/agent"
+import { Model } from "@omnixa/schema/model"
+import { SessionError } from "@omnixa/schema/session-error"
 import { Clock, Duration, Effect, Pull, Schedule } from "effect"
 import { Bus } from "../../bus.js"
 import type { PluginHooks } from "../../plugin/hooks.js"

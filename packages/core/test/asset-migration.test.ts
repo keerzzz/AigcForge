@@ -2,7 +2,7 @@ import path from "path"
 import { beforeAll, afterAll, describe, expect, test } from "bun:test"
 import { Effect, Layer } from "effect"
 
-const FLAG_KEY = "AIGCFROGE_EXPERIMENTAL_CHAT_ASSET"
+const FLAG_KEY = "OMNIXA_EXPERIMENTAL_CHAT_ASSET"
 const _origFlag = process.env[FLAG_KEY]
 beforeAll(() => {
   // Legacy asset migration is gated behind this flag in skill-asset/agent-asset.
@@ -12,13 +12,13 @@ afterAll(() => {
   if (_origFlag === undefined) delete process.env[FLAG_KEY]
   else process.env[FLAG_KEY] = _origFlag
 })
-import { SkillAsset } from "@aigcfroge/core/skill-asset"
-import { AgentAsset } from "@aigcfroge/core/agent-asset"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { SkillAsset } from "@omnixa/core/skill-asset"
+import { AgentAsset } from "@omnixa/core/agent-asset"
+import { FSUtil } from "@omnixa/util/fs-util"
 import { NodeFileSystem } from "@effect/platform-node"
-import { Location } from "@aigcfroge/core/location"
-import { LocationMutation } from "@aigcfroge/core/location-mutation"
-import { AbsolutePath } from "@aigcfroge/core/schema"
+import { Location } from "@omnixa/core/location"
+import { LocationMutation } from "@omnixa/core/location-mutation"
+import { AbsolutePath } from "@omnixa/core/schema"
 import { tmpdir } from "./fixture/tmpdir"
 import { location } from "./fixture/location"
 import { tempGlobalLayer } from "./fixture/global"
@@ -87,7 +87,7 @@ describe("AssetMigration", () => {
       expect(mine.slash).toBe(true)
       expect(mine.description).toBe("Does things")
       expect(mine.content).toContain("Skill body here.")
-      const written = await fs.readFile(path.join(dir, ".aigcfroge/skills/my-skill.md"), "utf8")
+      const written = await fs.readFile(path.join(dir, ".omnixa/skills/my-skill.md"), "utf8")
       expect(written).toContain("slash: true")
     })
   })
@@ -95,7 +95,7 @@ describe("AssetMigration", () => {
   test("does not import when the owner directory already exists", async () => {
     await withTmp(async (dir) => {
       await writeLegacySkill(dir, ".claude/skills", "my-skill", `---\nname: my-skill\n---\n\nBody.\n`)
-      await fs.mkdir(path.join(dir, ".aigcfroge/skills"), { recursive: true })
+      await fs.mkdir(path.join(dir, ".omnixa/skills"), { recursive: true })
 
       const list = await runNow(
         Effect.gen(function* () {
@@ -105,7 +105,7 @@ describe("AssetMigration", () => {
       )
 
       expect(list).toEqual([])
-      expect(await fs.readdir(path.join(dir, ".aigcfroge/skills"))).toEqual([])
+      expect(await fs.readdir(path.join(dir, ".omnixa/skills"))).toEqual([])
     })
   })
 
@@ -170,7 +170,7 @@ describe("AssetMigration", () => {
       expect(list[0].name).toBe("reviewer")
       expect(list[0].description).toBe("Reviews code")
       expect(list[0].source).toContain("You review code.")
-      const written = await fs.readFile(path.join(dir, ".aigcfroge/agents/reviewer.md"), "utf8")
+      const written = await fs.readFile(path.join(dir, ".omnixa/agents/reviewer.md"), "utf8")
       expect(written).toContain("kind: agent")
     })
   })

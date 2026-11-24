@@ -12,10 +12,10 @@ import type { DesktopTheme } from "./types"
 export type ColorScheme = "light" | "dark" | "system"
 
 const STORAGE_KEYS = {
-  THEME_ID: "aigcfroge-theme-id",
-  COLOR_SCHEME: "aigcfroge-color-scheme",
-  THEME_CSS_LIGHT: "aigcfroge-theme-css-light",
-  THEME_CSS_DARK: "aigcfroge-theme-css-dark",
+  THEME_ID: "omnixa-theme-id",
+  COLOR_SCHEME: "omnixa-color-scheme",
+  THEME_CSS_LIGHT: "omnixa-theme-css-light",
+  THEME_CSS_DARK: "omnixa-theme-css-dark",
 } as const
 
 const THEME_STYLE_ID = "oc-theme"
@@ -50,7 +50,7 @@ function knownThemes() {
 }
 
 const names: Record<string, string> = {
-  "oc-2": "AigcForge",
+  "oc-2": "Omnixa",
   amoled: "AMOLED",
   aura: "Aura",
   ayu: "Ayu",

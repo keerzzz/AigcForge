@@ -1,8 +1,8 @@
 import { Schema, SchemaGetter, Struct } from "effect"
-import { checksum } from "@aigcfroge/util/encode"
-import { SessionMessage } from "@aigcfroge/schema/session-message"
-import { Skill } from "@aigcfroge/schema/skill"
-import { SessionReference } from "@aigcfroge/schema/session-reference"
+import { checksum } from "@omnixa/util/encode"
+import { SessionMessage } from "@omnixa/schema/session-message"
+import { Skill } from "@omnixa/schema/skill"
+import { SessionReference } from "@omnixa/schema/session-reference"
 import { Persistence } from "@/runtime/persistence/schema"
 import { FileSelection, SelectedLineRange } from "@/workspaces/files/types"
 

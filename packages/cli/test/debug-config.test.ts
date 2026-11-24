@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test"
 import fs from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import { AIGCFROGE_VERSION } from "../src/version"
+import { OMNIXA_VERSION } from "../src/version"
 import { redactConfig } from "../src/commands/handlers/debug/redact"
 
 describe("debug config command", () => {
@@ -13,19 +13,19 @@ describe("debug config command", () => {
     expect(debug.stdout).toContain("config")
     expect(debug.stdout).toContain("List configuration sources")
     expect(config.exitCode).toBe(0)
-    expect(config.stdout).toContain("aigcfroge debug config [flags]")
+    expect(config.stdout).toContain("omnixa debug config [flags]")
     expect(config.stdout).toContain("List configuration sources")
     expect(config.stdout).not.toContain("--reveal-secrets")
   })
 
   test("prints config entries from the invoking directory without reordering permissions", async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), "aigcfroge-debug-config-"))
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "omnixa-debug-config-"))
     const project = path.join(import.meta.dir, "..")
-    const registration = path.join(root, "state", "aigcfroge", "service-local.json")
+    const registration = path.join(root, "state", "omnixa", "service-local.json")
     const entries = [
       {
         type: "document",
-        path: path.join(project, "aigcfroge.json"),
+        path: path.join(project, "omnixa.json"),
         info: {
           permissions: [
             { action: "shell", resource: "*", effect: "ask" },
@@ -52,10 +52,10 @@ describe("debug config command", () => {
         if (url.pathname === "/api/info") {
           healthProbes += 1
           return Response.json({
-            version: AIGCFROGE_VERSION,
+            version: OMNIXA_VERSION,
             pid: process.pid,
             urls: [],
-            paths: { tmp: "/tmp/aigcfroge" },
+            paths: { tmp: "/tmp/omnixa" },
           })
         }
         requested = url
@@ -69,7 +69,7 @@ describe("debug config command", () => {
       await fs.writeFile(
         registration,
         JSON.stringify({
-          version: AIGCFROGE_VERSION,
+          version: OMNIXA_VERSION,
           url: server.url.toString(),
           pid: process.pid,
           password: "secret",
@@ -92,7 +92,7 @@ describe("debug config command", () => {
       expect(result.stdout).not.toContain("Bearer example")
       expect(requested?.pathname).toBe("/api/config")
       expect(requested?.searchParams.get("location[directory]")).toBe(project)
-      expect(authorization).toEqual([`Basic ${btoa("aigcfroge:secret")}`])
+      expect(authorization).toEqual([`Basic ${btoa("omnixa:secret")}`])
       expect(healthProbes).toBe(1)
     } finally {
       server.stop(true)

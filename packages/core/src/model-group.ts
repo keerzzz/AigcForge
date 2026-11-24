@@ -1,12 +1,12 @@
 export * as ModelGroup from "./model-group.js"
 
 import { Context, Effect, Layer, Option, Schema } from "effect"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
-import { Hash } from "@aigcfroge/util/hash"
-import { Model } from "@aigcfroge/schema/model"
-import { ModelGroup } from "@aigcfroge/schema/model-group"
-import { ProviderDefinition } from "@aigcfroge/schema/provider-definition"
-import type { Entry } from "@aigcfroge/schema/config"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
+import { Hash } from "@omnixa/util/hash"
+import { Model } from "@omnixa/schema/model"
+import { ModelGroup } from "@omnixa/schema/model-group"
+import { ProviderDefinition } from "@omnixa/schema/provider-definition"
+import type { Entry } from "@omnixa/schema/config"
 import { Config } from "./config.js"
 import { ConfigProviderFile } from "./config/provider-file.js"
 
@@ -23,7 +23,7 @@ export {
   RemoveResult,
   decodeSave,
   decodeRemove,
-} from "@aigcfroge/schema/model-group"
+} from "@omnixa/schema/model-group"
 
 export class UnavailableError extends Schema.TaggedError<UnavailableError>()("ModelGroup.Unavailable", {
   groupID: Model.GroupID,
@@ -302,7 +302,7 @@ export interface Interface {
   readonly remove: (input: ModelGroup.RemoveInput) => Effect.Effect<ModelGroup.RemoveResult, ConfigProviderFile.Error>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/ModelGroup") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/ModelGroup") {}
 
 export const layer = Layer.effect(
   Service,

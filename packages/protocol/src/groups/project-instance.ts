@@ -1,5 +1,5 @@
-import { Project } from "@aigcfroge/schema/project"
-import { AbsolutePath, NonNegativeInt } from "@aigcfroge/schema/schema"
+import { Project } from "@omnixa/schema/project"
+import { AbsolutePath, NonNegativeInt } from "@omnixa/schema/schema"
 import { Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/http-api"
 import { InvalidRequestError, ProjectNotFoundError } from "../errors.js"
@@ -52,7 +52,7 @@ export const ProjectInstanceGroup = HttpApiGroup.make("project-instance")
       OpenApi.annotations({
         identifier: "project.instance.list",
         summary: "List all projects",
-        description: "Get a list of projects that have been opened with AigcForge.",
+        description: "Get a list of projects that have been opened with Omnixa.",
       }),
     ),
   )
@@ -64,7 +64,7 @@ export const ProjectInstanceGroup = HttpApiGroup.make("project-instance")
       OpenApi.annotations({
         identifier: "project.instance.current",
         summary: "Get current project",
-        description: "Retrieve the currently active project that AigcForge is working with.",
+        description: "Retrieve the currently active project that Omnixa is working with.",
       }),
     ),
   )

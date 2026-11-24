@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { QueryClient } from "@tanstack/solid-query"
-import { AigcForge } from "@aigcfroge/client/promise"
+import { Omnixa } from "@omnixa/client/promise"
 import { createStore } from "solid-js/store"
 import { bootstrapGlobal, loadPathQuery, loadProjectsQuery } from "./bootstrap"
 import { ServerScope } from "@/runtime/server/scope"
@@ -10,8 +10,8 @@ import type { ServerSync } from "@/runtime/server/sync"
 import { worktreeInventoryKey } from "@/workspaces/inventory"
 
 test("bootstraps projects through the native store setter and preserves subsequent updates", async () => {
-  const api = AigcForge.make({
-    baseUrl: "http://aigcfroge.local",
+  const api = Omnixa.make({
+    baseUrl: "http://omnixa.local",
     fetch: Object.assign(
       async (input: RequestInfo | URL, init?: RequestInit) => {
         const url = new URL(new Request(input, init).url)
@@ -136,7 +136,7 @@ describe("query keys", () => {
   test("loads project metadata without enumerating any project's worktrees", async () => {
     const requests: string[] = []
 
-    const api = AigcForge.make({
+    const api = Omnixa.make({
       baseUrl: "http://localhost:3000",
       fetch: Object.assign(
         async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -154,7 +154,7 @@ describe("query keys", () => {
             })),
             { id: "b", canonical: "/b", time: { created: 1, updated: 1 }, sandboxes: [] },
             { id: "a", canonical: "/a", time: { created: 1, updated: 1 }, sandboxes: ["/a/legacy"] },
-            { id: "test", canonical: "/tmp/aigcfroge-test-1", time: { created: 1, updated: 1 }, sandboxes: [] },
+            { id: "test", canonical: "/tmp/omnixa-test-1", time: { created: 1, updated: 1 }, sandboxes: [] },
           ])
         },
         { preconnect() {} },

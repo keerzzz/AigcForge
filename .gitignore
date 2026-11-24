@@ -22,7 +22,7 @@ ts-dist
 /result
 refs
 Session.vim
-/aigcfroge.json
+/omnixa.json
 a.out
 target
 .scripts
@@ -30,7 +30,7 @@ target
 .direnv/
 
 # Local dev files
-aigcfroge-dev
+omnixa-dev
 UPCOMING_CHANGELOG.md
 RELEASE_REVIEW.md
 logs/
@@ -38,4 +38,4 @@ logs/
 tsconfig.tsbuildinfo
 /artifacts/
 
-/.aigcfroge/
+/.omnixa/

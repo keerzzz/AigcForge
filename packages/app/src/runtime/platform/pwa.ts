@@ -1,7 +1,7 @@
 import { useLocation } from "@solidjs/router"
 import { createEffect } from "solid-js"
 
-const LAST_ROUTE_KEY = "aigcfroge.pwa.last-route"
+const LAST_ROUTE_KEY = "omnixa.pwa.last-route"
 
 export function isStandalone() {
   return (

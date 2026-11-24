@@ -1,8 +1,8 @@
-import { Shell } from "@aigcfroge/core/shell"
-import { Location } from "@aigcfroge/core/location"
+import { Shell } from "@omnixa/core/shell"
+import { Location } from "@omnixa/core/location"
 import { Effect } from "effect"
 import { HttpApiBuilder, HttpApiSchema } from "effect/http-api"
-import { ShellNotFoundError } from "@aigcfroge/protocol/errors"
+import { ShellNotFoundError } from "@omnixa/protocol/errors"
 import { Api } from "../api"
 import { response } from "../location"
 

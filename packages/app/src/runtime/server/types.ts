@@ -8,8 +8,8 @@ import type {
   ProviderAuthMethods,
   ProviderListOutput,
   WorktreeDirectory,
-} from "@aigcfroge/client/promise"
-import type { ProductMode } from "@aigcfroge/schema/product-mode"
+} from "@omnixa/client/promise"
+import type { ProductMode } from "@omnixa/schema/product-mode"
 
 export type Project = Omit<ProjectListOutput[number], "canonical"> & {
   worktree: string
@@ -148,7 +148,7 @@ export type Model = {
 export type Provider = {
   id: string
   canonical?: string
-  /** Integration that connects this provider; differs from `id` for Console-managed providers. */
+  /** Integration that connects this provider; multiple providers can share one integration. */
   integrationID?: string
   name: string
   source: "env" | "config" | "custom" | "api"

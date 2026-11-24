@@ -3,13 +3,13 @@ import { describe, expect } from "bun:test"
 import fs from "fs/promises"
 import path from "path"
 import { Deferred, Effect, Fiber, Layer, Logger } from "effect"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { Git } from "@aigcfroge/core/git"
-import { Global } from "@aigcfroge/util/global"
-import { Location } from "@aigcfroge/core/location"
-import { AbsolutePath, RelativePath } from "@aigcfroge/core/schema"
-import { Snapshot } from "@aigcfroge/core/snapshot"
-import { Hash } from "@aigcfroge/util/hash"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { Git } from "@omnixa/core/git"
+import { Global } from "@omnixa/util/global"
+import { Location } from "@omnixa/core/location"
+import { AbsolutePath, RelativePath } from "@omnixa/core/schema"
+import { Snapshot } from "@omnixa/core/snapshot"
+import { Hash } from "@omnixa/util/hash"
 import { tmpdir } from "./fixture/tmpdir"
 import { testEffect } from "./lib/effect"
 
@@ -470,7 +470,5 @@ async function initGit(directory: string, commit = false) {
   await $`git init`.cwd(directory).quiet()
   await $`git -c core.fsmonitor=false add .`.cwd(directory).quiet()
   if (!commit) return
-  await $`git -c user.email=test@aigcfroge.test -c user.name=Test commit --no-gpg-sign -m initial`
-    .cwd(directory)
-    .quiet()
+  await $`git -c user.email=test@omnixa.test -c user.name=Test commit --no-gpg-sign -m initial`.cwd(directory).quiet()
 }

@@ -1,11 +1,11 @@
 export * as SessionProviderContext from "./provider-context.js"
 
-import { Message, type LLMRequest } from "@aigcfroge/ai"
-import { Endpoint } from "@aigcfroge/ai/route"
-import { SessionProviderContext } from "@aigcfroge/schema/session-provider-context"
+import { Message, type LLMRequest } from "@omnixa/ai"
+import { Endpoint } from "@omnixa/ai/route"
+import { SessionProviderContext } from "@omnixa/schema/session-provider-context"
 import { Predicate, Schema } from "effect"
 import { isDeepStrictEqual } from "node:util"
-import { Hash } from "@aigcfroge/util/hash"
+import { Hash } from "@omnixa/util/hash"
 import type { SessionMessage } from "./message.js"
 import type { SessionRunnerModel } from "./runner/model.js"
 

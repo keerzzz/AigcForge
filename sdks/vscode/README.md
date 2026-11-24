@@ -1,21 +1,21 @@
-# aigcfroge VS Code Extension
+# omnixa VS Code Extension
 
-A Visual Studio Code extension that integrates [aigcfroge](https://aigcfroge.ai) directly into your development workflow.
+A Visual Studio Code extension that integrates [omnixa](https://github.com/keerzzz/AigcForge) directly into your development workflow.
 
 ## Prerequisites
 
-This extension requires the [aigcfroge CLI](https://aigcfroge.ai) to be installed on your system. Visit [aigcfroge.ai](https://aigcfroge.ai) for installation instructions.
+This extension requires the [omnixa CLI](https://github.com/keerzzz/AigcForge) to be installed on your system. Visit [omnixa.ai](https://github.com/keerzzz/AigcForge) for installation instructions.
 
 ## Features
 
-- **Quick Launch**: Use `Cmd+Esc` (Mac) or `Ctrl+Esc` (Windows/Linux) to open aigcfroge in a split terminal view, or focus an existing terminal session if one is already running.
-- **New Session**: Use `Cmd+Shift+Esc` (Mac) or `Ctrl+Shift+Esc` (Windows/Linux) to start a new aigcfroge terminal session, even if one is already open. You can also click the aigcfroge button in the UI.
-- **Context Awareness**: Automatically share your current selection or tab with aigcfroge.
+- **Quick Launch**: Use `Cmd+Esc` (Mac) or `Ctrl+Esc` (Windows/Linux) to open omnixa in a split terminal view, or focus an existing terminal session if one is already running.
+- **New Session**: Use `Cmd+Shift+Esc` (Mac) or `Ctrl+Shift+Esc` (Windows/Linux) to start a new omnixa terminal session, even if one is already open. You can also click the omnixa button in the UI.
+- **Context Awareness**: Automatically share your current selection or tab with omnixa.
 - **File Reference Shortcuts**: Use `Cmd+Option+K` (Mac) or `Alt+Ctrl+K` (Linux/Windows) to insert file references. For example, `@File#L37-42`.
 
 ## Support
 
-This is an early release. If you encounter issues or have feedback, please create an issue at https://github.com/anomalyco/aigcfroge/issues.
+This is an early release. If you encounter issues or have feedback, please create an issue at https://github.com/keerzzz/AigcForge/issues.
 
 ## Development
 

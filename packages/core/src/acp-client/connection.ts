@@ -168,7 +168,7 @@ export function makeClientConnection(
     initialize: () =>
       conn.initialize({
         protocolVersion: 1,
-        clientInfo: { name: "AigcForge", version: "1.0" },
+        clientInfo: { name: "Omnixa", version: "1.0" },
         ...(readTextFile ? { clientCapabilities: { fs: { readTextFile: true } } } : {}),
       }),
     newSession: async (cwd) => (await conn.newSession({ cwd, mcpServers: [] })).sessionId,

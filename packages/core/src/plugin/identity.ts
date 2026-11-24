@@ -1,9 +1,9 @@
 export * as IdentityPlugin from "./identity.js"
 
-import { SystemPart } from "@aigcfroge/ai"
-import { define } from "@aigcfroge/plugin/effect/plugin"
-import type { SessionHooks } from "@aigcfroge/plugin/effect/session"
-import { Model } from "@aigcfroge/schema/model"
+import { SystemPart } from "@omnixa/ai"
+import { define } from "@omnixa/plugin/effect/plugin"
+import type { SessionHooks } from "@omnixa/plugin/effect/session"
+import { Model } from "@omnixa/schema/model"
 import { Effect } from "effect"
 
 export function identity(model: { readonly name: string; readonly ref: Model.Ref }) {
@@ -16,7 +16,7 @@ export function identity(model: { readonly name: string; readonly ref: Model.Ref
 }
 
 export const Plugin = define({
-  id: "aigcfroge.prompt.identity",
+  id: "omnixa.prompt.identity",
   effect: Effect.fn("IdentityPlugin")(function* (ctx) {
     const hook = (event: SessionHooks["context"]) =>
       Effect.gen(function* () {

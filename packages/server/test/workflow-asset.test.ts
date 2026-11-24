@@ -1,23 +1,23 @@
 import { mkdir } from "node:fs/promises"
 import path from "node:path"
 import { expect } from "bun:test"
-import { TestLLM } from "@aigcfroge/ai/testing"
-import { AigcForge } from "@aigcfroge/client"
-import { Agent } from "@aigcfroge/core/agent"
-import { AgentAsset } from "@aigcfroge/core/agent-asset"
-import { Model } from "@aigcfroge/core/model"
-import { Provider } from "@aigcfroge/core/provider"
-import { Session } from "@aigcfroge/core/session"
-import { SessionInputResult } from "@aigcfroge/core/session/input-result"
-import { SessionMessage } from "@aigcfroge/core/session/message"
-import { SessionCompositionSnapshotTable } from "@aigcfroge/core/session/sql"
-import { ProposeWorkflowAssetTool } from "@aigcfroge/core/tool/propose-workflow-asset"
-import { AssetYaml } from "@aigcfroge/core/util/asset-yaml"
-import { WorkflowAsset } from "@aigcfroge/core/workflow-asset"
-import { WorkflowAssetService } from "@aigcfroge/core/workflow-asset-service"
-import { WorkflowRunTable, WorkflowStepRunTable } from "@aigcfroge/core/workflow/sql"
-import { InvalidRequestError } from "@aigcfroge/protocol/errors"
-import { Composition } from "@aigcfroge/schema/composition"
+import { TestLLM } from "@omnixa/ai/testing"
+import { Omnixa } from "@omnixa/client"
+import { Agent } from "@omnixa/core/agent"
+import { AgentAsset } from "@omnixa/core/agent-asset"
+import { Model } from "@omnixa/core/model"
+import { Provider } from "@omnixa/core/provider"
+import { Session } from "@omnixa/core/session"
+import { SessionInputResult } from "@omnixa/core/session/input-result"
+import { SessionMessage } from "@omnixa/core/session/message"
+import { SessionCompositionSnapshotTable } from "@omnixa/core/session/sql"
+import { ProposeWorkflowAssetTool } from "@omnixa/core/tool/propose-workflow-asset"
+import { AssetYaml } from "@omnixa/core/util/asset-yaml"
+import { WorkflowAsset } from "@omnixa/core/workflow-asset"
+import { WorkflowAssetService } from "@omnixa/core/workflow-asset-service"
+import { WorkflowRunTable, WorkflowStepRunTable } from "@omnixa/core/workflow/sql"
+import { InvalidRequestError } from "@omnixa/protocol/errors"
+import { Composition } from "@omnixa/schema/composition"
 import {
   BaseRevision,
   Candidate,
@@ -28,8 +28,8 @@ import {
   MAX_STEPS,
   MAX_TIMEOUT_SECONDS,
   Summary,
-} from "@aigcfroge/schema/workflow-asset"
-import { Hash } from "@aigcfroge/util/hash"
+} from "@omnixa/schema/workflow-asset"
+import { Hash } from "@omnixa/util/hash"
 import { Context, Effect, Layer, Option, Schema } from "effect"
 import { withEnv } from "../../core/test/fixture/env"
 import { useOfflineCatalog } from "../../core/test/fixture/models"
@@ -75,13 +75,13 @@ const contextResponse = Schema.Struct({ data: Schema.Array(SessionMessage.Info) 
 const promptResponse = Schema.Struct({ data: Schema.Struct({ id: SessionMessage.ID }) })
 const listResponse = Schema.Struct({ assets: Schema.Array(Summary), invalid: Schema.Array(InvalidEntry) })
 const setup = (files: readonly { relativePath: string; content: string }[] = []) =>
-  AssetHttpFixture.setup({ prefix: "aigcfroge-workflow-http-", assetDirectory: ".aigcfroge/workflows", model, files })
+  AssetHttpFixture.setup({ prefix: "omnixa-workflow-http-", assetDirectory: ".omnixa/workflows", model, files })
 
 it.live("persists Workflow proposal facts and freezes saved steps without starting a Workflow run", () =>
-  withEnv({ AIGCFROGE_EXPERIMENTAL_CHAT_ASSET: "true", AIGCFROGE_CUSTOM_MODE: "true" }, () =>
+  withEnv({ OMNIXA_EXPERIMENTAL_CHAT_ASSET: "true", OMNIXA_CUSTOM_MODE: "true" }, () =>
     Effect.gen(function* () {
       const fixture = yield* setup()
-      const target = path.join(fixture.directory, ".aigcfroge/workflows/review.yaml")
+      const target = path.join(fixture.directory, ".omnixa/workflows/review.yaml")
       expect(Option.isSome(Context.getOption(fixture.local, WorkflowAsset.Service))).toBe(true)
       expect(Option.isSome(Context.getOption(fixture.local, WorkflowAssetService.Service))).toBe(true)
       const session = yield* fixture.sessions.create({
@@ -224,7 +224,7 @@ it.live("persists Workflow proposal facts and freezes saved steps without starti
       ).toBe(409)
       expect(Hash.sha256(Buffer.from(yield* Effect.promise(() => Bun.file(target).arrayBuffer())))).toBe(saved.revision)
 
-      const agentTarget = path.join(fixture.directory, ".aigcfroge/agents/pool/reviewer.md")
+      const agentTarget = path.join(fixture.directory, ".omnixa/agents/pool/reviewer.md")
       const agentContent = [
         "---",
         "kind: agent",
@@ -272,7 +272,7 @@ it.live("persists Workflow proposal facts and freezes saved steps without starti
           info: Provider.Info.make({
             ...Provider.Info.empty(Provider.ID.make("test")),
             activation: "enabled",
-            package: "@aigcfroge/ai/providers/openai/responses",
+            package: "@omnixa/ai/providers/openai/responses",
           }),
           models: [Model.Info.default(Provider.ID.make("test"), Model.ID.make("workflow"))],
         },
@@ -351,7 +351,7 @@ it.live("persists Workflow proposal facts and freezes saved steps without starti
 )
 
 it.live("rejects Workflow identity, path, YAML, graph and size errors before writing", () =>
-  withEnv({ AIGCFROGE_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
+  withEnv({ OMNIXA_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
     Effect.gen(function* () {
       const fixture = yield* setup([
         { relativePath: "broken.yaml", content: "invalid: [" },
@@ -391,7 +391,7 @@ it.live("rejects Workflow identity, path, YAML, graph and size errors before wri
           { ...input, name: "x".repeat(81) },
           { ...input, description: "x".repeat(301) },
           { ...input, relativePath: "../review.yaml" },
-          { ...input, relativePath: ".aigcfroge/workflows/review.yaml" },
+          { ...input, relativePath: ".omnixa/workflows/review.yaml" },
           { ...input, relativePath: "other.yaml" },
           { ...input, content: multibyte },
           ...graphs.map((steps) => ({
@@ -415,9 +415,7 @@ it.live("rejects Workflow identity, path, YAML, graph and size errors before wri
           }),
       )
       expect(
-        yield* Effect.promise(() =>
-          Bun.file(path.join(fixture.directory, ".aigcfroge/workflows/review.yaml")).exists(),
-        ),
+        yield* Effect.promise(() => Bun.file(path.join(fixture.directory, ".omnixa/workflows/review.yaml")).exists()),
       ).toBe(false)
       const catalog = Schema.decodeUnknownSync(listResponse)(yield* readBody(yield* fixture.request("/workflow-asset")))
       expect(catalog.assets).toEqual([])
@@ -444,7 +442,7 @@ it.live("rejects Workflow identity, path, YAML, graph and size errors before wri
 )
 
 it.live("reports Workflow name conflicts and rolls back the attempted HTTP write", () =>
-  withEnv({ AIGCFROGE_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
+  withEnv({ OMNIXA_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
     Effect.gen(function* () {
       const fixture = yield* setup([{ relativePath: "other.yaml", content }])
       const session = yield* fixture.sessions.create({
@@ -465,14 +463,12 @@ it.live("reports Workflow name conflicts and rolls back the attempted HTTP write
         })).status,
       ).toBe(409)
       expect(
-        yield* Effect.promise(() =>
-          Bun.file(path.join(fixture.directory, ".aigcfroge/workflows/review.yaml")).exists(),
-        ),
+        yield* Effect.promise(() => Bun.file(path.join(fixture.directory, ".omnixa/workflows/review.yaml")).exists()),
       ).toBe(false)
       expect(
         Buffer.from(
           yield* Effect.promise(() =>
-            Bun.file(path.join(fixture.directory, ".aigcfroge/workflows/other.yaml")).arrayBuffer(),
+            Bun.file(path.join(fixture.directory, ".omnixa/workflows/other.yaml")).arrayBuffer(),
           ),
         ).toString("utf8"),
       ).toBe(content)
@@ -485,7 +481,7 @@ it.live("reports Workflow name conflicts and rolls back the attempted HTTP write
 )
 
 it.live("disables Workflow creation while keeping explicit CAS deletion available", () =>
-  withEnv({ AIGCFROGE_EXPERIMENTAL_CHAT_ASSET: "false" }, () =>
+  withEnv({ OMNIXA_EXPERIMENTAL_CHAT_ASSET: "false" }, () =>
     Effect.gen(function* () {
       const fixture = yield* setup([{ relativePath: "review.yaml", content }])
       const session = yield* fixture.sessions.create({
@@ -502,9 +498,7 @@ it.live("disables Workflow creation while keeping explicit CAS deletion availabl
         Schema.decodeUnknownSync(InvalidRequestError)(yield* Effect.promise<unknown>(() => disabled.json())),
       ).toMatchObject({ kind: "disabled", message: "Workflow asset creation is not enabled" })
       expect(
-        yield* Effect.promise(() =>
-          Bun.file(path.join(fixture.directory, ".aigcfroge/workflows/second.yaml")).exists(),
-        ),
+        yield* Effect.promise(() => Bun.file(path.join(fixture.directory, ".omnixa/workflows/second.yaml")).exists()),
       ).toBe(false)
       const current = Schema.decodeUnknownSync(Info)(
         yield* readBody(yield* fixture.request("/workflow-asset/content?path=review.yaml")),
@@ -521,9 +515,7 @@ it.live("disables Workflow creation while keeping explicit CAS deletion availabl
         })).status,
       ).toBe(200)
       expect(
-        yield* Effect.promise(() =>
-          Bun.file(path.join(fixture.directory, ".aigcfroge/workflows/review.yaml")).exists(),
-        ),
+        yield* Effect.promise(() => Bun.file(path.join(fixture.directory, ".omnixa/workflows/review.yaml")).exists()),
       ).toBe(false)
       yield* assertNoWorkflowExecution(fixture)
     }),
@@ -531,15 +523,15 @@ it.live("disables Workflow creation while keeping explicit CAS deletion availabl
 )
 
 it.live("round-trips Workflow content, branches, defaults and nested input through the generated Promise client", () =>
-  withEnv({ AIGCFROGE_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
+  withEnv({ OMNIXA_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
     Effect.gen(function* () {
       const fixture = yield* setup()
       const session = yield* fixture.sessions.create({
         location: locationRefForRoute({ directory: fixture.directory }),
       })
-      const client = AigcForge.make({
-        baseUrl: "http://aigcfroge.local",
-        headers: { authorization: `Basic ${btoa("aigcfroge:secret")}` },
+      const client = Omnixa.make({
+        baseUrl: "http://omnixa.local",
+        headers: { authorization: `Basic ${btoa("omnixa:secret")}` },
         fetch: Object.assign(
           (input: string | URL | Request, init?: RequestInit) => fixture.handler(new Request(input, init)),
           { preconnect: fetch.preconnect },
@@ -586,7 +578,7 @@ it.live("round-trips Workflow content, branches, defaults and nested input throu
       expect(readback).toEqual(saved)
       const bytes = Buffer.from(
         yield* Effect.promise(() =>
-          Bun.file(path.join(fixture.directory, ".aigcfroge/workflows/review.yaml")).arrayBuffer(),
+          Bun.file(path.join(fixture.directory, ".omnixa/workflows/review.yaml")).arrayBuffer(),
         ),
       )
       expect(bytes.toString("utf8")).toBe(source)

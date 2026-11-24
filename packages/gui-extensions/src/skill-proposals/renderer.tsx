@@ -1,9 +1,9 @@
-import { Switch } from "@aigcfroge/ui/switch"
-import { Icon } from "@aigcfroge/ui/icon"
-import { IconButton } from "@aigcfroge/ui/icon-button"
-import { showToast } from "@aigcfroge/ui/toast"
-import { Tooltip } from "@aigcfroge/ui/tooltip"
-import { errorMessage } from "@aigcfroge/util/error"
+import { Switch } from "@omnixa/ui/switch"
+import { Icon } from "@omnixa/ui/icon"
+import { IconButton } from "@omnixa/ui/icon-button"
+import { showToast } from "@omnixa/ui/toast"
+import { Tooltip } from "@omnixa/ui/tooltip"
+import { errorMessage } from "@omnixa/util/error"
 import { createMemo, createSignal, For, Show, lazy, onCleanup, Suspense } from "solid-js"
 import {
   Command,

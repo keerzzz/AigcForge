@@ -2,7 +2,7 @@ export * as SessionMemoryAdmission from "./memory-admission.js"
 
 import { createHash } from "node:crypto"
 import { Context, Effect, Layer, Option, Schema } from "effect"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
 import { MetaAgentMemory } from "../agent/meta/memory.js"
 import { Bus } from "../bus.js"
 import { Config } from "../config.js"
@@ -60,7 +60,7 @@ export interface Interface {
   }) => Effect.Effect<boolean, Error>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/SessionMemoryAdmission") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/SessionMemoryAdmission") {}
 
 const revision = (fact: MetaAgentMemory.MemoryRecord) =>
   createHash("sha256")

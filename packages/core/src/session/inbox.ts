@@ -2,7 +2,7 @@ export * as SessionInbox from "./inbox.js"
 
 import { and, asc, eq, notExists, or } from "drizzle-orm"
 import { Context, DateTime, Effect, Layer, Schema } from "effect"
-import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
+import { makeGlobalNode } from "@omnixa/util/effect/app-node"
 import {
   Compaction,
   CompactionPayload,
@@ -15,7 +15,7 @@ import {
   SyntheticPayload,
   User,
   UserPayload,
-} from "@aigcfroge/schema/session-inbox"
+} from "@omnixa/schema/session-inbox"
 import { Database } from "../database/database.js"
 import { Bus } from "../bus.js"
 import { KeyedMutex } from "../effect/keyed-mutex.js"
@@ -23,11 +23,11 @@ import { SessionEvent } from "./event.js"
 import { SessionMessage } from "./message.js"
 import { SessionSchema } from "./schema.js"
 import { SessionInboxTable, SessionMessageTable, TaskOperationTable } from "./sql.js"
-import { SessionTask } from "@aigcfroge/schema/session-task"
+import { SessionTask } from "@omnixa/schema/session-task"
 import { Consultation, ConsultationConflictError } from "./consultation.js"
 import { TaskOperation, OperationConflictError } from "./task-operation.js"
 import { CommunicationRecord } from "./communication-record.js"
-import { SessionCommunication } from "@aigcfroge/schema/session-communication"
+import { SessionCommunication } from "@omnixa/schema/session-communication"
 
 type DatabaseService = Database.Interface["db"]
 
@@ -156,7 +156,7 @@ const promotedFromMessage = Effect.fn("SessionInbox.promotedFromMessage")(functi
 
 export type Interface = Effect.Success<ReturnType<typeof make>>
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/SessionInbox") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/SessionInbox") {}
 
 export const make = Effect.fn("SessionInbox.make")(function* () {
   const database = yield* Database.Service

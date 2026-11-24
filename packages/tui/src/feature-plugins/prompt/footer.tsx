@@ -1,4 +1,4 @@
-import { Plugin } from "@aigcfroge/plugin/tui"
+import { Plugin } from "@omnixa/plugin/tui"
 import { createMemo, createSignal, Match, Show, Switch } from "solid-js"
 import { contextUsage, formatContextUsage } from "../../util/session"
 import { useTerminalDimensions } from "@opentui/solid"
@@ -117,7 +117,7 @@ export function PromptFooter(props: {
 }
 
 export default Plugin.define({
-  id: "aigcfroge.prompt.footer",
+  id: "omnixa.prompt.footer",
   setup(context) {
     context.ui.slot({
       append: "prompt.footer",

@@ -1,7 +1,7 @@
 export * as WebFetchTool from "./webfetch.js"
 
-import type { Context } from "@aigcfroge/plugin/effect/plugin"
-import { ToolFailure } from "@aigcfroge/ai"
+import type { Context } from "@omnixa/plugin/effect/plugin"
+import { ToolFailure } from "@omnixa/ai"
 import { Duration, Effect, Schema } from "effect"
 import { HttpClient, type HttpClientError, HttpClientRequest, HttpClientResponse } from "effect/http"
 import { Parser } from "htmlparser2"
@@ -55,8 +55,8 @@ const headers = (format: Format, userAgent: string) => ({
   "Accept-Language": "en-US,en;q=0.9",
 })
 
-const aigcfrogeUserAgent =
-  "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; AigcForge-User/1.0; +https://aigcfroge.ai"
+const omnixaUserAgent =
+  "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; Omnixa-User/1.0; +https://omnixa.ai"
 
 const isCloudflareChallenge = (error: HttpClientError.HttpClientError) => {
   if (error.reason._tag !== "StatusCodeError") return false
@@ -64,14 +64,14 @@ const isCloudflareChallenge = (error: HttpClientError.HttpClientError) => {
   return response.status === 403 && response.headers["cf-mitigated"] === "challenge"
 }
 
-const request = (url: string, format: Format, userAgent = aigcfrogeUserAgent) =>
+const request = (url: string, format: Format, userAgent = omnixaUserAgent) =>
   HttpClientRequest.get(url).pipe(HttpClientRequest.setHeaders(headers(format, userAgent)))
 
 const assertHttpUrl = (url: URL) => {
   if (url.protocol !== "http:" && url.protocol !== "https:") throw new Error("URL must use http:// or https://")
 }
 
-const execute = (http: HttpClient.HttpClient, url: string, format: Format, userAgent = aigcfrogeUserAgent) =>
+const execute = (http: HttpClient.HttpClient, url: string, format: Format, userAgent = omnixaUserAgent) =>
   http.execute(request(url, format, userAgent)).pipe(Effect.flatMap(HttpClientResponse.filterStatusOk))
 
 const collectBody = (response: HttpClientResponse.HttpClientResponse) =>
@@ -101,7 +101,7 @@ const convert = (content: string, contentType: string, format: Format) => {
 }
 
 export const Plugin = {
-  id: "aigcfroge.tool.webfetch",
+  id: "omnixa.tool.webfetch",
   effect: Effect.fn("WebFetchTool.Plugin")(function* (ctx: Context) {
     const http = yield* HttpClient.HttpClient
     const permission = yield* Permission.Service
@@ -133,7 +133,7 @@ export const Plugin = {
 
               const { body, contentType } = yield* Effect.gen(function* () {
                 const response = yield* execute(http, input.url, input.format).pipe(
-                  Effect.catchIf(isCloudflareChallenge, () => execute(http, input.url, input.format, "aigcfroge")),
+                  Effect.catchIf(isCloudflareChallenge, () => execute(http, input.url, input.format, "omnixa")),
                 )
                 const contentType = response.headers["content-type"] || ""
                 const mime = mimeFrom(contentType)

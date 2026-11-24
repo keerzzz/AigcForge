@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test"
 import { Effect } from "effect"
 import { SessionsCursor } from "../src/groups/session.js"
-import { Session } from "@aigcfroge/schema/session"
-import { Project } from "@aigcfroge/schema/project"
-import { AbsolutePath, RelativePath } from "@aigcfroge/schema/schema"
+import { Session } from "@omnixa/schema/session"
+import { Project } from "@omnixa/schema/project"
+import { AbsolutePath, RelativePath } from "@omnixa/schema/schema"
 
 describe("SessionsCursor", () => {
   test("round trips without Node globals", async () => {

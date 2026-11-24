@@ -1,14 +1,14 @@
 export * as ConfigMcpPlugin from "./mcp.js"
 
-import { define } from "@aigcfroge/plugin/effect/plugin"
-import { Document, type Entry } from "@aigcfroge/schema/config"
-import type { ServerConfig } from "@aigcfroge/schema/mcp"
+import { define } from "@omnixa/plugin/effect/plugin"
+import { Document, type Entry } from "@omnixa/schema/config"
+import type { ServerConfig } from "@omnixa/schema/mcp"
 import { Effect, Stream } from "effect"
 import { Config } from "../../config.js"
 import { Mcp } from "../../mcp/index.js"
 
 export const Plugin = define({
-  id: "aigcfroge.config.mcp",
+  id: "omnixa.config.mcp",
   effect: Effect.fn(function* (ctx) {
     yield* register(ctx.event.subscribe())
   }),

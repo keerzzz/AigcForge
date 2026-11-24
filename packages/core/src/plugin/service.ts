@@ -2,8 +2,8 @@ export * as Plugin from "./service.js"
 
 // The service tag lives apart from the layer so Session entry points can wait on activation without
 // importing the plugin host, which itself depends on Session.
-import { Plugin } from "@aigcfroge/schema/plugin"
-import type { Plugin as PluginDefinition } from "@aigcfroge/plugin/effect/plugin"
+import { Plugin } from "@omnixa/schema/plugin"
+import type { Plugin as PluginDefinition } from "@omnixa/plugin/effect/plugin"
 import { Context, type Effect, type Exit, Schema } from "effect"
 
 export interface Interface {
@@ -31,7 +31,7 @@ export type Generation = PluginDefinition & {
   readonly producer?: Producer
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/Plugin") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/Plugin") {}
 
 /**
  * Session entry points wait here before reading plugin-provided state such as commands, skills, hooks,

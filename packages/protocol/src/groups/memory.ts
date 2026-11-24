@@ -1,4 +1,4 @@
-import { PersonalMemory } from "@aigcfroge/schema/personal-memory"
+import { PersonalMemory } from "@omnixa/schema/personal-memory"
 import { Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/http-api"
 import { InvalidRequestError } from "../errors.js"

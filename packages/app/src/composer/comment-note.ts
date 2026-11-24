@@ -1,8 +1,8 @@
-import type { SessionMessageUser } from "@aigcfroge/client/promise"
+import type { SessionMessageUser } from "@omnixa/client/promise"
 import { Option, Schema } from "effect"
 import { Persistence } from "@/runtime/persistence/schema"
 import { uuid } from "@/runtime/persistence/uuid"
-import { SessionReference } from "@aigcfroge/schema/session-reference"
+import { SessionReference } from "@omnixa/schema/session-reference"
 import { FileSelection } from "@/workspaces/files/types"
 import { durableNote, LegacyBrowserNote, NoteComment, type ContextItem } from "./schema"
 

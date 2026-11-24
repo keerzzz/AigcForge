@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import type { AgentListOutput, ModelListOutput, Project, ProviderListOutput } from "@aigcfroge/client/promise"
+import type { AgentListOutput, ModelListOutput, Project, ProviderListOutput } from "@omnixa/client/promise"
 import { directoryKey, normalizeAgentList, normalizeProjectInfo, normalizeProviderList } from "./utils"
 
 describe("normalizeAgentList", () => {
@@ -111,10 +111,10 @@ describe("normalizeProjectInfo", () => {
 })
 
 test.each([
-  ["C:\\Repos\\sst\\aigcfroge", "C:/Repos/sst/aigcfroge"],
-  ["C:/Repos/sst/aigcfroge", "C:/Repos/sst/aigcfroge"],
+  ["C:\\Repos\\sst\\omnixa", "C:/Repos/sst/omnixa"],
+  ["C:/Repos/sst/omnixa", "C:/Repos/sst/omnixa"],
   ["/tmp/foo\\bar", "/tmp/foo\\bar"],
-  ["C:/Repos/sst/aigcfroge/", "C:/Repos/sst/aigcfroge"],
+  ["C:/Repos/sst/omnixa/", "C:/Repos/sst/omnixa"],
   ["C:/", "C:/"],
   ["/", "/"],
 ])("directoryKey(%p) is %p", (input, expected) => {

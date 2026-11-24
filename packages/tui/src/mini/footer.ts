@@ -41,7 +41,7 @@ import { modelInfo } from "./variant.shared"
 import { entrySplash } from "./splash"
 import { SEED_LAUNCH } from "../ui/one-cell-motion"
 import { isModelGroup, modelPreferenceKey, toModelPreference } from "../model-preference"
-import type { ModelGroupCurrent } from "@aigcfroge/client/promise"
+import type { ModelGroupCurrent } from "@omnixa/client/promise"
 import type {
   FooterApi,
   FooterEvent,

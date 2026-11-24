@@ -1,5 +1,5 @@
 import { Effect, JsonSchema, Schema } from "effect"
-import { Tool } from "@aigcfroge/schema/tool"
+import { Tool } from "@omnixa/schema/tool"
 import type {
   ToolCallPart,
   ToolDefinition as ToolDefinitionClass,

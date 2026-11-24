@@ -1,7 +1,7 @@
 import { Match, Show, Switch } from "solid-js"
-import { SessionReviewEmptyChangesV2 } from "@aigcfroge/session-ui/v2/session-review-empty-changes-v2"
-import { SessionReviewEmptyNoGitV2 } from "@aigcfroge/session-ui/v2/session-review-empty-no-git-v2"
-import { Select } from "@aigcfroge/ui/select"
+import { SessionReviewEmptyChangesV2 } from "@omnixa/session-ui/v2/session-review-empty-changes-v2"
+import { SessionReviewEmptyNoGitV2 } from "@omnixa/session-ui/v2/session-review-empty-no-git-v2"
+import { Select } from "@omnixa/ui/select"
 import { useExtension } from "../sdk"
 import type { ChangeMode, ReviewModel } from "./model"
 

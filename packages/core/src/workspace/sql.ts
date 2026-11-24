@@ -1,4 +1,4 @@
-import { Workspace } from "@aigcfroge/schema/workspace"
+import { Workspace } from "@omnixa/schema/workspace"
 import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core"
 import type { WorkspaceDriver } from "./driver.js"
 

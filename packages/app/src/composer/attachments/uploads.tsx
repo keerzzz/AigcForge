@@ -1,7 +1,7 @@
 import { createEffect, createRoot, For, on, onCleanup } from "solid-js"
 import { createStore } from "solid-js/store"
-import { Icon } from "@aigcfroge/ui/icon"
-import { Toast, toaster } from "@aigcfroge/ui/toast"
+import { Icon } from "@omnixa/ui/icon"
+import { Toast, toaster } from "@omnixa/ui/toast"
 import { useLanguage } from "@/runtime/i18n/language"
 
 export type Upload = {

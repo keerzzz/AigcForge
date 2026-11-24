@@ -33,7 +33,7 @@ import { stringWidth } from "../../util/string-width"
 import { createStore, produce, unwrap } from "solid-js/store"
 import { emptyPrompt, usePromptHistory, type PromptInfo, type PromptPartRef } from "../../prompt/history"
 import { saveDraft, takeDraft } from "./draft-stash"
-import { Skill } from "@aigcfroge/schema/skill"
+import { Skill } from "@omnixa/schema/skill"
 import { computePromptTraits } from "../../prompt/traits"
 import { expandPastedTextPlaceholders, expandTrackedPastedText } from "../../prompt/part"
 import { usePromptStash } from "../../prompt/stash"
@@ -60,7 +60,7 @@ import { Keymap, type KeymapCommand } from "../../context/keymap"
 import { useInteractivity } from "../../context/interactivity"
 import { abbreviateHome } from "../../runtime"
 import { Slot } from "../../plugin/render"
-import type { SessionInbox } from "@aigcfroge/schema/session-inbox"
+import type { SessionInbox } from "@omnixa/schema/session-inbox"
 import {
   deduplicatePromptImages,
   preserveMentionlessPromptAttachments,
@@ -1378,10 +1378,11 @@ export function Prompt(props: PromptProps) {
         }
       }
     }
-    const commitModel = async () => {
+    const commitModel = async (force = false) => {
       requireSelectionOwner()
       if (newSession || locked) return
-      if (session?.agent === agent.id && sameModelSelection(session.model, model)) return
+      const current = data.session.get(target) ?? session
+      if (!force && current?.agent === agent.id && sameModelSelection(current.model, model)) return
       const finishCommit = modelOwner.trackSessionCommit(target, model, agent.id)
       try {
         await selectionClient.session.switchModel({ sessionID: target, model })
@@ -1477,7 +1478,7 @@ export function Prompt(props: PromptProps) {
           // Commit the captured selection after earlier admissions, including
           // compaction setup. Cached state may still precede their SSE echoes;
           // the server makes an unchanged selection a no-op.
-          prepare: commitModel,
+          prepare: () => commitModel(true),
         })
         .catch((error) => (newSession ? newSession.recover(error) : fail("Failed to send prompt", error)))
       if (pendingEditorSelection) editor.markSelectionSent()

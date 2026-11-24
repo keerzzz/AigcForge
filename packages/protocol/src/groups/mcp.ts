@@ -1,5 +1,5 @@
-import { Mcp } from "@aigcfroge/schema/mcp"
-import { Location } from "@aigcfroge/schema/location"
+import { Mcp } from "@omnixa/schema/mcp"
+import { Location } from "@omnixa/schema/location"
 import { Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "effect/http-api"
 import { McpServerNotFoundError } from "../errors.js"

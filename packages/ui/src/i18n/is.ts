@@ -65,16 +65,6 @@ export const dict: Record<string, string> = {
   "ui.sessionTurn.retry.attempt": "tilraun #{{attempt}}",
   "ui.sessionTurn.retry.attemptLine": "{{line}} - tilraun #{{attempt}}",
   "ui.sessionTurn.retry.geminiHot": "Gemini er allt of heitt núna",
-  "ui.sessionTurn.error.freeUsageExceeded": "Farið yfir ókeypis notkun",
-  "ui.sessionTurn.error.addCredits": "Bæta við inneign",
-  "dialog.usageExceeded.freeTier.title": "Ókeypis hámarki náð",
-  "dialog.usageExceeded.freeTier.description":
-    "Gerast áskrifandi að AigcForge Go fyrir $10 á mánuði og fá áreiðanlegan aðgang að bestu opnu gerðunum.",
-  "dialog.usageExceeded.freeTier.actionLabel": "Gerast áskrifandi",
-  "dialog.usageExceeded.accountRateLimit.title": "Go takmörkum náð",
-  "dialog.usageExceeded.accountRateLimit.description":
-    "Notkunarmörkum náð. Til að halda áfram að nota þetta líkan núna skaltu virkja notkun úr tiltæku stöðunni þinni",
-  "dialog.usageExceeded.accountRateLimit.actionLabel": "Opna stillingar",
   "ui.sessionTurn.status.delegating": "Framselja vinnu",
   "ui.sessionTurn.status.planning": "Skipuleggja næstu skref",
   "ui.sessionTurn.status.gatheringContext": "Að kanna",

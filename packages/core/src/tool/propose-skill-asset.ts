@@ -1,9 +1,9 @@
 export * as ProposeSkillAssetTool from "./propose-skill-asset.js"
 
-import type { Context } from "@aigcfroge/plugin/effect/plugin"
-import { ToolFailure } from "@aigcfroge/ai"
+import type { Context } from "@omnixa/plugin/effect/plugin"
+import { ToolFailure } from "@omnixa/ai"
 import { Effect, Schema } from "effect"
-import { SkillAsset } from "@aigcfroge/schema/skill-asset"
+import { SkillAsset } from "@omnixa/schema/skill-asset"
 import path from "node:path"
 import { Flag } from "../flag/flag.js"
 import { SkillAssetService } from "../skill-asset-service.js"
@@ -34,9 +34,9 @@ export const Input = Schema.Struct({
 export const Output = SkillAsset.Inspection
 
 export const Plugin = {
-  id: "aigcfroge.tool.propose_skill_asset",
+  id: "omnixa.tool.propose_skill_asset",
   effect: Effect.fn("ProposeSkillAssetTool.Plugin")(function* (ctx: Context) {
-    if (!Flag.AIGCFROGE_EXPERIMENTAL_CHAT_ASSET) return
+    if (!Flag.OMNIXA_EXPERIMENTAL_CHAT_ASSET) return
 
     const service = yield* SkillAssetService.Service
 

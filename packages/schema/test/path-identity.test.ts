@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { PathIdentity } from "@aigcfroge/schema/path-identity"
+import { PathIdentity } from "@omnixa/schema/path-identity"
 import { Schema } from "effect"
 
 const refs = {

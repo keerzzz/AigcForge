@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, mock, spyOn, test } from "bun:test"
-import { AigcForge } from "@aigcfroge/client/promise"
+import { Omnixa } from "@omnixa/client/promise"
 import { resolveMiniSettings, resolveModelInfo, resolveRunTuiConfig } from "../../src/mini/runtime.boot"
 import { catalogModel, catalogProvider } from "./fixture/catalog"
 import { createTuiResolvedConfig } from "../fixture/tui-runtime"
@@ -74,7 +74,7 @@ describe("run runtime boot", () => {
   })
 
   test("loads v2 providers and models for model selector data", async () => {
-    const sdk = AigcForge.make({ baseUrl: "https://aigcfroge.test" })
+    const sdk = Omnixa.make({ baseUrl: "https://omnixa.test" })
     const location = { directory: "/workspace", project: { id: "proj_1", directory: "/workspace" } }
     const providerList = spyOn(sdk.provider, "list").mockResolvedValue({
       location,

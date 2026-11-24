@@ -114,9 +114,7 @@ function systemSnapshot() {
     compressedMemoryMB: ((fields["Pages occupied by compressor"] ?? 0) * pageSize) / 1024 / 1024,
     pageouts: fields.Pageouts ?? 0,
     relevantProcesses: processList()
-      .filter((process) =>
-        /aigcfroge|tsgo|tsserver|vtsls|eslintServer|tailwindcss-language-server/.test(process.command),
-      )
+      .filter((process) => /omnixa|tsgo|tsserver|vtsls|eslintServer|tailwindcss-language-server/.test(process.command))
       .sort((a, b) => b.rssKB - a.rssKB)
       .map(processSummary),
     topCpuProcesses: processList()

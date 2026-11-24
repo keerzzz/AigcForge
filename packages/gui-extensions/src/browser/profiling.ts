@@ -1,5 +1,5 @@
 import type { WebContents } from "electron"
-import { Browser } from "@aigcfroge/plugin-browser/rpc"
+import { Browser } from "@omnixa/plugin-browser/rpc"
 import { gzipSync, gunzipSync } from "node:zlib"
 import { Schema } from "effect"
 import type { Cdp } from "./cdp"
@@ -167,7 +167,7 @@ export function createProfiling(
                 gzipSync(
                   JSON.stringify({
                     traceEvents,
-                    metadata: { source: "aigcfroge", scope: "renderer-process", processId: owner.pid },
+                    metadata: { source: "omnixa", scope: "renderer-process", processId: owner.pid },
                   }),
                 ),
                 [...traceResources],

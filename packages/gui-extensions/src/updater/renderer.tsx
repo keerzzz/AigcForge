@@ -1,6 +1,6 @@
-import { showToast } from "@aigcfroge/ui/toast"
+import { showToast } from "@omnixa/ui/toast"
 import { lazy, onCleanup, Suspense } from "solid-js"
-import { createKeyed, onIdle, Command, SettingsPage, TitlebarItem, type Setup, type SetupContext } from "../sdk"
+import { onIdle, Command, SettingsPage, TitlebarItem, type Setup, type SetupContext } from "../sdk"
 import { updaterAction } from "./action"
 import type definition from "./index"
 
@@ -80,10 +80,6 @@ const setup: Setup<typeof definition> = (ctx) => {
     hidden: true,
     run: () => act("check"),
   })
-
-  // Beta builds answer the app menu's Check for Updates in the focused window instead of a native dialog. The
-  // listener ends with the generation of the main side that sends it.
-  createKeyed(updater, (client) => void client.on("check", () => act("check")))
 }
 
 /**

@@ -9,7 +9,7 @@ export const ID = Schema.String.pipe(
   Schema.brand("Provider.ID"),
   Schema.annotate({ identifier: "Provider.ID" }),
   statics((schema) => ({
-    aigcfroge: schema.make("aigcfroge"),
+    omnixa: schema.make("omnixa"),
     anthropic: schema.make("anthropic"),
     openai: schema.make("openai"),
     google: schema.make("google"),

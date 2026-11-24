@@ -1,10 +1,10 @@
-import { CustomProfile } from "@aigcfroge/core/custom-profile"
-import { CustomProfileService } from "@aigcfroge/core/custom-profile-service"
-import { Flag } from "@aigcfroge/core/flag/flag"
-import { LocationServiceMap } from "@aigcfroge/core/location-services"
-import { ApiNotFoundError, ConflictError, InvalidRequestError, UnknownError } from "@aigcfroge/protocol/errors"
-import { WorkspaceRouteContext } from "@aigcfroge/protocol/middleware/workspace-routing"
-import { Info, InvalidEntry, Summary } from "@aigcfroge/schema/custom-profile"
+import { CustomProfile } from "@omnixa/core/custom-profile"
+import { CustomProfileService } from "@omnixa/core/custom-profile-service"
+import { Flag } from "@omnixa/core/flag/flag"
+import { LocationServiceMap } from "@omnixa/core/location-services"
+import { ApiNotFoundError, ConflictError, InvalidRequestError, UnknownError } from "@omnixa/protocol/errors"
+import { WorkspaceRouteContext } from "@omnixa/protocol/middleware/workspace-routing"
+import { Info, InvalidEntry, Summary } from "@omnixa/schema/custom-profile"
 import { Effect } from "effect"
 import { HttpApiBuilder } from "effect/http-api"
 import { Api } from "../api"
@@ -64,7 +64,7 @@ export const CustomProfileHandler = HttpApiBuilder.group(Api, "custom-profile", 
       .handle("custom-profile.apply", ({ payload }) =>
         atLocation(
           Effect.gen(function* () {
-            if (!Flag.AIGCFROGE_EXPERIMENTAL_CHAT_ASSET)
+            if (!Flag.OMNIXA_EXPERIMENTAL_CHAT_ASSET)
               return yield* new InvalidRequestError({ message: "Custom profile creation is not enabled" })
             const profiles = yield* CustomProfileService.Service
             return yield* profiles

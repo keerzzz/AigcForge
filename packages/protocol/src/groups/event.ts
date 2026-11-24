@@ -1,7 +1,7 @@
-import { Event } from "@aigcfroge/schema/event"
-import { EventManifest } from "@aigcfroge/schema/event-manifest"
-import { Location } from "@aigcfroge/schema/location"
-import type { Definition } from "@aigcfroge/schema/event"
+import { Event } from "@omnixa/schema/event"
+import { EventManifest } from "@omnixa/schema/event-manifest"
+import { Location } from "@omnixa/schema/location"
+import type { Definition } from "@omnixa/schema/event"
 import { Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "effect/http-api"
 
@@ -61,8 +61,8 @@ export const makeEventGroup = <const Definitions extends ReadonlyArray<Definitio
 
 const event = make(EventManifest.ServerDefinitions)
 export const EventGroup = event.group
-export const AigcForgeEvent = event.schema
-export type AigcForgeEvent = typeof AigcForgeEvent.Type
-export type AigcForgeEventEncoded = typeof AigcForgeEvent.Encoded
-export const isAigcForgeEvent = (event: { readonly type: string }): event is AigcForgeEvent =>
+export const OmnixaEvent = event.schema
+export type OmnixaEvent = typeof OmnixaEvent.Type
+export type OmnixaEventEncoded = typeof OmnixaEvent.Encoded
+export const isOmnixaEvent = (event: { readonly type: string }): event is OmnixaEvent =>
   event.type === "server.connected" || EventManifest.isServer(event) || event.type.startsWith("rpc.")

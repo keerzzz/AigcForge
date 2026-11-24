@@ -1,6 +1,6 @@
-import { define } from "@aigcfroge/plugin/effect/plugin"
-import { Integration } from "@aigcfroge/schema/integration"
-import { Provider } from "@aigcfroge/schema/provider"
+import { define } from "@omnixa/plugin/effect/plugin"
+import { Integration } from "@omnixa/schema/integration"
+import { Provider } from "@omnixa/schema/provider"
 import { Effect, Stream } from "effect"
 import { Bus } from "../bus.js"
 import { Model } from "../model.js"
@@ -25,7 +25,7 @@ const BEDROCK_PROFILE_ONLY_IDS = [
 ]
 
 export const ModelsDevPlugin = define({
-  id: "aigcfroge.models.dev",
+  id: "omnixa.models.dev",
   effect: Effect.fn(function* (ctx) {
     const modelsDev = yield* ModelsDev.Service
     const bus = yield* Bus.Service

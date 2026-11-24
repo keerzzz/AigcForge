@@ -1,5 +1,5 @@
-import { ProductMode } from "@aigcfroge/schema/product-mode"
-import type { SessionInfo } from "@aigcfroge/client/promise"
+import { ProductMode } from "@omnixa/schema/product-mode"
+import type { SessionInfo } from "@omnixa/client/promise"
 import type { LayoutRoute } from "@/shell/state/layout"
 import type { DraftTab } from "@/shell/tabs/tabs"
 import { TabStorage } from "@/shell/tabs/schema"

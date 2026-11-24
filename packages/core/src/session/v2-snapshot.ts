@@ -24,4 +24,4 @@ export interface Interface {
   readonly diffFull: (from: string, to: string) => Effect.Effect<FileDiff[]>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/SessionSnapshot") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/v2/SessionSnapshot") {}

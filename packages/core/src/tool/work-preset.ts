@@ -1,9 +1,9 @@
 export * as WorkPresetTool from "./work-preset.js"
 
-import type { Context } from "@aigcfroge/plugin/effect/plugin"
-import { ToolFailure } from "@aigcfroge/ai"
+import type { Context } from "@omnixa/plugin/effect/plugin"
+import { ToolFailure } from "@omnixa/ai"
 import { Effect, Schema } from "effect"
-import { WorkPreset } from "@aigcfroge/schema/work-preset"
+import { WorkPreset } from "@omnixa/schema/work-preset"
 import { WorkPresetRegistry } from "../session/work-preset.js"
 
 export const name = "work-preset"
@@ -34,7 +34,7 @@ const toModelContent = (preset: WorkPreset.Preset) => {
 }
 
 export const Plugin = {
-  id: "aigcfroge.tool.work-preset",
+  id: "omnixa.tool.work-preset",
   effect: Effect.fn("WorkPresetTool.Plugin")(function* (ctx: Context) {
     yield* ctx.tool
       .transform((editor) =>

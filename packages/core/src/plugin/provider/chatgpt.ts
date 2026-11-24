@@ -1,7 +1,7 @@
-import type { IntegrationOAuthMethodRegistration } from "@aigcfroge/plugin/effect/integration"
-import type { Context } from "@aigcfroge/plugin/effect/plugin"
-import type { ModelSource } from "@aigcfroge/schema/model-source"
-import { define } from "@aigcfroge/plugin/effect/plugin"
+import type { IntegrationOAuthMethodRegistration } from "@omnixa/plugin/effect/integration"
+import type { Context } from "@omnixa/plugin/effect/plugin"
+import type { ModelSource } from "@omnixa/schema/model-source"
+import { define } from "@omnixa/plugin/effect/plugin"
 // import { Deferred, Duration, Effect, Option, Schema, Semaphore, Stream } from "effect"
 import { Deferred, Effect, Option, Schema, Semaphore, Stream } from "effect"
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http"
@@ -19,7 +19,7 @@ import type { PluginInternal } from "../internal.js"
 
 // First-time sign-in registers a user-owned client; OpenAI returns its issued client ID on the callback.
 const registrationClientID = "dynamic_agent_client"
-const agentName = "AigcForge"
+const agentName = "Omnixa"
 const issuer = "https://auth.openai.com"
 const tokenURL = `${issuer}/api/accounts/oauth/token`
 const resource = "https://api.openai.com/v1"
@@ -208,7 +208,7 @@ function listen(server: Server) {
 }
 
 export const ChatGPTPlugin = define({
-  id: "aigcfroge.provider.chatgpt",
+  id: "omnixa.provider.chatgpt",
   effect: Effect.fn(function* (ctx) {
     const bus = yield* Bus.Service
     const credentials = yield* Credential.Service
@@ -512,7 +512,7 @@ function deriveModel(remote: RemoteModel, previous: Model.Info): Model.Info {
   return {
     ...previous,
     name: previous.id === previous.modelID ? remote.display_name : previous.name,
-    package: previous.package ?? "@aigcfroge/ai/providers/openai",
+    package: previous.package ?? "@omnixa/ai/providers/openai",
     capabilities: {
       ...previous.capabilities,
       input: remote.input_modalities.filter((modality) => modality === "text" || modality === "image"),

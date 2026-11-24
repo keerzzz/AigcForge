@@ -1,4 +1,4 @@
-import type { PromptInput } from "@aigcfroge/schema"
+import type { PromptInput } from "@omnixa/schema"
 
 type PromptFile = PromptInput.FileAttachment
 type PromptFileIdentity = Pick<PromptFile, "uri" | "name" | "description">

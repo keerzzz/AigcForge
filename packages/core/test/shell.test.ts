@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test"
 import path from "path"
-import { ShellSelect } from "@aigcfroge/core/shell/select"
-import { FSUtil } from "@aigcfroge/util/fs-util"
-import { which } from "@aigcfroge/core/util/which"
+import { ShellSelect } from "@omnixa/core/shell/select"
+import { FSUtil } from "@omnixa/util/fs-util"
+import { which } from "@omnixa/core/util/which"
 import fs from "node:fs/promises"
 import { tmpdir } from "./fixture/tmpdir"
 
@@ -38,8 +38,8 @@ describe("shell", () => {
     await withShell(undefined, async () => {
       const configured = ShellSelect.resolve({ priority: "config" })
       const compatible = ShellSelect.resolve({ priority: "compat" })
-      expect(ShellSelect.resolve({ priority: "config" }, "aigcfroge-missing-shell")).toBe(configured)
-      expect(ShellSelect.resolve({ priority: "compat" }, "aigcfroge-missing-shell")).toBe(compatible)
+      expect(ShellSelect.resolve({ priority: "config" }, "omnixa-missing-shell")).toBe(configured)
+      expect(ShellSelect.resolve({ priority: "compat" }, "omnixa-missing-shell")).toBe(compatible)
     })
   })
 

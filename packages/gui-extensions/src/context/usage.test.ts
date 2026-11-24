@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import type { SessionAttemptInfo, SessionMessageAssistant, SessionMessageInfo } from "@aigcfroge/client/promise"
+import type { SessionAttemptInfo, SessionMessageAssistant, SessionMessageInfo } from "@omnixa/client/promise"
 import { createStore } from "solid-js/store"
 import { sessionContextUsage } from "./usage"
 

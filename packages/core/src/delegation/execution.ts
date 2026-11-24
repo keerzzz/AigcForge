@@ -20,13 +20,13 @@ import { createHash, randomUUID } from "node:crypto"
 import type { SDKUserMessage } from "@anthropic-ai/claude-agent-sdk"
 import { isDeepStrictEqual } from "node:util"
 import path from "path"
-import { AppProcess } from "@aigcfroge/util/process"
+import { AppProcess } from "@omnixa/util/process"
 import { eq } from "drizzle-orm"
-import { Delegation } from "@aigcfroge/schema/delegation"
-import { DelegationID, ParticipantID, TurnID } from "@aigcfroge/schema/delegation-id"
-import { Node } from "@aigcfroge/util/effect/app-node"
-import { FSUtil } from "@aigcfroge/util/fs-util"
-import type { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { Delegation } from "@omnixa/schema/delegation"
+import { DelegationID, ParticipantID, TurnID } from "@omnixa/schema/delegation-id"
+import { Node } from "@omnixa/util/effect/app-node"
+import { FSUtil } from "@omnixa/util/fs-util"
+import type { LayerNode } from "@omnixa/util/effect/layer-node"
 import { Agent } from "../agent.js"
 import { Bus } from "../bus.js"
 import { Config } from "../config.js"
@@ -71,9 +71,9 @@ import { gitExecutable } from "../util/git-executable.js"
 import { DelegationDigest } from "./digest.js"
 import { DelegationParser } from "../tool/delegation-parser.js"
 import { toSessionError } from "../session/to-session-error.js"
-import { Schedule } from "@aigcfroge/schema/schedule"
+import { Schedule } from "@omnixa/schema/schedule"
 import { ScheduleService } from "../session/schedule-service.js"
-import { SessionCommunication } from "@aigcfroge/schema/session-communication"
+import { SessionCommunication } from "@omnixa/schema/session-communication"
 import { CommunicationRecord } from "../session/communication-record.js"
 
 type Recovery = Extract<Job.Recovery, { kind: "delegation" }>
@@ -301,7 +301,7 @@ export interface Interface {
   }) => Effect.Effect<void, DelegationService.ServiceError | Session.NotFoundError | Session.SyntheticConflictError>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/DelegationExecution") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/DelegationExecution") {}
 
 const make: Effect.Effect<
   Interface,

@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 import path from "node:path"
-import type { IntegrationInfo, McpServer } from "@aigcfroge/client"
+import type { IntegrationInfo, McpServer } from "@omnixa/client"
 import { mcpAuthChoices } from "../src/commands/handlers/mcp/auth"
 
 const server = (
@@ -50,7 +50,7 @@ test("mcp auth accepts an optional server name and rejects no-name noninteractiv
       stderr: "pipe",
     })
   const help = cli(["--help"])
-  expect(await new Response(help.stdout).text()).toContain("aigcfroge mcp auth [flags] [<name>]")
+  expect(await new Response(help.stdout).text()).toContain("omnixa mcp auth [flags] [<name>]")
   expect(await help.exited).toBe(0)
 
   const missing = cli([])

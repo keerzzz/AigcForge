@@ -1,7 +1,7 @@
 import { buildLocationServiceMap } from "../location-services.js"
 import { LocationServiceMap } from "../location-service-map.js"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { makeGlobalNode } from "@omnixa/util/effect/app-node"
 import { Effect, Layer } from "effect"
 import { Instance } from "../instance/service.js"
 

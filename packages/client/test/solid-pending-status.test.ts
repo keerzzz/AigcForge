@@ -1,14 +1,14 @@
 import { expect, test } from "bun:test"
 import { createRoot } from "solid-js"
 import { createData, type CreateDataInput } from "../src/solid"
-import { AigcForge, type AigcForgeEvent } from "../src/promise"
+import { Omnixa, type OmnixaEvent } from "../src/promise"
 
 const sessionID = "ses_pending"
 
 function fixture() {
   const listeners = new Set<Parameters<CreateDataInput["event"]["listen"]>[0]>()
-  const api = AigcForge.make({
-    baseUrl: "http://aigcfroge.local",
+  const api = Omnixa.make({
+    baseUrl: "http://omnixa.local",
     fetch: async (input, init) => {
       const request = input instanceof Request ? input : new Request(input, init)
       return request.method === "GET" ? Response.json({ data: [] }) : Response.json({ data: {} })
@@ -35,7 +35,7 @@ function fixture() {
         created: seq,
         durable: { aggregateID: sessionID, seq, version: 1 },
         data: { sessionID, ...payload },
-      } as AigcForgeEvent
+      } as OmnixaEvent
       listeners.forEach((listener) => listener({ name: event.type, details: event }))
     }
     return {

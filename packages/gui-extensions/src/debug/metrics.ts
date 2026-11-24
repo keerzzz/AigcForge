@@ -3,7 +3,7 @@ import type {
   SessionMessageAssistant,
   SessionMessageInfo,
   TokenUsageInfo,
-} from "@aigcfroge/client/promise"
+} from "@omnixa/client/promise"
 
 type ProviderMetricEventType =
   | "session.step.started"

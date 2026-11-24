@@ -1,4 +1,4 @@
-import type { SessionMessageUser } from "@aigcfroge/client/promise"
+import type { SessionMessageUser } from "@omnixa/client/promise"
 import { useLocation, useNavigate } from "@solidjs/router"
 import { createEffect, createMemo, onCleanup, onMount } from "solid-js"
 import { messageIdFromHash } from "./message-id-from-hash"

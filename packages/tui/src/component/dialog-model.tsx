@@ -231,12 +231,6 @@ export function sortModelOptions<
   },
 >(options: T[], grouped = true) {
   return options.toSorted((a, b) => {
-    const provider = grouped
-      ? Number(b.providerID === "aigcfroge-go") - Number(a.providerID === "aigcfroge-go") ||
-        Number(b.providerID === "aigcfroge") - Number(a.providerID === "aigcfroge")
-      : 0
-    if (provider !== 0) return provider
-
     const name = grouped ? (a.providerName ?? "").localeCompare(b.providerName ?? "") : 0
     if (name !== 0) return name
 

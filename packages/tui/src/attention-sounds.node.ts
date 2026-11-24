@@ -3,10 +3,8 @@ import path from "node:path"
 
 const require = createRequire(import.meta.url)
 const resolve = (name: string) => {
-  const key = `@aigcfroge/ui/audio/${name}`
-  return process.env.AIGCFROGE_NODE_ASSETS_DIR
-    ? path.join(process.env.AIGCFROGE_NODE_ASSETS_DIR, key)
-    : require.resolve(key)
+  const key = `@omnixa/ui/audio/${name}`
+  return process.env.OMNIXA_NODE_ASSETS_DIR ? path.join(process.env.OMNIXA_NODE_ASSETS_DIR, key) : require.resolve(key)
 }
 
 export const defaultSoundPath = resolve("bip-bop-01.mp3")

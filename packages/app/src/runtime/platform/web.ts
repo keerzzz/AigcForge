@@ -28,7 +28,6 @@ export function createWebPlatform(version: string) {
 
       const notification = new Notification(title, {
         body: description ?? "",
-        icon: "https://aigcfroge.ai/favicon-96x96-v3.png",
       })
 
       notification.onclick = () => {
@@ -46,15 +45,15 @@ export function createWebPlatform(version: string) {
 }
 
 function getCurrentServerUrl() {
-  if (import.meta.env.VITE_AIGCFROGE_SERVER_MODE === "none") return undefined
+  if (import.meta.env.VITE_OMNIXA_SERVER_MODE === "none") return undefined
 
   if (import.meta.env.DEV) {
     const loopback =
       location.hostname === "localhost" || location.hostname === "[::1]" || location.hostname.startsWith("127.")
 
-    const host = import.meta.env.VITE_AIGCFROGE_SERVER_HOST ?? (loopback ? location.hostname : "localhost")
+    const host = import.meta.env.VITE_OMNIXA_SERVER_HOST ?? (loopback ? location.hostname : "localhost")
 
-    return `http://${host}:${import.meta.env.VITE_AIGCFROGE_SERVER_PORT ?? "4096"}`
+    return `http://${host}:${import.meta.env.VITE_OMNIXA_SERVER_PORT ?? "4096"}`
   }
 
   return location.origin

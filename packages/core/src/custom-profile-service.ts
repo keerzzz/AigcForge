@@ -2,15 +2,15 @@ export * as CustomProfileService from "./custom-profile-service"
 
 import { Context, Effect, Layer, Option, Schema } from "effect"
 import { AssetYaml } from "./util/asset-yaml"
-import { CustomProfile as SchemaCustomProfile } from "@aigcfroge/schema/custom-profile"
+import { CustomProfile as SchemaCustomProfile } from "@omnixa/schema/custom-profile"
 import { CustomProfile } from "./custom-profile"
 import { FileMutation } from "./file-mutation"
 import { CustomProfilePath } from "./custom-profile/path"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { FSUtil } from "@omnixa/util/fs-util"
 import { LocationMutation } from "./location-mutation"
-import { Hash } from "@aigcfroge/util/hash"
+import { Hash } from "@omnixa/util/hash"
 import { KeyedMutex } from "./effect/keyed-mutex"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
 
 function failureMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error)
@@ -132,7 +132,7 @@ export interface Interface {
   readonly delete: (input: DeleteInput) => Effect.Effect<SchemaCustomProfile.DeleteResult, DeleteError>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/CustomProfileService") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/v2/CustomProfileService") {}
 
 export const locationLayer = Layer.effect(
   Service,

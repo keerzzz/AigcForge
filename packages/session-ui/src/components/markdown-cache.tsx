@@ -1,5 +1,5 @@
-import { checksum } from "@aigcfroge/util/encode"
-import { parseSmallMarkdown } from "@aigcfroge/ui/context/marked-base"
+import { checksum } from "@omnixa/util/encode"
+import { parseSmallMarkdown } from "@omnixa/ui/context/marked-base"
 import DOMPurify from "dompurify"
 import { MarkdownWorkerDisposedError, parseMarkdown } from "./markdown-worker"
 import { localImagePath, localLinkPath } from "./markdown-image"

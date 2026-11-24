@@ -1,4 +1,4 @@
-import { Plugin } from "@aigcfroge/plugin/tui"
+import { Plugin } from "@omnixa/plugin/tui"
 import { batch, createSignal } from "solid-js"
 
 const generation = "generation 1"

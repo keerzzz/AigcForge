@@ -1,6 +1,6 @@
-import type { RpcApi } from "@aigcfroge/client/effect/api"
-export type { RpcClient } from "@aigcfroge/client/effect/api"
-import type { Rpc } from "@aigcfroge/schema/rpc"
+import type { RpcApi } from "@omnixa/client/effect/api"
+export type { RpcClient } from "@omnixa/client/effect/api"
+import type { Rpc } from "@omnixa/schema/rpc"
 import type { Effect, Scope } from "effect"
 import type { Registration } from "./registration.js"
 

@@ -9,7 +9,7 @@ describe("ProviderDefinition", () => {
     const input = {
       providerID: "manual",
       submissionID: "submission-one",
-      target: { scope: "project", path: "/project/aigcfroge.jsonc" },
+      target: { scope: "project", path: "/project/omnixa.jsonc" },
       expectedDigest: null,
       patch: { set: { name: "Manual", models: { chat: { modelID: "api-chat" } } }, unset: [["settings", "timeout"]] },
       credential: { type: "keep" },

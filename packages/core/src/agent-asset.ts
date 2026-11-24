@@ -2,21 +2,21 @@ export * as AgentAsset from "./agent-asset"
 
 import { Context, Effect, Layer, Option, Schema, Scope, Stream } from "effect"
 import path from "path"
-import { AgentAsset } from "@aigcfroge/schema/agent-asset"
+import { AgentAsset } from "@omnixa/schema/agent-asset"
 import { ConfigMarkdown } from "./config/markdown"
 import { Bus } from "./bus"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { FSUtil } from "@omnixa/util/fs-util"
 import { Flag } from "./flag/flag"
 import { KeyedMutex } from "./effect/keyed-mutex"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
 import { Location } from "./location"
 import { AssetMigration } from "./asset-migration"
 import { AgentAssetPath } from "./agent-asset/path"
 import { parseAgentAssetConfig } from "./agent/asset-bridge"
-import { Hash } from "@aigcfroge/util/hash"
+import { Hash } from "@omnixa/util/hash"
 import { Watcher } from "./filesystem/watcher"
 import { AGENTS_DIR } from "./constants"
-import type { Agent } from "@aigcfroge/schema/agent"
+import type { Agent } from "@omnixa/schema/agent"
 
 export { AGENTS_DIR }
 
@@ -56,7 +56,7 @@ export interface Interface {
   readonly reload: () => Effect.Effect<void, FSUtil.Error>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/AgentAsset") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/v2/AgentAsset") {}
 
 export function loadDir<E = never>(
   fs: FSUtil.Interface,
@@ -205,7 +205,7 @@ export const layer = Layer.effect(
 
 /** First-run import of project-local legacy agents (`.claude/agents`). Best-effort: never blocks boot. */
 const migrateLegacy = Effect.fnUntraced(function* (fs: FSUtil.Interface, directory: string, ownerRoot: string) {
-  if (!Flag.AIGCFROGE_EXPERIMENTAL_CHAT_ASSET) return
+  if (!Flag.OMNIXA_EXPERIMENTAL_CHAT_ASSET) return
   yield* AssetMigration.importOnce(fs, {
     ownerRoot,
     files: yield* AssetMigration.legacyAgentFiles(fs, directory),

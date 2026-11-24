@@ -1,12 +1,7 @@
-import { Icon } from "@aigcfroge/ui/icon"
-import {
-  displayName,
-  getProjectAvatarVariant,
-  ProjectAvatar,
-  PROJECT_AVATAR_VARIANTS,
-} from "@aigcfroge/ui/project-avatar"
-import { Textarea } from "@aigcfroge/ui/textarea"
-import { TextInput } from "@aigcfroge/ui/text-input"
+import { Icon } from "@omnixa/ui/icon"
+import { displayName, getProjectAvatarVariant, ProjectAvatar, PROJECT_AVATAR_VARIANTS } from "@omnixa/ui/project-avatar"
+import { Textarea } from "@omnixa/ui/textarea"
+import { TextInput } from "@omnixa/ui/text-input"
 import { For, Show, type Component } from "solid-js"
 import { useLanguage } from "@/runtime/i18n/language"
 import type { LocalProject } from "@/shell/state/layout"

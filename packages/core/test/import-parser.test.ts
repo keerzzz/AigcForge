@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { Effect } from "effect"
 import { ImportParser } from "../src/import-parser"
-import type { ImportParser as SchemaImportParser } from "@aigcfroge/schema/import-parser"
+import type { ImportParser as SchemaImportParser } from "@omnixa/schema/import-parser"
 
 function runNow<A>(effect: Effect.Effect<A, unknown, unknown>): Promise<A> {
   // oxlint-disable-next-line typescript-eslint/no-unsafe-type-assertion

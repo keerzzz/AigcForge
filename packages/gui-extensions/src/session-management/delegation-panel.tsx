@@ -3,17 +3,17 @@ import {
   type DelegationLegacyState,
   type SessionTaskInfo,
   type SessionTaskOperationInfo,
-} from "@aigcfroge/client/promise"
-import { Button } from "@aigcfroge/ui/button"
-import { Badge } from "@aigcfroge/ui/badge"
-import { Collapsible } from "@aigcfroge/ui/collapsible"
-import { Checkbox } from "@aigcfroge/ui/checkbox"
-import { Dialog, DialogBody, DialogHeader, DialogTitleGroup } from "@aigcfroge/ui/dialog"
-import { Icon } from "@aigcfroge/ui/icon"
-import { IconButton } from "@aigcfroge/ui/icon-button"
-import { List } from "@aigcfroge/ui/list"
-import { Markdown } from "@aigcfroge/session-ui/markdown"
-import { errorMessage } from "@aigcfroge/util/error"
+} from "@omnixa/client/promise"
+import { Button } from "@omnixa/ui/button"
+import { Badge } from "@omnixa/ui/badge"
+import { Collapsible } from "@omnixa/ui/collapsible"
+import { Checkbox } from "@omnixa/ui/checkbox"
+import { Dialog, DialogBody, DialogHeader, DialogTitleGroup } from "@omnixa/ui/dialog"
+import { Icon } from "@omnixa/ui/icon"
+import { IconButton } from "@omnixa/ui/icon-button"
+import { List } from "@omnixa/ui/list"
+import { Markdown } from "@omnixa/session-ui/markdown"
+import { errorMessage } from "@omnixa/util/error"
 import { Match, Option, Schema } from "effect"
 import { For, Show, createMemo, onCleanup } from "solid-js"
 import {

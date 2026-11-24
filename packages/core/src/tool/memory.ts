@@ -1,7 +1,7 @@
 export * as MemoryTool from "./memory.js"
 
-import type { Context } from "@aigcfroge/plugin/effect/plugin"
-import { ToolFailure } from "@aigcfroge/ai"
+import type { Context } from "@omnixa/plugin/effect/plugin"
+import { ToolFailure } from "@omnixa/ai"
 import { Effect, Schema } from "effect"
 import { MetaAgentMemory } from "../agent/meta/memory.js"
 import { Location } from "../location.js"
@@ -88,7 +88,7 @@ function results(records: ReadonlyArray<MetaAgentMemory.MemoryRecord>, identify 
 }
 
 export const Plugin = {
-  id: "aigcfroge.tool.memory",
+  id: "omnixa.tool.memory",
   effect: Effect.fn("MemoryTool.Plugin")(function* (ctx: Context) {
     const memory = yield* MetaAgentMemory.Service
     const location = yield* Location.Service

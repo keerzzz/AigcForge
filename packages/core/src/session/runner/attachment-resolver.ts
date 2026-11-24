@@ -3,8 +3,8 @@ export * as AttachmentResolver from "./attachment-resolver"
 import path from "path"
 import { fileURLToPath } from "url"
 import { Effect, FileSystem } from "effect"
-import { SessionMessage } from "@aigcfroge/schema/v2/session-message"
-import type { FileAttachment } from "@aigcfroge/schema/v2/prompt"
+import { SessionMessage } from "@omnixa/schema/v2/session-message"
+import type { FileAttachment } from "@omnixa/schema/v2/prompt"
 
 /**
  * Resolves deferred attachment URIs into provider-lowerable data URIs, at the

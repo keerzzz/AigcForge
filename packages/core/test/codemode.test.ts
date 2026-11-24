@@ -1,10 +1,10 @@
 import { describe, expect } from "bun:test"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { Location } from "@aigcfroge/core/location"
-import { AbsolutePath } from "@aigcfroge/core/schema"
-import { Tool } from "@aigcfroge/core/tool"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { Location } from "@omnixa/core/location"
+import { AbsolutePath } from "@omnixa/core/schema"
+import { Tool } from "@omnixa/core/tool"
 import { Effect, Schema } from "effect"
-import type { Info } from "@aigcfroge/schema/tool"
+import type { Info } from "@omnixa/schema/tool"
 import { it } from "./lib/effect"
 
 const toolNode = AppNodeBuilder.build(Tool.node, [

@@ -1,6 +1,6 @@
 export * as CodeModeInstructions from "./instructions.js"
 
-import { searchSignature, toolExpression } from "@aigcfroge/codemode"
+import { searchSignature, toolExpression } from "@omnixa/codemode"
 import { Effect, Schema } from "effect"
 import { Instructions } from "../instructions/index.js"
 import { CodeModeCatalog } from "./catalog.js"

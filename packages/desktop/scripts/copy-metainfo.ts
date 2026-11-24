@@ -4,9 +4,9 @@ const arg = process.argv[2]
 
 const channel = arg === "dev" || arg === "beta" || arg === "prod" ? arg : resolveChannel()
 
-const appId = channel === "prod" ? "ai.aigcfroge.desktop" : `ai.aigcfroge.desktop.${channel}`
+const appId = channel === "prod" ? "ai.omnixa.desktop" : `ai.omnixa.desktop.${channel}`
 
-const productName = channel === "prod" ? "AigcForge" : `AigcForge ${channel.charAt(0).toUpperCase() + channel.slice(1)}`
+const productName = channel === "prod" ? "Omnixa" : `Omnixa ${channel.charAt(0).toUpperCase() + channel.slice(1)}`
 
 const summary = `Open source AI coding agent${channel !== "prod" ? ` (${channel})` : ""}`
 
@@ -20,13 +20,13 @@ const xml = `<?xml version="1.0" encoding="UTF-8"?>
   <name>${productName}</name>
   <summary>${summary}</summary>
 
-  <developer id="ly.anoma">
-    <name>Anomaly Innovations Inc.</name>
+  <developer id="ai.omnixa">
+    <name>Omnixa</name>
   </developer>
 
   <description>
     <p>
-      AigcForge is an open source agent that helps you write and run code with any AI model.
+      Omnixa is an open source agent workbench that helps you build and orchestrate with any AI model.
     </p>
   </description>
 
@@ -34,15 +34,9 @@ const xml = `<?xml version="1.0" encoding="UTF-8"?>
 
   <content_rating type="oars-1.1" />
 
-  <url type="bugtracker">https://github.com/anomalyco/aigcfroge/issues</url>
-  <url type="homepage">https://aigcfroge.ai</url>
-  <url type="vcs-browser">https://github.com/anomalyco/aigcfroge</url>
-
-  <screenshots>
-    <screenshot type="default">
-      <image>https://raw.githubusercontent.com/anomalyco/aigcfroge/b75d4d1c5ec449585d515c756fc81f080a157a9a/packages/web/src/assets/lander/screenshot.png</image>
-    </screenshot>
-  </screenshots>
+  <url type="bugtracker">https://github.com/keerzzz/AigcForge/issues</url>
+  <url type="homepage">https://github.com/keerzzz/AigcForge</url>
+  <url type="vcs-browser">https://github.com/keerzzz/AigcForge</url>
 </component>
 `
 

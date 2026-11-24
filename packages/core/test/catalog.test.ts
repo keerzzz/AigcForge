@@ -1,17 +1,17 @@
 import { describe, expect } from "bun:test"
-import { LanguageModel } from "@aigcfroge/ai"
-import { OpenAIChat } from "@aigcfroge/ai/protocols"
+import { LanguageModel } from "@omnixa/ai"
+import { OpenAIChat } from "@omnixa/ai/protocols"
 import { Effect, Fiber, Layer, Ref, Stream } from "effect"
-import { Integration } from "@aigcfroge/core/integration"
-import { Credential } from "@aigcfroge/core/credential"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { Bus } from "@aigcfroge/core/bus"
-import { Location } from "@aigcfroge/core/location"
-import { Model } from "@aigcfroge/core/model"
-import { ModelResolver } from "@aigcfroge/core/model-resolver"
-import { Provider } from "@aigcfroge/core/provider"
-import { AbsolutePath } from "@aigcfroge/core/schema"
+import { Integration } from "@omnixa/core/integration"
+import { Credential } from "@omnixa/core/credential"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { Bus } from "@omnixa/core/bus"
+import { Location } from "@omnixa/core/location"
+import { Model } from "@omnixa/core/model"
+import { ModelResolver } from "@omnixa/core/model-resolver"
+import { Provider } from "@omnixa/core/provider"
+import { AbsolutePath } from "@omnixa/core/schema"
 import { location } from "./fixture/location"
 import { testEffect } from "./lib/effect"
 
@@ -41,7 +41,7 @@ describe("Provider and Model", () => {
         yield* providers.transform((editor) => editor.update(providerID, () => {}))
         yield* models.transform((editor) =>
           editor.update(providerID, modelID, (model) => {
-            model.package = path === "aisdk" ? Provider.aisdk("@ai-sdk/fixture") : "@aigcfroge/ai/providers/openai"
+            model.package = path === "aisdk" ? Provider.aisdk("@ai-sdk/fixture") : "@omnixa/ai/providers/openai"
             model.settings = {
               apiKey: path === "empty-key" ? "" : "fixture-key",
               baseURL: "https://fixture.example/v1",
@@ -486,12 +486,12 @@ describe("Provider and Model", () => {
       })
 
       expect(required(yield* providers.get(providerID))).toMatchObject({
-        package: "@aigcfroge/ai/providers/amazon-bedrock",
+        package: "@omnixa/ai/providers/amazon-bedrock",
         settings: { region: "us-east-1" },
         body: { tag: "provider" },
       })
       const model = required(yield* models.get(providerID, modelID))
-      expect(model.package).toBe("@aigcfroge/ai/providers/amazon-bedrock")
+      expect(model.package).toBe("@omnixa/ai/providers/amazon-bedrock")
       expect(model.settings).not.toHaveProperty("reasoningConfig")
       expect(model.body).toMatchObject({
         additionalModelRequestFields: { thinking: { type: "adaptive" }, output_config: { effort: "high" } },

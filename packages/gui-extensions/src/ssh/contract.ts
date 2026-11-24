@@ -13,8 +13,6 @@ export const SshStage = Schema.Literals([
   "disconnected",
   "connecting",
   "checking",
-  "downloading",
-  "uploading",
   "starting",
   "ready",
   "authentication",
@@ -38,17 +36,7 @@ export const SshItem = Schema.Struct({
   authenticatingElsewhere: Schema.optional(Schema.Boolean),
   detail: Schema.String,
   error: Schema.optional(
-    Schema.Literals([
-      "connection",
-      "input",
-      "platform",
-      "version",
-      "install",
-      "service",
-      "host-key",
-      "ssh-missing",
-      "unpublished",
-    ]),
+    Schema.Literals(["connection", "input", "version", "service", "host-key", "ssh-missing", "unpublished"]),
   ),
 })
 

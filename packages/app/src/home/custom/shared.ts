@@ -1,4 +1,4 @@
-import type { CustomCompositionPlanOutput, ModelSelection } from "@aigcfroge/client/promise"
+import type { CustomCompositionPlanOutput, ModelSelection } from "@omnixa/client/promise"
 import type { HomeController } from "../model"
 import type { ServerConnection } from "@/runtime/server/registry"
 import type { useLanguage } from "@/runtime/i18n/language"

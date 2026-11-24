@@ -1,4 +1,4 @@
-import { PermissionV1 } from "@aigcfroge/schema/v1/permission"
+import { PermissionV1 } from "@omnixa/schema/v1/permission"
 import { Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/http-api"
 import { InvalidRequestError, PermissionNotFoundError } from "../errors.js"

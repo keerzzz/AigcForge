@@ -1,8 +1,8 @@
 import { describe, expect } from "bun:test"
 import { Duration, Effect, Fiber, Layer } from "effect"
 import * as TestClock from "effect/testing/TestClock"
-import { makeClaudeCodeSdkAdapter, type ClaudeSdk } from "@aigcfroge/core/tool/claude-code-sdk"
-import { makeCodexSdkAdapter, type CodexSdk } from "@aigcfroge/core/tool/codex-sdk"
+import { makeClaudeCodeSdkAdapter, type ClaudeSdk } from "@omnixa/core/tool/claude-code-sdk"
+import { makeCodexSdkAdapter, type CodexSdk } from "@omnixa/core/tool/codex-sdk"
 import { testEffect } from "./lib/effect"
 
 const it = testEffect(Layer.empty)

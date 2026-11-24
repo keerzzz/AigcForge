@@ -1,5 +1,5 @@
-import type { ExperimentalApi, GenerateApi, PluginApi } from "@aigcfroge/client/effect/api"
-import type { Location } from "@aigcfroge/schema/location"
+import type { ExperimentalApi, GenerateApi, PluginApi } from "@omnixa/client/effect/api"
+import type { Location } from "@omnixa/schema/location"
 import type { Effect, Scope } from "effect"
 import type { PluginOptions } from "../options.js"
 import type { App } from "../app.js"

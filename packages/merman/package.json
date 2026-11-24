@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "name": "@aigcfroge/merman",
+  "name": "@omnixa/merman",
   "version": "0.0.9",
   "private": true,
   "type": "module",
@@ -15,7 +15,7 @@
     "typecheck": "tsgo --noEmit"
   },
   "dependencies": {
-    "@aigcfroge/plugin": "workspace:*",
+    "@omnixa/plugin": "workspace:*",
     "@opentui/core": "catalog:",
     "entities": "7.0.1",
     "string-width": "catalog:"

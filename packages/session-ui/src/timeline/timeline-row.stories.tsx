@@ -4,9 +4,9 @@ import type {
   SessionMessageAssistantReasoning,
   SessionMessageAssistantTool,
   SessionMessageInfo,
-} from "@aigcfroge/client/promise"
-import type { SessionReference } from "@aigcfroge/schema/session-reference"
-import { Button } from "@aigcfroge/ui/button"
+} from "@omnixa/client/promise"
+import type { SessionReference } from "@omnixa/schema/session-reference"
+import { Button } from "@omnixa/ui/button"
 import { Show, createMemo, onMount } from "solid-js"
 import { createStore } from "solid-js/store"
 import type { SessionResponseActionInput } from "../actions"
@@ -35,7 +35,7 @@ import {
 } from "../storybook/current-session-fixtures"
 
 export default {
-  title: "AigcForge/Conversation/Message states",
+  title: "Omnixa/Conversation/Message states",
   id: "current-session-timeline-rows",
   component: SessionTimeline,
   parameters: {
@@ -623,7 +623,7 @@ const MovedLocation = {
           {
             id: "msg_story_location",
             type: "location-switched",
-            location: { directory: `/Users/usrnk1/Developer/aigcfroge/${"nested-directory/".repeat(24)}session` },
+            location: { directory: `/Users/usrnk1/Developer/omnixa/${"nested-directory/".repeat(24)}session` },
             time: { created: 1_735_689_633_000 },
           },
         ],
@@ -893,7 +893,7 @@ function CoordinationStory() {
   return (
     <CurrentSessionProviders document={document}>
       <DataProvider
-        directory="C:/workspaces/aigcfroge"
+        directory="C:/workspaces/omnixa"
         sessionID={document.sessionID}
         data={{
           session: [

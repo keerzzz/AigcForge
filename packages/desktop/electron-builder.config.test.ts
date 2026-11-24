@@ -11,21 +11,21 @@ import type { Configuration } from "electron-builder"
 const { FileMatcher } = createRequire(import.meta.resolve("electron-builder"))("app-builder-lib/out/fileMatcher")
 
 const channels = [
-  { channel: "dev", appId: "ai.aigcfroge.desktop.dev" },
-  { channel: "beta", appId: "ai.aigcfroge.desktop.beta" },
-  { channel: "prod", appId: "ai.aigcfroge.desktop" },
+  { channel: "dev", appId: "ai.omnixa.desktop.dev" },
+  { channel: "beta", appId: "ai.omnixa.desktop.beta" },
+  { channel: "prod", appId: "ai.omnixa.desktop" },
 ] as const
 
 async function load(channel: string) {
-  const previous = process.env.AIGCFROGE_CHANNEL
-  process.env.AIGCFROGE_CHANNEL = channel
+  const previous = process.env.OMNIXA_CHANNEL
+  process.env.OMNIXA_CHANNEL = channel
 
   try {
     return (await import(`./electron-builder.config.ts?${channel}`)).default as Configuration
   } finally {
-    delete process.env.AIGCFROGE_CHANNEL
+    delete process.env.OMNIXA_CHANNEL
 
-    if (previous !== undefined) process.env.AIGCFROGE_CHANNEL = previous
+    if (previous !== undefined) process.env.OMNIXA_CHANNEL = previous
   }
 }
 
@@ -58,9 +58,9 @@ test("shared packaging defaults", async () => {
   const include = path.join(import.meta.dirname, "resources/windows/installer.nsh")
   expect(config.nsis?.include).toBe(include)
   expect(await Bun.file(include).exists()).toBe(true)
-  expect(config.files).toContain("!resources/aigcfroge-cli*")
+  expect(config.files).toContain("!resources/omnixa-cli*")
   expect(config.extraResources).toEqual([
-    { from: "resources/", to: "", filter: ["aigcfroge-cli", "aigcfroge-cli.exe", "aigcfroge-cli.version"] },
+    { from: "resources/", to: "", filter: ["omnixa-cli", "omnixa-cli.exe", "omnixa-cli.version"] },
   ])
 })
 
@@ -121,7 +121,7 @@ test("trims external dependencies without excluding runtime files", async () => 
 
 test("the trimmed Zip.js package can still export compressed logs", async () => {
   const config = (await import("./electron-builder.config.ts")).default
-  const dir = await mkdtemp(path.join(os.tmpdir(), "aigcfroge-zip-package-"))
+  const dir = await mkdtemp(path.join(os.tmpdir(), "omnixa-zip-package-"))
   const source = path.dirname(fileURLToPath(import.meta.resolve("@zip.js/zip.js/package.json")))
   const filter = trimFilter(dir, config)
 

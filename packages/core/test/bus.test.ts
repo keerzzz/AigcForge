@@ -1,16 +1,16 @@
 import { describe, expect } from "bun:test"
 import { Cause, Deferred, Effect, Exit, Fiber, Layer, Ref, Schema, Stream } from "effect"
-import { Bus } from "@aigcfroge/core/bus"
-import { Event } from "@aigcfroge/schema/event"
-import { Session } from "@aigcfroge/schema/session"
-import { SessionEvent } from "@aigcfroge/schema/session-event"
-import { Database } from "@aigcfroge/core/database/database"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { EventSequenceTable, EventTable } from "@aigcfroge/core/event/sql"
-import { Location } from "@aigcfroge/core/location"
-import { AbsolutePath } from "@aigcfroge/core/schema"
-import { Workspace } from "@aigcfroge/core/workspace"
+import { Bus } from "@omnixa/core/bus"
+import { Event } from "@omnixa/schema/event"
+import { Session } from "@omnixa/schema/session"
+import { SessionEvent } from "@omnixa/schema/session-event"
+import { Database } from "@omnixa/core/database/database"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { EventSequenceTable, EventTable } from "@omnixa/core/event/sql"
+import { Location } from "@omnixa/core/location"
+import { AbsolutePath } from "@omnixa/core/schema"
+import { Workspace } from "@omnixa/core/workspace"
 import { eq } from "drizzle-orm"
 import { location } from "./fixture/location"
 import { testEffect } from "./lib/effect"
@@ -184,7 +184,7 @@ describe("Bus", () => {
       const event = yield* bus.publish(VersionedMessage, { id: "one", text: "hello" })
 
       expect(event.type).toBe("test.versioned")
-      expect(event.durable?.version).toBe(Event.Version.make(2))
+      expect<Event.Version | undefined>(event.durable?.version).toBe(Event.Version.make(2))
     }),
   )
 
@@ -876,7 +876,7 @@ describe("Bus", () => {
       yield* bus.publish(VersionedMessageV2, { id: aggregateID })
 
       expect(received).toHaveLength(1)
-      expect(received[0]?.durable.version).toBe(Event.Version.make(2))
+      expect<Event.Version | undefined>(received[0]?.durable.version).toBe(Event.Version.make(2))
     }),
   )
 

@@ -1,6 +1,6 @@
-import { Integration } from "@aigcfroge/schema/integration"
-import { Location } from "@aigcfroge/schema/location"
-import { Form } from "@aigcfroge/schema/form"
+import { Integration } from "@omnixa/schema/integration"
+import { Location } from "@omnixa/schema/location"
+import { Form } from "@omnixa/schema/form"
 import { Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "effect/http-api"
 import {

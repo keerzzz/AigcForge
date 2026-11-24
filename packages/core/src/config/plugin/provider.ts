@@ -1,9 +1,9 @@
 export * as ConfigProviderPlugin from "./provider.js"
 
-import { define } from "@aigcfroge/plugin/effect/plugin"
-import { Document, type Entry } from "@aigcfroge/schema/config"
-import { ConfigProvider } from "@aigcfroge/schema/config/provider"
-import { Money } from "@aigcfroge/schema/money"
+import { define } from "@omnixa/plugin/effect/plugin"
+import { Document, type Entry } from "@omnixa/schema/config"
+import { ConfigProvider } from "@omnixa/schema/config/provider"
+import { Money } from "@omnixa/schema/money"
 import { Effect, Option } from "effect"
 import { Config } from "../../config.js"
 import { Model } from "../../model.js"
@@ -19,7 +19,7 @@ type SourceDefinition = {
 }
 
 export const Plugin = define({
-  id: "aigcfroge.config.provider",
+  id: "omnixa.config.provider",
   effect: Effect.fn(function* (ctx) {
     const config = yield* Config.Service
     const catalog = yield* Model.Service

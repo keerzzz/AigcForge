@@ -9,10 +9,10 @@ import {
   Provider,
   Reference,
   Skill,
-} from "@aigcfroge/plugin/effect"
-import { Tool } from "@aigcfroge/schema/tool"
+} from "@omnixa/plugin/effect"
+import { Tool } from "@omnixa/schema/tool"
 
-const key = Symbol.for("aigcfroge.plugin.v2.effect")
+const key = Symbol.for("omnixa.plugin.v2.effect")
 ;(globalThis as typeof globalThis & { [key]?: unknown })[key] = {
   Agent,
   Command,

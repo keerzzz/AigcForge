@@ -1,11 +1,11 @@
 export * as Job from "./job.js"
 
 import { Array, Cause, Clock, Context, Deferred, Effect, Exit, Layer, Schema, Scope, SynchronizedRef } from "effect"
-import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
+import { makeGlobalNode } from "@omnixa/util/effect/app-node"
 import { KV } from "./kv.js"
 import { SessionMessage } from "./session/message.js"
 import { SessionSchema } from "./session/schema.js"
-import { DelegationID, ParticipantID } from "@aigcfroge/schema/delegation-id"
+import { DelegationID, ParticipantID } from "@omnixa/schema/delegation-id"
 
 const Background = Schema.Struct({
   id: Schema.String,
@@ -159,7 +159,7 @@ export interface Interface {
   readonly completeBackground: (notificationID: SessionMessage.ID) => Effect.Effect<void>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/Job") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/Job") {}
 
 function snapshot(job: Active): Info {
   return {

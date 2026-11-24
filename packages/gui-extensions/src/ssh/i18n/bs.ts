@@ -20,14 +20,8 @@ export default {
   "error.input":
     "Unesite host ili naredbu za SSH povezivanje. Udaljene naredbe i nepodržane SSH opcije nisu dozvoljene.",
   "error.connection": "Nije bilo moguće uspostaviti SSH vezu. Provjerite mrežu i SSH konfiguraciju.",
-  "error.platform":
-    "Ova udaljena platforma nije podržana. Automatsko postavljanje trenutno zahtijeva Linux ili macOS na arhitekturi x64 ili arm64.",
   "error.version": "Udaljena usluga mora odgovarati ovoj verziji Desktopa prije povezivanja.",
-  "error.install":
-    "Nije bilo moguće instalirati udaljeni server. Provjerite vezu, prostor na disku i je li tar instaliran.",
-  "error.unpublished":
-    "Ova verzija Desktopa nema objavljen udaljeni server. Za razvojne verzije instalirajte i pokrenite V2 na hostu, pa pokušajte ponovo.",
-  "error.service": "SSH je povezan, ali AigcForge server nije postao spreman.",
+  "error.service": "SSH je povezan, ali Omnixa server nije postao spreman.",
   "error.host-key":
     "Identitet hosta nije bilo moguće potvrditi. Provjerite njegov otisak prije ažuriranja poznatih SSH hostova.",
   "error.ssh-missing":

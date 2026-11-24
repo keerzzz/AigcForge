@@ -20,14 +20,8 @@ export default {
   "error.input":
     "Adjon meg egy gazdagép vagy SSH kapcsolódási parancsot. A távoli parancsok és a nem támogatott SSH opciók nem engedélyezettek.",
   "error.connection": "Nem sikerült létrehozni a SSH kapcsolatot. Ellenőrizze a hálózatot és a SSH konfigurációt.",
-  "error.platform":
-    "Ez a távoli platform nem támogatott. Az automatikus beállításhoz jelenleg Linux vagy macOS szükséges x64-en vagy arm64-en.",
   "error.version": "A távoli szolgáltatásnak meg kell egyeznie ezzel az asztali verzióval a csatlakozás előtt.",
-  "error.install":
-    "Nem sikerült telepíteni a távoli kiszolgálót. Ellenőrizze a csatlakozást, a lemezterületet és a tar telepítését.",
-  "error.unpublished":
-    "Ennek az asztali verziónak nincs közzétett távoli kiszolgálója. Fejlesztési összeállításokhoz telepítse és indítsa el a V2-t a gazdagépen, majd próbálkozzon újra.",
-  "error.service": "A SSH csatlakozott, de a AigcForge szerver nem vált készenlétben.",
+  "error.service": "A SSH csatlakozott, de a Omnixa szerver nem vált készenlétben.",
   "error.host-key":
     "A házigazda személyazonosságát nem sikerült ellenőrizni. A SSH ismert gazdagépeinek frissítése előtt ellenőrizze az ujjlenyomatát.",
   "error.ssh-missing":

@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page, type Request } from "@playwright/test"
-import type { AigcForgeEvent, SessionMessageInfo, WorktreeDirectory } from "@aigcfroge/client/promise"
+import type { OmnixaEvent, SessionMessageInfo, WorktreeDirectory } from "@omnixa/client/promise"
 import { Schema } from "effect"
 import {
   REMOTE_SERVER,
@@ -18,9 +18,9 @@ import { expectSessionTitle } from "../utils/waits"
 import { openDraft, openSession, openWorktreeDraft, type WorkspaceInput } from "../utils/workspace"
 import { attachSession } from "../utils/side-panel"
 
-const directory = "C:/AigcForge/WorkspacePending"
+const directory = "C:/Omnixa/WorkspacePending"
 
-const workspace = "C:/AigcForge/pending-workspace"
+const workspace = "C:/Omnixa/pending-workspace"
 
 const projectID = "proj_workspace_pending"
 
@@ -44,7 +44,7 @@ const mode = (page: Page) =>
 const tabLink = (page: Page, sessionID: string) =>
   page.locator(`[data-titlebar-tab-link][href="${sessionHref(sessionID)}"]`)
 
-// A draft on the local project (C:/AigcForge/WorkspacePending) beside one other session tab.
+// A draft on the local project (C:/Omnixa/WorkspacePending) beside one other session tab.
 const pendingDraft = {
   name: "WorkspacePending",
   draftID,
@@ -63,9 +63,9 @@ const failFirstCreate = (
 test("SC05 response Fork captures main and cross-server side targets without prompting", async ({ page }, testInfo) => {
   const id = "ses_response_fork_same_id"
   const metaChildID = "ses_response_fork_meta_child"
-  const localDirectory = "C:/AigcForge/ResponseFork"
+  const localDirectory = "C:/Omnixa/ResponseFork"
   const remoteDirectory = "/remote/response-fork"
-  const model = { id: "response-fork-model", providerID: "aigcfroge" }
+  const model = { id: "response-fork-model", providerID: "omnixa" }
 
   const localSessions = [
     session({ id, directory: localDirectory, title: "Local response source", mode: "coding", agent: "build", model }),
@@ -325,7 +325,7 @@ test("managed fork previews the legacy source without a saved delegation prefere
         title: "Legacy fork source",
         mode: "coding",
         agent: "build",
-        model: { id: "fork-model", providerID: "aigcfroge", variant: "default" },
+        model: { id: "fork-model", providerID: "omnixa", variant: "default" },
       },
     ],
     pageMessages: () => ({
@@ -358,7 +358,7 @@ test("managed fork previews the legacy source without a saved delegation prefere
     id: "ses_managed_fork",
     mode: "coding",
     agent: "build",
-    model: { id: "fork-model", providerID: "aigcfroge", variant: "default" },
+    model: { id: "fork-model", providerID: "omnixa", variant: "default" },
     location: { directory: view.directory },
   })
   expect(source.controller).toBeUndefined()
@@ -367,7 +367,7 @@ test("managed fork previews the legacy source without a saved delegation prefere
   const managed = dialog.getByRole("checkbox", { name: "Use Meta orchestration" })
   await expect(managed).not.toBeChecked()
   await managed.check()
-  await expect(dialog.getByText("aigcfroge / fork-model / default", { exact: true })).toHaveCount(1)
+  await expect(dialog.getByText("omnixa / fork-model / default", { exact: true })).toHaveCount(1)
   await expect(dialog.getByText("Use the default delegated Agent", { exact: true })).toBeVisible()
   await expect(dialog.getByText("Use the initial model configuration", { exact: true })).toBeVisible()
 
@@ -384,7 +384,7 @@ test("managed fork previews the legacy source without a saved delegation prefere
   expect(acknowledged.request().postDataJSON()).toEqual({
     before: "msg_managed_fork",
     control: "meta",
-    model: { id: "fork-model", providerID: "aigcfroge", variant: "default" },
+    model: { id: "fork-model", providerID: "omnixa", variant: "default" },
     expectedSource: {
       sourceSessionID: source.id,
       mode: source.mode,
@@ -397,7 +397,7 @@ test("managed fork previews the legacy source without a saved delegation prefere
     .toMatchObject({
       agent: "meta",
       controller: { kind: "root" },
-      model: { id: "fork-model", providerID: "aigcfroge", variant: "default" },
+      model: { id: "fork-model", providerID: "omnixa", variant: "default" },
     })
   const forked = view.sessions.find((session) => session.id !== "ses_managed_fork")!
   await expectPath(page, sessionHref(forked.id))
@@ -441,7 +441,7 @@ for (const agent of ["build", "plan"]) {
           title: "Ordinary " + agent + " source",
           mode: "coding",
           agent,
-          model: { id: "fork-model", providerID: "aigcfroge", variant: "default" },
+          model: { id: "fork-model", providerID: "omnixa", variant: "default" },
         },
       ],
       pageMessages: () => ({
@@ -477,7 +477,7 @@ for (const agent of ["build", "plan"]) {
       id: view.session.id,
       mode: "coding",
       agent,
-      model: { id: "fork-model", providerID: "aigcfroge", variant: "default" },
+      model: { id: "fork-model", providerID: "omnixa", variant: "default" },
       location: { directory: view.directory },
     })
     expect(source.controller).toBeUndefined()
@@ -487,7 +487,7 @@ for (const agent of ["build", "plan"]) {
     await expect(managed).not.toBeChecked()
     await expect(managed).toBeEnabled()
     await expect(dialog.getByText("Session model", { exact: true })).toBeVisible()
-    await expect(dialog.getByText("aigcfroge / fork-model / default", { exact: true })).toHaveCount(1)
+    await expect(dialog.getByText("omnixa / fork-model / default", { exact: true })).toHaveCount(1)
     await expect(dialog.getByText("Delegated Agent", { exact: true })).toHaveCount(0)
     await expect(dialog.getByText("Delegated model", { exact: true })).toHaveCount(0)
     await expect(dialog.getByText("Use the default delegated Agent", { exact: true })).toHaveCount(0)
@@ -573,7 +573,7 @@ for (const agent of ["meta", "build", "plan"]) {
             title: "Meta fork setup",
             mode: "coding",
             agent: "build",
-            model: { id: "session-model", providerID: "aigcfroge" },
+            model: { id: "session-model", providerID: "omnixa" },
           },
         ],
         pageMessages: (id) => ({
@@ -598,7 +598,7 @@ for (const agent of ["meta", "build", "plan"]) {
               location: { directory },
               mode: "coding",
               agent: "meta",
-              model: { id: "session-model", providerID: "aigcfroge" },
+              model: { id: "session-model", providerID: "omnixa" },
             }),
           })
 
@@ -607,7 +607,7 @@ for (const agent of ["meta", "build", "plan"]) {
           const selected = await fetch(server + "/api/session/ses_saved_meta_fork/executor", {
             method: "POST",
             headers: { "content-type": "application/json" },
-            body: JSON.stringify({ agent: "build", model: { id: "executor-model", providerID: "aigcfroge" } }),
+            body: JSON.stringify({ agent: "build", model: { id: "executor-model", providerID: "omnixa" } }),
           })
 
           if (selected.status !== 200) throw new Error("Meta executor selection failed")
@@ -643,7 +643,7 @@ for (const agent of ["meta", "build", "plan"]) {
         id: "ses_saved_meta_fork",
         mode: "coding",
         agent,
-        model: { id: "session-model", providerID: "aigcfroge" },
+        model: { id: "session-model", providerID: "omnixa" },
         location: { directory: view.directory },
       })
       expect(controller).toEqual({
@@ -653,7 +653,7 @@ for (const agent of ["meta", "build", "plan"]) {
       })
       expect(retained.executorPreference).toEqual({
         agent: "build",
-        model: { id: "executor-model", providerID: "aigcfroge" },
+        model: { id: "executor-model", providerID: "omnixa" },
       })
       await page.goto(sessionHref("ses_saved_meta_fork"))
       await expectSessionTitle(page, "Saved Meta fork source")
@@ -701,20 +701,20 @@ for (const agent of ["meta", "build", "plan"]) {
         await expect(managed).toBeEnabled()
         await expect(dialog.getByText("Delegated Agent", { exact: true })).toHaveCount(0)
         await expect(dialog.getByText("Delegated model", { exact: true })).toHaveCount(0)
-        await expect(dialog.getByText("aigcfroge / executor-model / Implicit variant", { exact: true })).toHaveCount(0)
+        await expect(dialog.getByText("omnixa / executor-model / Implicit variant", { exact: true })).toHaveCount(0)
 
         if (useMeta) await managed.check()
       }
 
       await expect(dialog.getByText("Session model", { exact: true })).toBeVisible()
-      await expect(dialog.getByText("aigcfroge / session-model / Implicit variant", { exact: true })).toHaveCount(1)
+      await expect(dialog.getByText("omnixa / session-model / Implicit variant", { exact: true })).toHaveCount(1)
 
       if (useMeta) {
         await expect(managed).toBeChecked()
         await expect(dialog.getByText("Delegated Agent", { exact: true })).toBeVisible()
         await expect(dialog.getByText("build", { exact: true })).toBeVisible()
         await expect(dialog.getByText("Delegated model", { exact: true })).toBeVisible()
-        await expect(dialog.getByText("aigcfroge / executor-model / Implicit variant", { exact: true })).toHaveCount(1)
+        await expect(dialog.getByText("omnixa / executor-model / Implicit variant", { exact: true })).toHaveCount(1)
       }
 
       if (!useMeta) {
@@ -856,7 +856,7 @@ test("managed fork rejects a changed source and requires another preview", async
         title: "Fork source conflict",
         mode: "coding",
         agent: "build",
-        model: { providerID: "aigcfroge", id: "fork-model" },
+        model: { providerID: "omnixa", id: "fork-model" },
       },
     ],
     pageMessages: () => ({
@@ -886,7 +886,7 @@ test("managed fork rejects a changed source and requires another preview", async
 
   await dialog.getByRole("button", { name: "Confirm fork", exact: true }).click()
   await arrived.promise
-  Object.assign(view.session, { model: { id: "fork-model", variant: "default", providerID: "aigcfroge" } })
+  Object.assign(view.session, { model: { id: "fork-model", variant: "default", providerID: "omnixa" } })
   gate.resolve()
   const rejected = await response
   expect(rejected.status()).toBe(400)
@@ -903,7 +903,7 @@ test("managed fork rejects a changed source and requires another preview", async
   await dialog.getByRole("button", { name: /Preview this source/ }).click()
   await expect(managed).not.toBeChecked()
   await managed.check()
-  await expect(dialog.getByText("aigcfroge / fork-model / default", { exact: true })).toHaveCount(1)
+  await expect(dialog.getByText("omnixa / fork-model / default", { exact: true })).toHaveCount(1)
   await expect(dialog.getByText("Use the default delegated Agent", { exact: true })).toBeVisible()
   await expect(dialog.getByText("Use the initial model configuration", { exact: true })).toBeVisible()
 })
@@ -924,14 +924,14 @@ for (const result of ["success", "failure"] as const) {
           title: "Old fork owner",
           mode: "coding",
           agent: "build",
-          model: { id: "fork-model", providerID: "aigcfroge" },
+          model: { id: "fork-model", providerID: "omnixa" },
         },
         {
           id: "ses_fork_current",
           title: "Current fork owner",
           mode: "coding",
           agent: "build",
-          model: { id: "fork-model", providerID: "aigcfroge" },
+          model: { id: "fork-model", providerID: "omnixa" },
         },
       ],
       pageMessages: (id) => ({
@@ -993,7 +993,7 @@ test.use({
 })
 
 test("the new session screen does not show session details", async ({ page }, testInfo) => {
-  const root = "C:/AigcForge/Summary"
+  const root = "C:/Omnixa/Summary"
 
   const prompt = "Keep this draft while inspecting project, worktree, and branch controls."
 
@@ -1128,7 +1128,7 @@ for (const row of [
           title: "Source mode session",
           mode: row.mode,
           agent: "plan",
-          model: { id: "source-model", providerID: "aigcfroge" },
+          model: { id: "source-model", providerID: "omnixa" },
         },
       ],
       onSessionCreate: (body) => {
@@ -1159,7 +1159,7 @@ for (const row of [
           id: expect.any(String),
           mode: row.mode,
           agent: "build",
-          model: expect.objectContaining({ id: "source-model", providerID: "aigcfroge" }),
+          model: expect.objectContaining({ id: "source-model", providerID: "omnixa" }),
         }),
       ])
     const created = creates[0]
@@ -1221,7 +1221,7 @@ for (const row of [
           id: expect.any(String),
           mode: row.mode,
           agent: "build",
-          model: expect.objectContaining({ id: "mode-model", providerID: "aigcfroge" }),
+          model: expect.objectContaining({ id: "mode-model", providerID: "omnixa" }),
         }),
       ])
     const createdRequest = creates[0]
@@ -1249,7 +1249,7 @@ for (const row of [
       id: createdRequest.id,
       agent: "build",
       mode: row.mode,
-      model: { id: "mode-model", providerID: "aigcfroge" },
+      model: { id: "mode-model", providerID: "omnixa" },
     })
     expect(readback.data.controller).toBeUndefined()
     expect(readback.data.executorPreference).toBeUndefined()
@@ -1274,7 +1274,7 @@ for (const row of [
       ...pendingDraft,
       seed: {
         storage: {
-          "aigcfroge.window.browser.dat:tabs": [
+          "omnixa.window.browser.dat:tabs": [
             { type: "draft", draftID, directory, server: SERVER, mode: row.mode },
             { type: "session", server: SERVER, sessionId: otherID },
           ],
@@ -1343,7 +1343,7 @@ for (const row of [
 test("captures the submitted mode before MCP preparation while the draft selector remains editable", async ({
   page,
 }) => {
-  const directory = "C:/AigcForge/ModeCapture"
+  const directory = "C:/Omnixa/ModeCapture"
   const draftID = "draft_mode_capture"
   const creates: Parameters<NonNullable<WorkspaceInput["onSessionCreate"]>>[0][] = []
   const apiWrites = recordApiMutations(page)
@@ -1356,7 +1356,7 @@ test("captures the submitted mode before MCP preparation while the draft selecto
     mcp: [{ name: "mode-mcp", status: { status: "connected" } }],
     seed: {
       storage: {
-        "aigcfroge.window.browser.dat:tabs": [
+        "omnixa.window.browser.dat:tabs": [
           {
             type: "draft",
             draftID,
@@ -1436,7 +1436,7 @@ test("a new Session stops an old model selection response after SSH sign-in and 
       directory,
       title: "SSH owner source",
       agent: "build",
-      model: { id: "owner-model", providerID: "aigcfroge" },
+      model: { id: "owner-model", providerID: "omnixa" },
     }),
   ]
 
@@ -1496,7 +1496,7 @@ test("a new Session stops an old model selection response after SSH sign-in and 
           id: expect.any(String),
           location: { directory },
           agent: "build",
-          model: expect.objectContaining({ id: "owner-model", providerID: "aigcfroge" }),
+          model: expect.objectContaining({ id: "owner-model", providerID: "omnixa" }),
         }),
       ])
     const createdRequest = creates[0]
@@ -1506,7 +1506,7 @@ test("a new Session stops an old model selection response after SSH sign-in and 
     expect(createdRequest.executorPreference).toBeUndefined()
     const sessionID = String(createdRequest.id)
     expect(new URL(attempted.url()).pathname).toBe("/api/session/" + sessionID + "/model")
-    expect(await attempted.headerValue("authorization")).toBe("Basic " + btoa("aigcfroge:ssh-1"))
+    expect(await attempted.headerValue("authorization")).toBe("Basic " + btoa("omnixa:ssh-1"))
     await expectSessionTitle(page, "SSH owner submission")
     await expect(activeLink).toHaveAttribute("href", sessionHref(sessionID, server))
 
@@ -1526,7 +1526,7 @@ test("a new Session stops an old model selection response after SSH sign-in and 
     expect(readback.data).toMatchObject({
       id: sessionID,
       agent: "build",
-      model: { id: "owner-model", providerID: "aigcfroge" },
+      model: { id: "owner-model", providerID: "omnixa" },
       location: { directory },
     })
     expect(readback.data.controller).toBeUndefined()
@@ -1563,7 +1563,7 @@ test("a new Session stops an old model selection response after SSH sign-in and 
     )
 
     await editor(page).press("Enter")
-    expect(await (await retried).headerValue("authorization")).toBe("Basic " + btoa("aigcfroge:ssh-2"))
+    expect(await (await retried).headerValue("authorization")).toBe("Basic " + btoa("omnixa:ssh-2"))
     await expect
       .poll(() => prompts)
       .toEqual([
@@ -1573,7 +1573,7 @@ test("a new Session stops an old model selection response after SSH sign-in and 
             text: nextText,
             metadata: expect.objectContaining({
               agent: "build",
-              model: expect.objectContaining({ modelID: "owner-model", providerID: "aigcfroge" }),
+              model: expect.objectContaining({ modelID: "owner-model", providerID: "omnixa" }),
             }),
           }),
         },
@@ -1600,7 +1600,7 @@ test("a new Session stops an old model selection response after SSH sign-in and 
     expect(currentReadback.data).toMatchObject({
       id: sessionID,
       agent: "build",
-      model: { id: "owner-model", providerID: "aigcfroge" },
+      model: { id: "owner-model", providerID: "omnixa" },
       location: { directory },
     })
     expect(currentReadback.data.controller).toBeUndefined()
@@ -1938,7 +1938,7 @@ test("executes a selected slash command after creating its worktree", async ({ p
         inboxID: "msg_workspace_review",
         item: { type: "user", payload: { text: expanded }, delivery: "steer" },
       },
-    } satisfies AigcForgeEvent,
+    } satisfies OmnixaEvent,
   ])
   await expect(pending.shimmer).toHaveCount(0)
   await expect(page.locator('[data-slot="user-message-text"]')).toHaveText(expanded)
@@ -1948,7 +1948,7 @@ test("executes a selected slash command after creating its worktree", async ({ p
   expect(mock.prompts).toEqual([])
 })
 
-const accentRoot = "C:/AigcForge/WorkspaceAccent"
+const accentRoot = "C:/Omnixa/WorkspaceAccent"
 
 const accentWorkspace = `${accentRoot}/.worktrees/feature`
 
@@ -1956,7 +1956,7 @@ for (const row of [
   { name: "a managed worktree", directory: accentWorkspace, accent: true },
   {
     name: "the main root written with Windows case and separators",
-    directory: "c:\\AIGCFROGE\\workspaceaccent\\",
+    directory: "c:\\OMNIXA\\workspaceaccent\\",
     accent: false,
   },
 ]) {
@@ -1980,7 +1980,7 @@ for (const row of [
         {
           id: "ses_workspace_accent",
           title: "Workspace accent",
-          model: { id: "accent-model", providerID: "aigcfroge" },
+          model: { id: "accent-model", providerID: "omnixa" },
         },
       ],
       pageMessages: () => ({
@@ -2024,7 +2024,7 @@ for (const row of [
         type: "worktree.updated",
         data: { projectID: "proj_workspaceaccent" },
       },
-    ] satisfies AigcForgeEvent[])
+    ] satisfies OmnixaEvent[])
     expect((await refreshed).ok()).toBe(true)
     await expect(page).toHaveURL(url)
     await expect(view.editor).toHaveText("Inspect this fixture workspace.")
@@ -2037,7 +2037,7 @@ for (const row of [
         durable: { aggregateID: "ses_workspace_accent", seq: 1, version: 1 },
         data: { sessionID: "ses_workspace_accent" },
       },
-    ] satisfies AigcForgeEvent[])
+    ] satisfies OmnixaEvent[])
     await view.editor.fill("")
     const stop = composer.getByRole("button", { name: "Stop", exact: true })
     await expect(stop).toBeEnabled()
@@ -2075,7 +2075,7 @@ function renamed(sessionID: string) {
     location: { directory: workspace },
     durable: { aggregateID: sessionID, seq: 1, version: 1 },
     data: { sessionID, title: "Generated session title" },
-  } satisfies AigcForgeEvent
+  } satisfies OmnixaEvent
 }
 
 async function draftFollowUp(page: Page) {

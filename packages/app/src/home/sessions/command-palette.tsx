@@ -1,10 +1,10 @@
-import { useDialog } from "@aigcfroge/ui/context/dialog"
+import { useDialog } from "@omnixa/ui/context/dialog"
 import { createMemo, onCleanup } from "solid-js"
 import { commandPaletteOptions, useCommand } from "@/shell/commands/command"
 import { useGlobal } from "@/runtime/server/runtime"
 import { useLanguage } from "@/runtime/i18n/language"
 import { ServerConnection } from "@/runtime/server/registry"
-import { ProductMode } from "@aigcfroge/schema/product-mode"
+import { ProductMode } from "@omnixa/schema/product-mode"
 import { matchesHomeSessionMode } from "./index"
 import {
   createCommandPaletteCommandEntry,

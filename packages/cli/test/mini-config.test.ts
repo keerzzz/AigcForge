@@ -1,12 +1,12 @@
 import { NodeFileSystem } from "@effect/platform-node"
-import { Global } from "@aigcfroge/util/global"
+import { Global } from "@omnixa/util/global"
 import { Effect, Option } from "effect"
 import { expect, mock, test } from "bun:test"
 import { mkdir, rm } from "node:fs/promises"
 import path from "node:path"
 import { Config } from "../src/config"
 import type { MiniCommandInput } from "../src/mini"
-import { AIGCFROGE_VERSION } from "../src/version"
+import { OMNIXA_VERSION } from "../src/version"
 
 test("mini handler passes resolved CLI keybinds to the runtime", async () => {
   const root = await Bun.$`mktemp -d`.text().then((value) => value.trim())
@@ -33,7 +33,7 @@ test("mini handler passes resolved CLI keybinds to the runtime", async () => {
   const handler = (await import("../src/commands/handlers/mini")).default
   const server = Bun.serve({
     port: 0,
-    fetch: () => Response.json({ version: AIGCFROGE_VERSION, pid: process.pid, urls: [] }),
+    fetch: () => Response.json({ version: OMNIXA_VERSION, pid: process.pid, urls: [] }),
   })
 
   try {

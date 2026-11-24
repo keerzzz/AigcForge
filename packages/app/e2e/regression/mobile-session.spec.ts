@@ -256,7 +256,7 @@ test("the summary's changes row switches the view and keeps the side tabs", asyn
   })
   await openStress(page, {
     lastProject: { local: fixture.directory },
-    storage: { "aigcfroge.global.dat:extension.file.preview": { enabled: true } },
+    storage: { "omnixa.global.dat:extension.file.preview": { enabled: true } },
   })
   await page.goto(sessionHref(fixture.targetID))
 

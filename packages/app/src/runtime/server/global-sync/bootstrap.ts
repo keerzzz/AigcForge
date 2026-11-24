@@ -1,8 +1,8 @@
 import type { Config, Path, Project, ProviderAuthResponse } from "@/runtime/server/types"
-import type { LocationGetInput, LocationGetOutput, ProjectListOutput } from "@aigcfroge/client/promise"
+import type { LocationGetInput, LocationGetOutput, ProjectListOutput } from "@omnixa/client/promise"
 import { showToast } from "@/shell/notifications/toast"
-import { getFilename } from "@aigcfroge/util/path"
-import { retry } from "@aigcfroge/util/retry"
+import { getFilename } from "@omnixa/util/path"
+import { retry } from "@omnixa/util/retry"
 import { reconcile, type SetStoreFunction, type Store } from "solid-js/store"
 import type { State } from "./types"
 import { cmp, normalizeProjectInfo } from "./utils"
@@ -72,7 +72,7 @@ export const loadProjectsQuery = (scope: ServerScope, projects: ProjectApi) =>
           items
             .filter((project) => !!project?.id)
             .map(normalizeProjectInfo)
-            .filter((p) => !!p.worktree && !p.worktree.includes("aigcfroge-test"))
+            .filter((p) => !!p.worktree && !p.worktree.includes("omnixa-test"))
             .sort((a, b) => cmp(a.id, b.id)),
         ),
       ),

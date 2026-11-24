@@ -1,7 +1,7 @@
 import { describe, expect } from "bun:test"
 import { Effect } from "effect"
-import { KV } from "@aigcfroge/core/kv"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { KV } from "@omnixa/core/kv"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
 import { testEffect } from "./lib/effect"
 
 const it = testEffect(LayerNode.compile(KV.node))

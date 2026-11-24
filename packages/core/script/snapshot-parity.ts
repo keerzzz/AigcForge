@@ -15,9 +15,9 @@ import { AppNodeBuilder } from "../src/effect/app-node-builder"
 import { Location } from "../src/location"
 import { AbsolutePath, RelativePath } from "../src/schema"
 import { Snapshot } from "../src/snapshot"
-import { Global } from "@aigcfroge/util/global"
+import { Global } from "@omnixa/util/global"
 
-const root = path.join(process.env.SNAPSHOT_BENCH_ROOT ?? os.tmpdir(), "aigcfroge-snapshot-parity")
+const root = path.join(process.env.SNAPSHOT_BENCH_ROOT ?? os.tmpdir(), "omnixa-snapshot-parity")
 
 // User-level Git configuration reaches every snapshot command, so the corpus runs under several.
 const variants: Record<string, string | undefined> = {
@@ -49,9 +49,9 @@ const env = {
   ...process.env,
   GIT_ALLOW_PROTOCOL: "file",
   GIT_AUTHOR_NAME: "Parity",
-  GIT_AUTHOR_EMAIL: "parity@aigcfroge.test",
+  GIT_AUTHOR_EMAIL: "parity@omnixa.test",
   GIT_COMMITTER_NAME: "Parity",
-  GIT_COMMITTER_EMAIL: "parity@aigcfroge.test",
+  GIT_COMMITTER_EMAIL: "parity@omnixa.test",
   GIT_AUTHOR_DATE: "2026-01-01T00:00:00Z",
   GIT_COMMITTER_DATE: "2026-01-01T00:00:00Z",
 }

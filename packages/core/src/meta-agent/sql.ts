@@ -1,9 +1,9 @@
 import { sqliteTable, text, integer, primaryKey, index, uniqueIndex } from "drizzle-orm/sqlite-core"
 import { SessionTable } from "../session/sql"
 import { Timestamps } from "../database/schema.sql"
-import type { MetaAgent } from "@aigcfroge/schema"
-import type { Model } from "@aigcfroge/schema/model"
-import type { ModelGroup } from "@aigcfroge/schema/model-group"
+import type { MetaAgent } from "@omnixa/schema"
+import type { Model } from "@omnixa/schema/model"
+import type { ModelGroup } from "@omnixa/schema/model-group"
 
 export const MetaAgentTable = sqliteTable("meta_agent", {
   id: text().$type<MetaAgent.ID>().primaryKey(),

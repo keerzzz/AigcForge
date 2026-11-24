@@ -1,8 +1,8 @@
 import { Context, Effect, Layer } from "effect"
-import { Info, Ref, response } from "@aigcfroge/schema/location"
+import { Info, Ref, response } from "@omnixa/schema/location"
 import { Project } from "./project.js"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { makeLocationNode, tags } from "@aigcfroge/util/effect/app-node"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { makeLocationNode, tags } from "@omnixa/util/effect/app-node"
 
 export * as Location from "./location.js"
 
@@ -12,7 +12,7 @@ export interface Interface extends Info {
   readonly vcs?: Project.Vcs
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/Location") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/Location") {}
 
 export const node = LayerNode.unbound(Service, tags.values.location)
 

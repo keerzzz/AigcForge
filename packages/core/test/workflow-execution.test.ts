@@ -1,52 +1,52 @@
 import path from "node:path"
 import { describe, expect, test } from "bun:test"
 import { eq, sql } from "drizzle-orm"
-import { LLMClient, LLMRequest } from "@aigcfroge/ai"
-import { TestLLM } from "@aigcfroge/ai/testing"
-import { Agent } from "@aigcfroge/core/agent"
-import { Bus } from "@aigcfroge/core/bus"
-import { Config } from "@aigcfroge/core/config"
-import { CredentialScanner } from "@aigcfroge/core/credential-scanner"
-import { Database } from "@aigcfroge/core/database/database"
-import { DelegationExecution } from "@aigcfroge/core/delegation/execution"
-import { DelegationService } from "@aigcfroge/core/delegation/service"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { LayerNodePlatform } from "@aigcfroge/core/effect/app-node-platform"
-import { Job } from "@aigcfroge/core/job"
-import { KV } from "@aigcfroge/core/kv"
-import { Location } from "@aigcfroge/core/location"
-import { LocationServiceMap } from "@aigcfroge/core/location-service-map"
-import { Model } from "@aigcfroge/core/model"
-import { Permission } from "@aigcfroge/core/permission"
-import { PermissionSaved } from "@aigcfroge/core/permission/saved"
-import { PluginHooks } from "@aigcfroge/core/plugin/hooks"
-import { ScopedGrantStore } from "@aigcfroge/core/grant/store"
-import { Provider } from "@aigcfroge/core/provider"
-import { Session } from "@aigcfroge/core/session"
-import { SessionSchema } from "@aigcfroge/core/session/schema"
-import { SessionComposition } from "@aigcfroge/core/session/composition"
-import { SessionContext } from "@aigcfroge/core/session/context"
-import { SessionInbox } from "@aigcfroge/core/session/inbox"
-import { SessionInputResult } from "@aigcfroge/core/session/input-result"
-import { SessionExecution } from "@aigcfroge/core/session/execution"
-import { SessionRestart } from "@aigcfroge/core/session/execution/restart"
-import { SessionEvent } from "@aigcfroge/core/session/event"
-import { SessionMessage } from "@aigcfroge/core/session/message"
-import { SessionModelTransport } from "@aigcfroge/core/session/model-transport"
-import { SessionTable } from "@aigcfroge/core/session/sql"
-import { SessionStore } from "@aigcfroge/core/session/store"
-import { SessionTask } from "@aigcfroge/core/session/task"
-import { Tool } from "@aigcfroge/core/tool"
-import { WorkflowExecution } from "@aigcfroge/core/workflow/execution"
-import { MetaAgentService } from "@aigcfroge/core/meta-agent/service"
-import { WorkflowRun } from "@aigcfroge/core/workflow/workflow-run"
-import { AssetYaml } from "@aigcfroge/core/util/asset-yaml"
-import { Composition } from "@aigcfroge/schema/composition"
-import { AbsolutePath } from "@aigcfroge/schema/schema"
-import { WorkflowAsset } from "@aigcfroge/schema/workflow-asset"
-import { Hash } from "@aigcfroge/util/hash"
-import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { LLMClient, LLMRequest } from "@omnixa/ai"
+import { TestLLM } from "@omnixa/ai/testing"
+import { Agent } from "@omnixa/core/agent"
+import { Bus } from "@omnixa/core/bus"
+import { Config } from "@omnixa/core/config"
+import { CredentialScanner } from "@omnixa/core/credential-scanner"
+import { Database } from "@omnixa/core/database/database"
+import { DelegationExecution } from "@omnixa/core/delegation/execution"
+import { DelegationService } from "@omnixa/core/delegation/service"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { LayerNodePlatform } from "@omnixa/core/effect/app-node-platform"
+import { Job } from "@omnixa/core/job"
+import { KV } from "@omnixa/core/kv"
+import { Location } from "@omnixa/core/location"
+import { LocationServiceMap } from "@omnixa/core/location-service-map"
+import { Model } from "@omnixa/core/model"
+import { Permission } from "@omnixa/core/permission"
+import { PermissionSaved } from "@omnixa/core/permission/saved"
+import { PluginHooks } from "@omnixa/core/plugin/hooks"
+import { ScopedGrantStore } from "@omnixa/core/grant/store"
+import { Provider } from "@omnixa/core/provider"
+import { Session } from "@omnixa/core/session"
+import { SessionSchema } from "@omnixa/core/session/schema"
+import { SessionComposition } from "@omnixa/core/session/composition"
+import { SessionContext } from "@omnixa/core/session/context"
+import { SessionInbox } from "@omnixa/core/session/inbox"
+import { SessionInputResult } from "@omnixa/core/session/input-result"
+import { SessionExecution } from "@omnixa/core/session/execution"
+import { SessionRestart } from "@omnixa/core/session/execution/restart"
+import { SessionEvent } from "@omnixa/core/session/event"
+import { SessionMessage } from "@omnixa/core/session/message"
+import { SessionModelTransport } from "@omnixa/core/session/model-transport"
+import { SessionTable } from "@omnixa/core/session/sql"
+import { SessionStore } from "@omnixa/core/session/store"
+import { SessionTask } from "@omnixa/core/session/task"
+import { Tool } from "@omnixa/core/tool"
+import { WorkflowExecution } from "@omnixa/core/workflow/execution"
+import { MetaAgentService } from "@omnixa/core/meta-agent/service"
+import { WorkflowRun } from "@omnixa/core/workflow/workflow-run"
+import { AssetYaml } from "@omnixa/core/util/asset-yaml"
+import { Composition } from "@omnixa/schema/composition"
+import { AbsolutePath } from "@omnixa/schema/schema"
+import { WorkflowAsset } from "@omnixa/schema/workflow-asset"
+import { Hash } from "@omnixa/util/hash"
+import { makeGlobalNode } from "@omnixa/util/effect/app-node"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
 import { Cause, Context, Deferred, Effect, Exit, Fiber, Layer, Schema, Scope, Stream } from "effect"
 import { Socket } from "effect/socket"
 import { offlineModels, useOfflineCatalog } from "./fixture/models"
@@ -135,7 +135,7 @@ const setup = Effect.fnUntraced(function* (
     persist?: boolean
   } = {},
 ) {
-  const directory = options.directory ?? (yield* tmpdirScoped("aigcfroge-workflow-core-")).path
+  const directory = options.directory ?? (yield* tmpdirScoped("omnixa-workflow-core-")).path
   const agent = "---\nkind: agent\nname: coder\ndescription: Workflow executor\n---\nExecute the supplied JSON input.\n"
   const workflow = AssetYaml.stringify({
     kind: "workflow",
@@ -145,8 +145,8 @@ const setup = Effect.fnUntraced(function* (
     steps,
   })
   if (!options.sessionID) {
-    yield* Effect.promise(() => Bun.write(path.join(directory, ".aigcfroge/agents/coder.md"), agent))
-    yield* Effect.promise(() => Bun.write(path.join(directory, ".aigcfroge/workflows/core.yaml"), workflow))
+    yield* Effect.promise(() => Bun.write(path.join(directory, ".omnixa/agents/coder.md"), agent))
+    yield* Effect.promise(() => Bun.write(path.join(directory, ".omnixa/workflows/core.yaml"), workflow))
   }
   const llm = Context.get(yield* Layer.build(TestLLM.testLayer()), TestLLM.Test)
   const pauseBeforeStart = options.pauseBeforeStart
@@ -300,7 +300,7 @@ const setup = Effect.fnUntraced(function* (
       info: Provider.Info.make({
         ...Provider.Info.empty(model.providerID),
         activation: "enabled",
-        package: "@aigcfroge/ai/providers/openai/responses",
+        package: "@omnixa/ai/providers/openai/responses",
       }),
       models: [Model.Info.make(Model.Info.default(model.providerID, model.id))],
     },
@@ -420,9 +420,9 @@ it.live("filters a frozen Workflow child by the current parent permission ceilin
         const permissions = yield* Permission.Service
         const registry = yield* Tool.Service
         const baseline = yield* context.select(child.id)
-        expect(baseline.tools.catalog.find((tool) => tool.name === "aigcfroge_worktree_remove")).toMatchObject({
+        expect(baseline.tools.catalog.find((tool) => tool.name === "omnixa_worktree_remove")).toMatchObject({
           placement: "codemode",
-          options: { namespace: "aigcfroge", permission: "edit" },
+          options: { namespace: "omnixa", permission: "edit" },
         })
         expect(baseline.tools.definitions.map((tool) => tool.name)).toEqual(
           expect.arrayContaining(["read", "write", "execute"]),
@@ -434,7 +434,7 @@ it.live("filters a frozen Workflow child by the current parent permission ceilin
           permissions: [{ action: "edit", resource: "*", effect: "deny" }],
         })
         const editingDenied = yield* context.select(child.id)
-        expect(editingDenied.tools.catalog.map((tool) => tool.name)).not.toContain("aigcfroge_worktree_remove")
+        expect(editingDenied.tools.catalog.map((tool) => tool.name)).not.toContain("omnixa_worktree_remove")
         expect(editingDenied.tools.definitions.map((tool) => tool.name)).not.toContain("write")
         expect(editingDenied.tools.definitions.map((tool) => tool.name)).toEqual(
           expect.arrayContaining(["read", "execute"]),
@@ -455,7 +455,7 @@ it.live("filters a frozen Workflow child by the current parent permission ceilin
         const readingOnly = yield* context.select(child.id)
         expect(readingOnly.tools.definitions.map((tool) => tool.name)).toContain("read")
         expect(readingOnly.tools.definitions.map((tool) => tool.name)).not.toContain("execute")
-        expect(readingOnly.tools.catalog.map((tool) => tool.name)).not.toContain("aigcfroge_worktree_remove")
+        expect(readingOnly.tools.catalog.map((tool) => tool.name)).not.toContain("omnixa_worktree_remove")
         yield* permissions.assert({ sessionID: child.id, action: "read", resources: [f.directory] })
         expect(
           yield* permissions
@@ -2058,7 +2058,7 @@ it.live("retains an adopted Workflow CPU binding after a preference change and d
           info: Provider.Info.make({
             ...Provider.Info.empty(preferredModel.providerID),
             activation: "enabled",
-            package: "@aigcfroge/ai/providers/openai/responses",
+            package: "@omnixa/ai/providers/openai/responses",
           }),
           models: [executorModel, preferredModel].map((ref) =>
             Model.Info.make(Model.Info.default(ref.providerID, ref.id)),

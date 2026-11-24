@@ -20,13 +20,8 @@ export default {
   "error.input":
     "Įveskite pagrindinio kompiuterio arba SSH ryšio komandą. Nuotolinės komandos ir nepalaikomos SSH parinktys neleidžiamos.",
   "error.connection": "Nepavyko užmegzti SSH ryšio. Patikrinkite tinklą ir SSH konfigūraciją.",
-  "error.platform":
-    "Ši nuotolinė platforma nepalaikoma. Šiuo metu automatinei sąrankai reikia Linux arba macOS x64 arba arm64.",
   "error.version": "Prieš prisijungiant, nuotolinė paslauga turi atitikti šią darbalaukio versiją.",
-  "error.install": "Nepavyko įdiegti nuotolinio serverio. Patikrinkite ryšį, vietos diske ir ar įdiegta tar.",
-  "error.unpublished":
-    "Šioje darbalaukio versijoje nėra paskelbto nuotolinio serverio. Norėdami sukurti kūrimo versiją, įdiekite ir paleiskite V2 pagrindiniame kompiuteryje, tada bandykite dar kartą.",
-  "error.service": "SSH prisijungė, bet AigcForge serveris nepasiruošė.",
+  "error.service": "SSH prisijungė, bet Omnixa serveris nepasiruošė.",
   "error.host-key":
     "Nepavyko patvirtinti šeimininko tapatybės. Prieš atnaujindami žinomus SSH pagrindinius kompiuterius, patikrinkite jo pirštų atspaudus.",
   "error.ssh-missing": "OpenSSH nerastas. Įdiekite OpenSSH klientą ir įsitikinkite, kad ssh yra PATH.",

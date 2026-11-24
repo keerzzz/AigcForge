@@ -1,12 +1,12 @@
 import { expect } from "bun:test"
 import { Effect, Fiber, Stream } from "effect"
 import { FetchHttpClient } from "effect/http"
-import { KV } from "@aigcfroge/core/kv"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { Bus } from "@aigcfroge/core/bus"
-import { Location } from "@aigcfroge/core/location"
-import { AbsolutePath } from "@aigcfroge/core/schema"
-import { WellKnown } from "@aigcfroge/core/wellknown"
+import { KV } from "@omnixa/core/kv"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { Bus } from "@omnixa/core/bus"
+import { Location } from "@omnixa/core/location"
+import { AbsolutePath } from "@omnixa/core/schema"
+import { WellKnown } from "@omnixa/core/wellknown"
 import { location } from "./fixture/location"
 import { testEffect } from "./lib/effect"
 
@@ -20,7 +20,7 @@ it.live("loads embedded and remote configuration", () =>
         port: 0,
         fetch(request) {
           const url = new URL(request.url)
-          if (url.pathname === "/.well-known/aigcfroge") {
+          if (url.pathname === "/.well-known/omnixa") {
             return Response.json({
               auth: { command: ["login"], env: "TOKEN" },
               config: { model: "embedded/model" },

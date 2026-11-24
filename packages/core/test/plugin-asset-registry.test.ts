@@ -2,16 +2,16 @@ import fs from "fs/promises"
 import path from "path"
 import { describe, expect, test } from "bun:test"
 import { Effect, Layer } from "effect"
-import { PluginAsset } from "@aigcfroge/core/plugin-asset"
-import { FSUtil } from "@aigcfroge/util/fs-util"
-import { Location } from "@aigcfroge/core/location"
-import { Bus } from "@aigcfroge/core/bus"
-import { AbsolutePath } from "@aigcfroge/core/schema"
+import { PluginAsset } from "@omnixa/core/plugin-asset"
+import { FSUtil } from "@omnixa/util/fs-util"
+import { Location } from "@omnixa/core/location"
+import { Bus } from "@omnixa/core/bus"
+import { AbsolutePath } from "@omnixa/core/schema"
 import { location } from "./fixture/location"
 import { tmpdir } from "./fixture/tmpdir"
 import { NodeFileSystem } from "@effect/platform-node"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
 
 const fsLayer = FSUtil.layer.pipe(Layer.provide(NodeFileSystem.layer))
 const busNodeLayer = AppNodeBuilder.build(LayerNode.group([Bus.node]), [Bus.node.replace(Bus.configured())])
@@ -38,7 +38,7 @@ async function withTmp<T>(fn: (dir: string) => Promise<T>): Promise<T> {
 }
 
 async function createPlugin(dir: string, name: string, description: string, extra?: string) {
-  const assetDir = path.join(dir, ".aigcfroge", "plugins")
+  const assetDir = path.join(dir, ".omnixa", "plugins")
   await fs.mkdir(assetDir, { recursive: true })
   const lines = ["kind: plugin", `name: ${name}`, `description: ${description}`, "version: 1.0.0"]
   if (extra) lines.push(extra)
@@ -149,7 +149,7 @@ describe("PluginAsset registry", () => {
 
   test("marks YAML parse error as parse_error", async () => {
     await withTmp(async (dir) => {
-      const pluginsDir = path.join(dir, ".aigcfroge", "plugins")
+      const pluginsDir = path.join(dir, ".omnixa", "plugins")
       await fs.mkdir(pluginsDir, { recursive: true })
       await fs.writeFile(path.join(pluginsDir, "bad.plugin.yaml"), "not: valid: yaml: [[[")
       const invalid = await runNow(
@@ -164,7 +164,7 @@ describe("PluginAsset registry", () => {
 
   test("marks schema decode failure as bad_frontmatter", async () => {
     await withTmp(async (dir) => {
-      const pluginsDir = path.join(dir, ".aigcfroge", "plugins")
+      const pluginsDir = path.join(dir, ".omnixa", "plugins")
       await fs.mkdir(pluginsDir, { recursive: true })
       await fs.writeFile(path.join(pluginsDir, "badfm.plugin.yaml"), "kind: plugin\nname: only_name")
       const invalid = await runNow(
@@ -179,7 +179,7 @@ describe("PluginAsset registry", () => {
 
   test("marks duplicate-name files as name_conflict", async () => {
     await withTmp(async (dir) => {
-      const pluginsDir = path.join(dir, ".aigcfroge", "plugins")
+      const pluginsDir = path.join(dir, ".omnixa", "plugins")
       await fs.mkdir(pluginsDir, { recursive: true })
       const c = () => ["kind: plugin", 'name: "dup"', 'description: "test"', 'version: "1.0"'].join("\n")
       await fs.writeFile(path.join(pluginsDir, "first.plugin.yaml"), c())
@@ -237,7 +237,7 @@ describe("PluginAsset registry", () => {
 
   test("listInvalid reload reflects fixed files", async () => {
     await withTmp(async (dir) => {
-      const pluginsDir = path.join(dir, ".aigcfroge", "plugins")
+      const pluginsDir = path.join(dir, ".omnixa", "plugins")
       await fs.mkdir(pluginsDir, { recursive: true })
       await fs.writeFile(path.join(pluginsDir, "broken.plugin.yaml"), "not: valid: yaml: [[[")
       const reg = await runNow(

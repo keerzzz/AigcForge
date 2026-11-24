@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, mock, spyOn, test } from "bun:test"
-import { AigcForge, type SessionInfo } from "@aigcfroge/client/promise"
+import { Omnixa, type SessionInfo } from "@omnixa/client/promise"
 import { runInteractiveDeferredMode, type RunDeferredInput } from "../../src/mini/runtime"
 import type { LifecycleInput } from "../../src/mini/runtime.lifecycle"
 import type { FooterEvent, MiniHost } from "../../src/mini/types"
@@ -73,7 +73,7 @@ async function canonicalRuntime(
     closeStream?: () => Promise<void>
   } = {},
 ) {
-  const sdk = input.sdk ?? AigcForge.make({ baseUrl: "https://aigcfroge.test" })
+  const sdk = input.sdk ?? Omnixa.make({ baseUrl: "https://omnixa.test" })
   const info = input.info ?? metaSession()
   const events: FooterEvent[] = []
   const ui = createFooterApiFixture({ events })
@@ -153,7 +153,7 @@ describe("run interactive runtime", () => {
   test.each(["session", "executor"] as const)(
     "new waits for the pending %s ACK and captures both canonical refs",
     async (domain) => {
-      const sdk = AigcForge.make({ baseUrl: "https://aigcfroge.test" })
+      const sdk = Omnixa.make({ baseUrl: "https://omnixa.test" })
       const initial = metaSession()
       const expected: SessionInfo =
         domain === "session"
@@ -289,7 +289,7 @@ describe("run interactive runtime", () => {
 
   test("a replacement SDK invalidates the old executor ACK and supplies the next choice", async () => {
     const app = await canonicalRuntime()
-    const replacement = AigcForge.make({ baseUrl: "https://replacement.aigcfroge.test" })
+    const replacement = Omnixa.make({ baseUrl: "https://replacement.omnixa.test" })
     const arrived = defer<void>()
     const ack = defer<SessionInfo>()
     const stale: SessionInfo = {
@@ -370,7 +370,7 @@ describe("run interactive runtime", () => {
     try {
       app.ui.submit("/new")
       await arrived.promise
-      app.replaceClient(AigcForge.make({ baseUrl: "https://replacement.aigcfroge.test" }))
+      app.replaceClient(Omnixa.make({ baseUrl: "https://replacement.omnixa.test" }))
       const events = [...app.events]
       const titles = [...app.titles]
       app.ui.api.close()
@@ -605,7 +605,7 @@ describe("run interactive runtime", () => {
     }
   })
   test("resolves the default model reactively without blocking catalog startup", async () => {
-    const sdk = AigcForge.make({ baseUrl: "https://aigcfroge.test" })
+    const sdk = Omnixa.make({ baseUrl: "https://omnixa.test" })
     const events: FooterEvent[] = []
     const ui = createFooterApiFixture({ events })
     const api = ui.api
@@ -726,7 +726,7 @@ describe("run interactive runtime", () => {
   })
 
   test("routes form responses to their owners with global location and local settlement", async () => {
-    const sdk = AigcForge.make({ baseUrl: "https://aigcfroge.test" })
+    const sdk = Omnixa.make({ baseUrl: "https://omnixa.test" })
     const api = footer()
     const streamStarted = defer<void>()
     let lifecycle!: LifecycleInput
@@ -799,7 +799,7 @@ describe("run interactive runtime", () => {
       },
       {
         headers: {
-          "x-aigcfroge-directory": "%2Fremote%20work",
+          "x-omnixa-directory": "%2Fremote%20work",
         },
       },
     )
@@ -816,7 +816,7 @@ describe("run interactive runtime", () => {
   })
 
   test("resolves the deferred session only after first paint", async () => {
-    const sdk = AigcForge.make({ baseUrl: "https://aigcfroge.test" })
+    const sdk = Omnixa.make({ baseUrl: "https://omnixa.test" })
     const lifecycleStarted = defer<void>()
     const painted = defer<void>()
     const api = footer()
@@ -870,7 +870,7 @@ describe("run interactive runtime", () => {
   })
 
   test("restores deferred session history and model after first paint", async () => {
-    const sdk = AigcForge.make({ baseUrl: "https://aigcfroge.test" })
+    const sdk = Omnixa.make({ baseUrl: "https://omnixa.test" })
     const lifecycleStarted = defer<void>()
     const painted = defer<void>()
     const events: FooterEvent[] = []
@@ -967,7 +967,7 @@ describe("run interactive runtime", () => {
   })
 
   test("aborts deferred resume history on close and uses the cached exit title", async () => {
-    const sdk = AigcForge.make({ baseUrl: "https://aigcfroge.test" })
+    const sdk = Omnixa.make({ baseUrl: "https://omnixa.test" })
     const painted = defer<void>()
     const readsStarted = defer<void>()
     const api = footer()
@@ -1045,7 +1045,7 @@ describe("run interactive runtime", () => {
   })
 
   test("adopts deferred target placement and supplied TUI config", async () => {
-    const sdk = AigcForge.make({ baseUrl: "https://aigcfroge.test" })
+    const sdk = Omnixa.make({ baseUrl: "https://omnixa.test" })
     const lifecycleStarted = defer<void>()
     const painted = defer<void>()
     const api = footer()

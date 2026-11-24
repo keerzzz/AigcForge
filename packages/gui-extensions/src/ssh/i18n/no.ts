@@ -20,13 +20,8 @@ export default {
   "error.input":
     "Skriv inn en verts- eller SSH-tilkoblingskommando. Fjernkommandoer og ikke-støttede SSH-alternativer er ikke tillatt.",
   "error.connection": "Kunne ikke opprette SSH-tilkoblingen. Sjekk nettverket og SSH-konfigurasjonen.",
-  "error.platform":
-    "Denne eksterne plattformen støttes ikke. Automatisk oppsett krever for øyeblikket Linux eller macOS på x64 eller arm64.",
   "error.version": "Den eksterne tjenesten må samsvare med denne skrivebordsversjonen før tilkobling.",
-  "error.install": "Kunne ikke installere den eksterne serveren. Sjekk tilkobling, diskplass og at tar er installert.",
-  "error.unpublished":
-    "Denne skrivebordsversjonen har ingen publisert ekstern server. For utviklingsbygg, installer og start V2 på verten, og prøv deretter på nytt.",
-  "error.service": "SSH koblet til, men AigcForge-serveren ble ikke klar.",
+  "error.service": "SSH koblet til, men Omnixa-serveren ble ikke klar.",
   "error.host-key":
     "Vertens identitet kunne ikke bekreftes. Bekreft fingeravtrykket før du oppdaterer de kjente vertene dine for SSH.",
   "error.ssh-missing":

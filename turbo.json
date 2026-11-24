@@ -7,60 +7,60 @@
     ".github/actions/setup-bun/**",
     ".github/workflows/ci.yml"
   ],
-  "globalEnv": ["CI", "AIGCFROGE_DISABLE_SHARE"],
-  "globalPassThroughEnv": ["CI", "AIGCFROGE_DISABLE_SHARE"],
+  "globalEnv": ["CI", "OMNIXA_DISABLE_SHARE"],
+  "globalPassThroughEnv": ["CI", "OMNIXA_DISABLE_SHARE"],
   "tasks": {
     "typecheck": {},
     "test:components": {
       "outputs": [],
       "cache": false
     },
-    "@aigcfroge/server#typecheck": {
-      "dependsOn": ["@aigcfroge/core#typecheck"]
+    "@omnixa/server#typecheck": {
+      "dependsOn": ["@omnixa/core#typecheck"]
     },
-    "@aigcfroge/simulation#typecheck": {
-      "dependsOn": ["@aigcfroge/core#typecheck"]
+    "@omnixa/simulation#typecheck": {
+      "dependsOn": ["@omnixa/core#typecheck"]
     },
     "build": {
       "dependsOn": [],
       "outputs": ["dist/**"]
     },
-    "@aigcfroge/ai#test": {
+    "@omnixa/ai#test": {
       "dependsOn": ["^build"],
       "outputs": []
     },
-    "@aigcfroge/codemode#test": {
+    "@omnixa/codemode#test": {
       "dependsOn": ["^build"],
       "outputs": []
     },
-    "@aigcfroge/core#test": {
+    "@omnixa/core#test": {
       "dependsOn": ["^build"],
       "outputs": []
     },
-    "@aigcfroge/desktop#test": {
+    "@omnixa/desktop#test": {
       "outputs": [],
       "cache": false
     },
-    "@aigcfroge/httpapi-codegen#test": {
+    "@omnixa/httpapi-codegen#test": {
       "outputs": []
     },
-    "@aigcfroge/script#test": {
+    "@omnixa/script#test": {
       "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/script/lint-changed.ts"],
       "outputs": []
     },
-    "@aigcfroge/server#test": {
+    "@omnixa/server#test": {
       "dependsOn": ["^build"],
       "outputs": []
     },
-    "@aigcfroge/app#test": {
+    "@omnixa/app#test": {
       "dependsOn": ["^build"],
       "outputs": []
     },
-    "@aigcfroge/ui#test": {
+    "@omnixa/ui#test": {
       "dependsOn": ["^build"],
       "outputs": []
     },
-    "@aigcfroge/session-ui#test": {
+    "@omnixa/session-ui#test": {
       "dependsOn": ["^build"],
       "outputs": []
     }

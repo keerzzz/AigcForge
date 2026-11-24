@@ -1,11 +1,11 @@
 import type { FileAttachmentPart, ImageAttachmentPart, PathAttachmentPart, Prompt } from "@/composer/state"
 import { createLegacyBlobReference } from "@/runtime/persistence/drafts"
-import type { SessionMessageUser } from "@aigcfroge/client/promise"
+import type { SessionMessageUser } from "@omnixa/client/promise"
 import { commentContextItem, readPromptPresentation } from "./comment-note"
 import { buildPromptRequest } from "./request"
 import { contextItemKey, type FileContextItem } from "./schema"
 import { createPathHelpers, decodeFilePath, stripFileProtocol, stripQueryAndHash } from "@/workspaces/files/path"
-import { Skill } from "@aigcfroge/schema/skill"
+import { Skill } from "@omnixa/schema/skill"
 import type { SessionPart } from "./schema"
 
 type Inline =

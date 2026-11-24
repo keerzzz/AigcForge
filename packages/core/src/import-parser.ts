@@ -1,7 +1,7 @@
 export * as ImportParser from "./import-parser"
 
 import { Context, Effect, Layer } from "effect"
-import { ImportParser as SchemaImportParser } from "@aigcfroge/schema/import-parser"
+import { ImportParser as SchemaImportParser } from "@omnixa/schema/import-parser"
 
 // -- Service interface --
 
@@ -9,7 +9,7 @@ export interface Interface {
   readonly parse: (input: string, options?: { readonly maxBytes?: number }) => Effect.Effect<SchemaImportParser.Result>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/ImportParser") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/v2/ImportParser") {}
 
 // -- Block type detection --
 

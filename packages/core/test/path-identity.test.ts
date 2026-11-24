@@ -1,7 +1,7 @@
 import { describe, expect } from "bun:test"
-import { FSUtil } from "@aigcfroge/util/fs-util"
-import { PathIdentity } from "@aigcfroge/core/path-identity"
-import { AbsolutePath } from "@aigcfroge/core/schema"
+import { FSUtil } from "@omnixa/util/fs-util"
+import { PathIdentity } from "@omnixa/core/path-identity"
+import { AbsolutePath } from "@omnixa/core/schema"
 import path from "path"
 import { Effect, FileSystem, Layer, Option } from "effect"
 import { systemError } from "effect/PlatformError"
@@ -155,7 +155,7 @@ describe("PathIdentity", () => {
   liveIt.live("proves a symlink spelling through the real filesystem", () =>
     Effect.gen(function* () {
       const fs = yield* FSUtil.Service
-      const root = yield* fs.makeTempDirectoryScoped({ prefix: "aigcfroge-path-identity-" })
+      const root = yield* fs.makeTempDirectoryScoped({ prefix: "omnixa-path-identity-" })
       const target = path.join(root, "target")
       const alias = path.join(root, "alias")
       yield* fs.makeDirectory(target)

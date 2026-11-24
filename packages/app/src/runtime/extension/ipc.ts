@@ -1,8 +1,8 @@
 import { batch } from "solid-js"
 import { createStore, reconcile } from "solid-js/store"
 import { Schema } from "effect"
-import type { Ipc, IpcCallOptions, IpcClient, IpcSpec } from "@aigcfroge/gui-extensions/sdk"
-import type { Bridge } from "@aigcfroge/gui-extensions/sdk/bridge"
+import type { Ipc, IpcCallOptions, IpcClient, IpcSpec } from "@omnixa/gui-extensions/sdk"
+import type { Bridge } from "@omnixa/gui-extensions/sdk/bridge"
 
 type Codec = NonNullable<IpcSpec["state"]>
 

@@ -1,6 +1,6 @@
 export * as SessionSkill from "./skill.js"
 
-import type { Session } from "@aigcfroge/schema/session"
+import type { Session } from "@omnixa/schema/session"
 import { Effect } from "effect"
 import { CompositionConsumerView } from "../composition/consumer-view.js"
 import { Instance } from "../instance/service.js"

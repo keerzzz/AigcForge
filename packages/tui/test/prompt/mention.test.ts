@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import type { PromptInput } from "@aigcfroge/schema"
+import type { PromptInput } from "@omnixa/schema"
 import {
   expandPromptInputPastedText,
   realignPromptInputMentions,

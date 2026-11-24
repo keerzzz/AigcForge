@@ -20,13 +20,8 @@ export default {
   "error.input":
     "Host ýa-da SSH birikme buýrugyny giriziň. Uzakdaky buýruklar we goldanmaýan SSH opsiýalaryna rugsat berilmeýär.",
   "error.connection": "SSH birikmesini gurup bolmady. Toruňyzy we SSH konfigurasiýaňyzy barlaň.",
-  "error.platform":
-    "Bu uzakdaky platforma goldanylmaýar. Awtomatiki gurnama häzirki wagtda x64 ýa-da arm64-de Linux ýa-da macOS talap edýär.",
   "error.version": "Uzakdaky hyzmat birikmezden ozal bu iş stoly wersiýasyna gabat gelmelidir.",
-  "error.install": "Uzak serweri gurup bolmady Baglanyşygy, disk ýerini barlaň we şol tar gurnalan.",
-  "error.unpublished":
-    "Bu iş stoly wersiýasynda çap edilen uzak serwer ýok. Ösüş gurmak üçin, hostda V2 guruň we işe giriziň, soňra gaýtadan synanyşyň.",
-  "error.service": "SSH birikdirildi, ýöne AigcForge serweri taýýar bolmady.",
+  "error.service": "SSH birikdirildi, ýöne Omnixa serweri taýýar bolmady.",
   "error.host-key":
     "Öý eýesiniň şahsyýetini tassyklap bolmady SSH belli öý eýeleriňizi täzelemezden ozal barmak yzyny barlaň.",
   "error.ssh-missing": "OpenSSH tapylmady OpenSSH müşderisini guruň we ssh-iň PATH-da elýeterlidigine göz ýetiriň.",

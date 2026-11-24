@@ -1,8 +1,8 @@
 export * as GoalCommand from "./goal"
 
-import { AigcForge, type AigcForgeClient } from "@aigcfroge/client"
-import { Service } from "@aigcfroge/client/effect/service"
-import { SessionGoal } from "@aigcfroge/schema/session-goal"
+import { Omnixa, type OmnixaClient } from "@omnixa/client"
+import { Service } from "@omnixa/client/effect/service"
+import { SessionGoal } from "@omnixa/schema/session-goal"
 import { Effect, Option, Schema } from "effect"
 import { EOL } from "node:os"
 import { Commands } from "../commands"
@@ -11,7 +11,7 @@ import { ServerConnection } from "../../services/server-connection"
 import { errorMessage } from "../../util/error"
 
 export const execute = Effect.fn("cli.goal.execute")(function* (
-  client: AigcForgeClient,
+  client: OmnixaClient,
   input: {
     sessionID: string
     action: "list" | "read" | "set" | "edit" | "pause" | "resume" | "cancel" | "confirm"
@@ -71,7 +71,7 @@ export default Runtime.handler(Commands.commands.goal, (input) =>
       server: Option.getOrUndefined(input.server),
       standalone: input.standalone,
     })
-    const client = AigcForge.make({ baseUrl: server.endpoint.url, headers: Service.headers(server.endpoint) })
+    const client = Omnixa.make({ baseUrl: server.endpoint.url, headers: Service.headers(server.endpoint) })
     const result = yield* execute(client, {
       sessionID: input.sessionID,
       action: Option.getOrElse(input.action, () => "list"),

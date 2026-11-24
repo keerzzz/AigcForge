@@ -18,7 +18,7 @@ export const Entry = Schema.Union([
   }),
 ])
 
-// Keep this list aligned with the builtin servers in aigcfroge's LSP runtime.
+// Keep this list aligned with the builtin servers in omnixa's LSP runtime.
 // Custom servers must declare extensions because the runtime cannot infer them.
 export const builtinServerIds = [
   "deno",
@@ -75,7 +75,7 @@ export const requiresExtensionsForCustomServers = Schema.makeFilter<
     return ok ? undefined : "For custom LSP servers, 'extensions' array is required."
   },
   {
-    representation: { id: "aigcfroge/lspExtensionsRequired", payload: {} },
+    representation: { id: "omnixa/lspExtensionsRequired", payload: {} },
     arbitraryConstraint: {} as Record<string, unknown>,
     toCode: () => ({
       runtime: `Schema.makeFilter((data) => { if (typeof data === "boolean") return undefined; const ids = new Set($[

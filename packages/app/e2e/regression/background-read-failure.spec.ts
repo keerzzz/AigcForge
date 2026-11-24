@@ -1,4 +1,4 @@
-import type { AigcForgeEvent } from "@aigcfroge/client/promise"
+import type { OmnixaEvent } from "@omnixa/client/promise"
 import { expect, test } from "@playwright/test"
 import { commandOption, openCommandPalette, paletteSession } from "../utils/command-palette"
 
@@ -18,7 +18,7 @@ test("failed event-driven reads report an error and recover without an unhandled
       type: "session.viewed",
       durable: { aggregateID: paletteSession.id, seq: 1, version: 1 },
       data: { sessionID: paletteSession.id, idle: 2 },
-    } as AigcForgeEvent,
+    } as OmnixaEvent,
   ])
   await requested
   await expect(page.getByText("Request failed", { exact: true })).toBeVisible()
@@ -33,7 +33,7 @@ test("failed event-driven reads report an error and recover without an unhandled
       type: "session.renamed",
       durable: { aggregateID: paletteSession.id, seq: 2, version: 1 },
       data: { sessionID: paletteSession.id, title: "Recovered session" },
-    } as AigcForgeEvent,
+    } as OmnixaEvent,
   ])
   await expect(page.getByRole("heading", { name: "Recovered session", exact: true })).toBeVisible()
   expect(errors).toEqual([])

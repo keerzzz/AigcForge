@@ -74,17 +74,17 @@ jobs:
       - uses: ./.github/actions/setup-git-committer
         id: committer
         with:
-          aigcfroge-app-id: ${{ vars.AIGCFROGE_APP_ID }}
-          aigcfroge-app-secret: ${{ secrets.AIGCFROGE_APP_SECRET }}
+          omnixa-app-id: ${{ vars.AIGCFROGE_APP_ID }}
+          omnixa-app-secret: ${{ secrets.AIGCFROGE_APP_SECRET }}
           require-app: ${{ github.event_name == 'workflow_run' }}
       - name: Resolve release intent
         id: plan
         run: bun script/desktop-release.ts plan
         env:
           GH_TOKEN: ${{ steps.committer.outputs.token }}
-          GH_REPO: ${{ (github.ref_name == 'beta' && 'keerzzz/AigcForge-beta') || github.repository }}
-          AIGCFROGE_DESKTOP_AUTOMATION: ${{ vars.AIGCFROGE_DESKTOP_AUTOMATION }}
-          AIGCFROGE_RELEASE_BOT: ${{ steps.committer.outputs.app-slug }}[bot]
+          GH_REPO: ${{ github.repository }}
+          OMNIXA_DESKTOP_AUTOMATION: ${{ vars.AIGCFROGE_DESKTOP_AUTOMATION }}
+          OMNIXA_RELEASE_BOT: ${{ steps.committer.outputs.app-slug }}[bot]
 
   prepare-version:
     needs: guard
@@ -104,17 +104,17 @@ jobs:
       - uses: ./.github/actions/setup-git-committer
         id: committer
         with:
-          aigcfroge-app-id: ${{ vars.AIGCFROGE_APP_ID }}
-          aigcfroge-app-secret: ${{ secrets.AIGCFROGE_APP_SECRET }}
+          omnixa-app-id: ${{ vars.AIGCFROGE_APP_ID }}
+          omnixa-app-secret: ${{ secrets.AIGCFROGE_APP_SECRET }}
           require-app: "true"
       - name: Prepare a version-only PR and enable checked auto-merge
         run: bun script/desktop-release.ts prepare
         env:
           GH_TOKEN: ${{ steps.committer.outputs.token }}
           GH_REPO: ${{ github.repository }}
-          AIGCFROGE_RELEASE_SHA: ${{ needs.guard.outputs.sha }}
-          AIGCFROGE_VERSION: ${{ needs.guard.outputs.version }}
-          AIGCFROGE_RELEASE_BOT: ${{ steps.committer.outputs.app-slug }}[bot]
+          OMNIXA_RELEASE_SHA: ${{ needs.guard.outputs.sha }}
+          OMNIXA_VERSION: ${{ needs.guard.outputs.version }}
+          OMNIXA_RELEASE_BOT: ${{ steps.committer.outputs.app-slug }}[bot]
 
   version:
     needs: guard
@@ -132,19 +132,19 @@ jobs:
         id: committer
         uses: ./.github/actions/setup-git-committer
         with:
-          aigcfroge-app-id: ${{ vars.AIGCFROGE_APP_ID }}
-          aigcfroge-app-secret: ${{ secrets.AIGCFROGE_APP_SECRET }}
+          omnixa-app-id: ${{ vars.AIGCFROGE_APP_ID }}
+          omnixa-app-secret: ${{ secrets.AIGCFROGE_APP_SECRET }}
 
       - id: version
         run: |
           bun script/version.ts
         env:
           GH_TOKEN: ${{ steps.committer.outputs.token }}
-          AIGCFROGE_BUMP: ${{ inputs.bump }}
-          AIGCFROGE_VERSION: ${{ needs.guard.outputs.version }}
-          AIGCFROGE_RELEASE_NOTES: ${{ inputs.release_notes }}
-          AIGCFROGE_RELEASE_NOTES_STRICT: "true"
-          GH_REPO: ${{ (github.ref_name == 'beta' && 'keerzzz/AigcForge-beta') || github.repository }}
+          OMNIXA_BUMP: ${{ inputs.bump }}
+          OMNIXA_VERSION: ${{ needs.guard.outputs.version }}
+          OMNIXA_RELEASE_NOTES: ${{ inputs.release_notes }}
+          OMNIXA_RELEASE_NOTES_STRICT: "true"
+          GH_REPO: ${{ github.repository }}
     outputs:
       published: ${{ steps.version.outputs.published }}
       version: ${{ steps.version.outputs.version }}
@@ -169,13 +169,13 @@ jobs:
         working-directory: packages/cli
         env:
           BUN_COMPILE_RELEASE: bun-v1.4.2
-          AIGCFROGE_VERSION: ${{ needs.version.outputs.version }}
-          AIGCFROGE_RELEASE: ${{ needs.version.outputs.release }}
+          OMNIXA_VERSION: ${{ needs.version.outputs.version }}
+          OMNIXA_RELEASE: ${{ needs.version.outputs.release }}
           GH_REPO: ${{ needs.version.outputs.repo }}
           GH_TOKEN: ${{ github.token }}
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: aigcfroge-cli
+          name: omnixa-cli
           path: packages/cli/dist/cli-*
           if-no-files-found: error
 
@@ -239,20 +239,20 @@ jobs:
           # Explicit Owner opt-in for publishing unsigned artifacts. Automation is
           # fail closed without it, so an unsigned public release can never be a silent
           # downgrade; see ADR-26 §3.
-          AIGCFROGE_ALLOW_UNSIGNED: ${{ vars.AIGCFROGE_ALLOW_UNSIGNED_RELEASE }}
+          OMNIXA_ALLOW_UNSIGNED: ${{ vars.AIGCFROGE_ALLOW_UNSIGNED_RELEASE }}
         run: |
           if [ "${{ needs.guard.outputs.mode }}" = "desktop-release" ]; then
             if [ "$RUNNER_OS" = "macOS" ] && { [ -z "$APPLE_CERTIFICATE" ] || [ -z "$APPLE_CERTIFICATE_PASSWORD" ] || [ -z "$APPLE_API_KEY_ID" ] || [ -z "$APPLE_API_ISSUER" ] || [ -z "$APPLE_API_KEY_PATH" ]; }; then
-              if [ "$AIGCFROGE_ALLOW_UNSIGNED" = "true" ]; then
-                echo "::warning::AIGCFROGE_ALLOW_UNSIGNED_RELEASE=true; publishing an UNSIGNED macOS release"
+              if [ "$OMNIXA_ALLOW_UNSIGNED" = "true" ]; then
+                echo "::warning::OMNIXA_ALLOW_UNSIGNED_RELEASE=true; publishing an UNSIGNED macOS release"
               else
                 echo "::error::Public macOS releases require signing and notarization credentials"
                 exit 1
               fi
             fi
             if [ "$RUNNER_OS" = "Windows" ] && { [ -z "$AZURE_CLIENT_ID" ] || [ -z "$AZURE_TENANT_ID" ] || [ -z "$AZURE_SUBSCRIPTION_ID" ] || [ -z "$AZURE_TRUSTED_SIGNING_ACCOUNT_NAME" ] || [ -z "$AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE" ] || [ -z "$AZURE_TRUSTED_SIGNING_ENDPOINT" ]; }; then
-              if [ "$AIGCFROGE_ALLOW_UNSIGNED" = "true" ]; then
-                echo "::warning::AIGCFROGE_ALLOW_UNSIGNED_RELEASE=true; publishing an UNSIGNED Windows release"
+              if [ "$OMNIXA_ALLOW_UNSIGNED" = "true" ]; then
+                echo "::warning::OMNIXA_ALLOW_UNSIGNED_RELEASE=true; publishing an UNSIGNED Windows release"
               else
                 echo "::error::Public Windows releases require Azure signing credentials"
                 exit 1
@@ -324,22 +324,22 @@ jobs:
         id: committer
         uses: ./.github/actions/setup-git-committer
         with:
-          aigcfroge-app-id: ${{ vars.AIGCFROGE_APP_ID }}
-          aigcfroge-app-secret: ${{ secrets.AIGCFROGE_APP_SECRET }}
+          omnixa-app-id: ${{ vars.AIGCFROGE_APP_ID }}
+          omnixa-app-secret: ${{ secrets.AIGCFROGE_APP_SECRET }}
 
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          name: aigcfroge-cli
+          name: omnixa-cli
           path: packages/cli/dist
 
       - name: Prepare
         run: bun ./scripts/prepare.ts
         working-directory: packages/desktop
         env:
-          AIGCFROGE_VERSION: ${{ needs.version.outputs.version }}
-          AIGCFROGE_CHANNEL: ${{ (github.ref_name == 'beta' && 'beta') || 'prod' }}
-          AIGCFROGE_CLI_TARGET: ${{ matrix.settings.target }}
-          AIGCFROGE_CLI_DIST: ${{ github.workspace }}/packages/cli/dist
+          OMNIXA_VERSION: ${{ needs.version.outputs.version }}
+          OMNIXA_CHANNEL: ${{ (github.ref_name == 'beta' && 'beta') || 'prod' }}
+          OMNIXA_CLI_TARGET: ${{ matrix.settings.target }}
+          OMNIXA_CLI_DIST: ${{ github.workspace }}/packages/cli/dist
           GH_TOKEN: ${{ github.token }}
           GITHUB_RUN_ID: ${{ github.run_id }}
 
@@ -348,10 +348,10 @@ jobs:
         working-directory: packages/desktop
         env:
           NODE_OPTIONS: --max-old-space-size=4096
-          AIGCFROGE_VERSION: ${{ needs.version.outputs.version }}
-          AIGCFROGE_CLI_TARGET: ${{ matrix.settings.target }}
-          AIGCFROGE_CLI_DIST: ${{ github.workspace }}/packages/cli/dist
-          AIGCFROGE_CHANNEL: ${{ (github.ref_name == 'beta' && 'beta') || 'prod' }}
+          OMNIXA_VERSION: ${{ needs.version.outputs.version }}
+          OMNIXA_CLI_TARGET: ${{ matrix.settings.target }}
+          OMNIXA_CLI_DIST: ${{ github.workspace }}/packages/cli/dist
+          OMNIXA_CHANNEL: ${{ (github.ref_name == 'beta' && 'beta') || 'prod' }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ vars.SENTRY_ORG }}
           SENTRY_PROJECT: ${{ vars.WEB_SENTRY_PROJECT }}
@@ -366,7 +366,7 @@ jobs:
         working-directory: packages/desktop
         timeout-minutes: 60
         env:
-          AIGCFROGE_CHANNEL: ${{ (github.ref_name == 'beta' && 'beta') || 'prod' }}
+          OMNIXA_CHANNEL: ${{ (github.ref_name == 'beta' && 'beta') || 'prod' }}
           GH_TOKEN: ${{ steps.committer.outputs.token }}
           CSC_LINK: ${{ secrets.APPLE_CERTIFICATE }}
           CSC_KEY_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -381,7 +381,7 @@ jobs:
         working-directory: packages/desktop
         timeout-minutes: 60
         env:
-          AIGCFROGE_CHANNEL: ${{ (github.ref_name == 'beta' && 'beta') || 'prod' }}
+          OMNIXA_CHANNEL: ${{ (github.ref_name == 'beta' && 'beta') || 'prod' }}
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
 
       - name: Create macOS .app.tar.gz
@@ -390,10 +390,10 @@ jobs:
         run: |
           if [[ "${{ matrix.settings.target }}" == "x86_64-apple-darwin" ]]; then
             APP_DIR="mac"
-            OUT_NAME="aigcfroge-desktop-mac-x64.app.tar.gz"
+            OUT_NAME="omnixa-desktop-mac-x64.app.tar.gz"
           elif [[ "${{ matrix.settings.target }}" == "aarch64-apple-darwin" ]]; then
             APP_DIR="mac-arm64"
-            OUT_NAME="aigcfroge-desktop-mac-arm64.app.tar.gz"
+            OUT_NAME="omnixa-desktop-mac-arm64.app.tar.gz"
           else
             echo "Unknown macOS target: ${{ matrix.settings.target }}"
             exit 1
@@ -438,7 +438,7 @@ jobs:
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: aigcfroge-desktop-${{ matrix.settings.target }}
+          name: omnixa-desktop-${{ matrix.settings.target }}
           path: packages/desktop/dist/*
           if-no-files-found: error
 
@@ -482,8 +482,8 @@ jobs:
         id: committer
         uses: ./.github/actions/setup-git-committer
         with:
-          aigcfroge-app-id: ${{ vars.AIGCFROGE_APP_ID }}
-          aigcfroge-app-secret: ${{ secrets.AIGCFROGE_APP_SECRET }}
+          omnixa-app-id: ${{ vars.AIGCFROGE_APP_ID }}
+          omnixa-app-secret: ${{ secrets.AIGCFROGE_APP_SECRET }}
 
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
@@ -492,7 +492,7 @@ jobs:
 
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          pattern: aigcfroge-desktop-*
+          pattern: omnixa-desktop-*
           path: /tmp/desktop
           merge-multiple: true
 
@@ -509,7 +509,7 @@ jobs:
       - name: Finalize desktop draft update metadata
         run: bun ./packages/desktop/scripts/finalize-latest-yml.ts
         env:
-          AIGCFROGE_VERSION: ${{ needs.version.outputs.version }}
+          OMNIXA_VERSION: ${{ needs.version.outputs.version }}
           GH_REPO: ${{ needs.version.outputs.repo }}
           GH_TOKEN: ${{ steps.committer.outputs.token }}
           LATEST_YML_DIR: /tmp/latest-yml
@@ -519,8 +519,8 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.committer.outputs.token }}
           GH_REPO: ${{ needs.version.outputs.repo }}
-          AIGCFROGE_RELEASE_SHA: ${{ needs.guard.outputs.sha }}
-          AIGCFROGE_VERSION: ${{ needs.version.outputs.version }}
-          AIGCFROGE_DESKTOP_AUTOMATION: ${{ vars.AIGCFROGE_DESKTOP_AUTOMATION }}
+          OMNIXA_RELEASE_SHA: ${{ needs.guard.outputs.sha }}
+          OMNIXA_VERSION: ${{ needs.version.outputs.version }}
+          OMNIXA_DESKTOP_AUTOMATION: ${{ vars.AIGCFROGE_DESKTOP_AUTOMATION }}
           DESKTOP_METADATA_DIR: ${{ runner.temp }}
           DESKTOP_ARTIFACT_DIR: /tmp/desktop

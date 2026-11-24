@@ -1,7 +1,7 @@
 export * as ShellResult from "./result.js"
 
-import { Shell } from "@aigcfroge/schema/shell"
-import { Hash } from "@aigcfroge/util/hash"
+import { Shell } from "@omnixa/schema/shell"
+import { Hash } from "@omnixa/util/hash"
 import { Schema } from "effect"
 
 export type Result = {

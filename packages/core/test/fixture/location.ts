@@ -1,6 +1,6 @@
-import { Location } from "@aigcfroge/core/location"
-import { Project } from "@aigcfroge/core/project"
-import { AbsolutePath } from "@aigcfroge/core/schema"
+import { Location } from "@omnixa/core/location"
+import { Project } from "@omnixa/core/project"
+import { AbsolutePath } from "@omnixa/core/schema"
 import { Effect, Layer } from "effect"
 import { tmpdir } from "./tmpdir"
 

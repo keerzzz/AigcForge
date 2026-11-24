@@ -3,24 +3,24 @@ import fs from "fs/promises"
 import path from "path"
 import { Deferred, Duration, Effect, Fiber, Layer, LayerMap, Schedule } from "effect"
 import { TestClock } from "effect/testing"
-import { define } from "@aigcfroge/plugin/effect/plugin"
-import { Event } from "@aigcfroge/schema/config"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { Global } from "@aigcfroge/util/global"
-import { Npm } from "@aigcfroge/util/npm"
-import { Bus } from "@aigcfroge/core/bus"
-import { Command } from "@aigcfroge/core/command"
-import { Database } from "@aigcfroge/core/database/database"
-import { Watcher } from "@aigcfroge/core/filesystem/watcher"
-import { ManagedPolicy } from "@aigcfroge/core/managed-policy"
-import { Instance } from "@aigcfroge/core/instance"
-import { LocationServiceMap } from "@aigcfroge/core/location-services"
-import { Location } from "@aigcfroge/core/location"
-import { Plugin } from "@aigcfroge/core/plugin"
-import { Rpc } from "@aigcfroge/core/rpc"
-import { SdkPlugins } from "@aigcfroge/core/plugin/sdk"
-import { AbsolutePath } from "@aigcfroge/core/schema"
+import { define } from "@omnixa/plugin/effect/plugin"
+import { Event } from "@omnixa/schema/config"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { Global } from "@omnixa/util/global"
+import { Npm } from "@omnixa/util/npm"
+import { Bus } from "@omnixa/core/bus"
+import { Command } from "@omnixa/core/command"
+import { Database } from "@omnixa/core/database/database"
+import { Watcher } from "@omnixa/core/filesystem/watcher"
+import { ManagedPolicy } from "@omnixa/core/managed-policy"
+import { Instance } from "@omnixa/core/instance"
+import { LocationServiceMap } from "@omnixa/core/location-services"
+import { Location } from "@omnixa/core/location"
+import { Plugin } from "@omnixa/core/plugin"
+import { Rpc } from "@omnixa/core/rpc"
+import { SdkPlugins } from "@omnixa/core/plugin/sdk"
+import { AbsolutePath } from "@omnixa/core/schema"
 import { tempGlobalLayer } from "../fixture/global"
 import { offlineModels } from "../fixture/models"
 import { tmpdirScoped } from "../fixture/tmpdir"
@@ -144,7 +144,7 @@ describe("PluginSupervisor reload", () => {
         yield* Effect.promise(async () => {
           await Bun.write(file, entry)
           await Bun.write(helper, source(1))
-          await Bun.write(path.join(directory.path, ".aigcfroge/aigcfroge.json"), JSON.stringify({ plugins: [root] }))
+          await Bun.write(path.join(directory.path, ".omnixa/omnixa.json"), JSON.stringify({ plugins: [root] }))
         })
         const watcher = yield* Watcher.Test
         const locations = yield* LocationServiceMap.Service
@@ -199,14 +199,14 @@ describe("PluginSupervisor reload", () => {
         const directory = yield* tmpdirScoped()
         const file = path.join(
           directory.path,
-          mode === "discovered" ? ".aigcfroge/plugins/greeter.ts" : "external/greeter/index.ts",
+          mode === "discovered" ? ".omnixa/plugins/greeter.ts" : "external/greeter/index.ts",
         )
         yield* Effect.promise(async () => {
           await Bun.write(file, greeter("greet-v1"))
           await fs.utimes(file, new Date(0), new Date(0))
           if (mode === "configured") {
             await Bun.write(
-              path.join(directory.path, ".aigcfroge/aigcfroge.json"),
+              path.join(directory.path, ".omnixa/omnixa.json"),
               JSON.stringify({ plugins: [path.dirname(file)] }),
             )
           }
@@ -251,7 +251,7 @@ describe("PluginSupervisor reload", () => {
   it.live("adding and deleting a declaration refreshes an existing plugin with a missing optional dependency", () =>
     Effect.gen(function* () {
       const directory = yield* tmpdirScoped()
-      const file = path.join(directory.path, ".aigcfroge/plugins/directory-refresh.ts")
+      const file = path.join(directory.path, ".omnixa/plugins/directory-refresh.ts")
       const declaration = path.join(path.dirname(file), "review.plugin.yaml")
       // Observations must not change the source directory fingerprint or trigger config watches themselves.
       const markers = {
@@ -340,7 +340,7 @@ describe("PluginSupervisor reload", () => {
   it.live("keeps the running generation when an updated local plugin fails to import", () =>
     Effect.gen(function* () {
       const directory = yield* tmpdirScoped()
-      const file = path.join(directory.path, ".aigcfroge/plugins/greeter.ts")
+      const file = path.join(directory.path, ".omnixa/plugins/greeter.ts")
       // Local plugin revisions key on mtime, so give each rewrite a distinct timestamp.
       const write = (content: string, mtime: Date) =>
         Effect.promise(async () => {
@@ -391,7 +391,7 @@ describe("PluginSupervisor reload", () => {
       )
       yield* Effect.promise(() => Bun.write(path.join(npm.directory, "server.ts"), greeter("greet-pkg")))
       yield* Effect.promise(() =>
-        Bun.write(path.join(directory.path, ".aigcfroge/aigcfroge.json"), JSON.stringify({ plugins: ["fixture-pkg"] })),
+        Bun.write(path.join(directory.path, ".omnixa/omnixa.json"), JSON.stringify({ plugins: ["fixture-pkg"] })),
       )
       const bus = yield* Bus.Service
       const locations = yield* LocationServiceMap.Service
@@ -434,7 +434,7 @@ it.live("applies organization integration changes to running external plugins", 
     const directory = yield* tmpdirScoped()
     const root = path.join(directory.path, "external/policy-fixture")
     const entered = path.join(directory.path, "entered")
-    const configuration = path.join(directory.path, ".aigcfroge/aigcfroge.json")
+    const configuration = path.join(directory.path, ".omnixa/omnixa.json")
     yield* Effect.promise(async () => {
       await Bun.write(
         path.join(root, "index.ts"),

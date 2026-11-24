@@ -1,6 +1,6 @@
-import { base64Encode } from "@aigcfroge/util/encode"
+import { base64Encode } from "@omnixa/util/encode"
 import { benchmark, benchmarkDiagnostics, expect } from "../benchmark"
-import { mockAigcForgeServer } from "../../utils/mock-server"
+import { mockOmnixaServer } from "../../utils/mock-server"
 import { expectSessionTitle } from "../../utils/waits"
 import { fixture } from "../../utils/session-fixture"
 
@@ -53,7 +53,7 @@ benchmark.use({
 for (const scenario of ["typing", "cursor-movement", "cursor-noop", "submit-cleanup"] as const) {
   benchmark(`composer-write-batch: ${scenario}`, async ({ page, report }, testInfo) => {
     const submitted: Record<string, unknown>[] = []
-    await mockAigcForgeServer(page, {
+    await mockOmnixaServer(page, {
       directory: fixture.directory,
       project: fixture.project,
       provider: fixture.provider,
@@ -104,7 +104,7 @@ for (const scenario of ["typing", "cursor-movement", "cursor-noop", "submit-clea
       {
         key: `${base64Encode(fixture.directory)}/prompt/${sessionID}.v2`,
         value: document,
-        counts: process.env.AIGCFROGE_PERSISTENCE_COUNTS === "1",
+        counts: process.env.OMNIXA_PERSISTENCE_COUNTS === "1",
       },
     )
     const server = `http://${process.env.PLAYWRIGHT_SERVER_HOST ?? "127.0.0.1"}:${process.env.PLAYWRIGHT_SERVER_PORT ?? "4096"}`
@@ -120,7 +120,7 @@ for (const scenario of ["typing", "cursor-movement", "cursor-noop", "submit-clea
     const stored = async () =>
       page.evaluate(async (sessionID) => {
         const db = await new Promise<IDBDatabase>((resolve, reject) => {
-          const request = indexedDB.open("aigcfroge-drafts", 1)
+          const request = indexedDB.open("omnixa-drafts", 1)
           request.onsuccess = () => resolve(request.result)
           request.onerror = () => reject(request.error)
         })
@@ -212,9 +212,9 @@ for (const scenario of ["typing", "cursor-movement", "cursor-noop", "submit-clea
         contextItems: items.length,
         persistedBytes: Buffer.byteLength(JSON.stringify(document)),
         typedCharacters: scenario === "typing" ? addition.length : 0,
-        counts: process.env.AIGCFROGE_PERSISTENCE_COUNTS === "1",
+        counts: process.env.OMNIXA_PERSISTENCE_COUNTS === "1",
         browser: page.context().browser()!.version(),
-        build: process.env.AIGCFROGE_PERSISTENCE_BUILD,
+        build: process.env.OMNIXA_PERSISTENCE_BUILD,
         transport: "playwright-route",
         completion: "editor text and committed IDB cursor",
       },

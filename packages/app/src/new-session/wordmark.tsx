@@ -1,4 +1,4 @@
-import { Logo } from "@aigcfroge/ui/logo"
+import { Logo } from "@omnixa/ui/logo"
 import "./wordmark.css"
 
 export function NewSessionWordmark() {

@@ -97,8 +97,8 @@ function clearHighlightFind() {
   const api = (globalThis as { CSS?: { highlights?: { delete: (name: string) => void } } }).CSS?.highlights
 
   if (!api) return
-  api.delete("aigcfroge-find")
-  api.delete("aigcfroge-find-current")
+  api.delete("omnixa-find")
+  api.delete("omnixa-find-current")
 }
 
 function supportsHighlights() {
@@ -347,16 +347,16 @@ export function createFileFind(opts: CreateFileFindOptions) {
 
     if (!api || typeof Highlight !== "function") return false
 
-    api.delete("aigcfroge-find")
-    api.delete("aigcfroge-find-current")
+    api.delete("omnixa-find")
+    api.delete("omnixa-find-current")
 
     const active = ranges[currentIndex]
 
-    if (active) api.set("aigcfroge-find-current", new Highlight(active))
+    if (active) api.set("omnixa-find-current", new Highlight(active))
 
     const rest = ranges.filter((_, i) => i !== currentIndex)
 
-    if (rest.length > 0) api.set("aigcfroge-find", new Highlight(...rest))
+    if (rest.length > 0) api.set("omnixa-find", new Highlight(...rest))
 
     return true
   }

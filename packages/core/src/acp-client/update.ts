@@ -5,7 +5,7 @@ import type { SessionNotification, SessionUpdate, ToolCallStatus } from "@agentc
 /**
  * A tool-call progress entry extracted from a `session/update` notification.
  *
- * The task-card upgrade correlates an external CLI's tool call with the AigcForge
+ * The task-card upgrade correlates an external CLI's tool call with the Omnixa
  * task card that spawned it through `_meta.parentToolUseId` (the task tool-use id
  * in the parent session). The agent may omit `_meta`, in which case the entry is
  * still captured so the child session's expand view can render the external

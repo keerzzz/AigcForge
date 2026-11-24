@@ -1,6 +1,6 @@
 import { useCommand, type CommandOption } from "@/shell/commands/command"
-import { useDialog } from "@aigcfroge/ui/context/dialog"
-import { previewSelectedLines } from "@aigcfroge/session-ui/pierre/selection-bridge"
+import { useDialog } from "@omnixa/ui/context/dialog"
+import { previewSelectedLines } from "@omnixa/session-ui/pierre/selection-bridge"
 import { useFile, selectionFromLines, type FileSelection } from "@/workspaces/files/model"
 import { useLanguage } from "@/runtime/i18n/language"
 import { useLayout } from "@/shell/state/layout"
@@ -14,7 +14,7 @@ import { fetchSessionExport, saveSessionExport, sessionExportFilename } from "@/
 import { usePlatform } from "@/runtime/platform/platform"
 import type { SessionModel } from "@/session/model"
 import type { SessionRevert } from "@/session/revert"
-import { Command, MenuItem } from "@aigcfroge/gui-extensions/sdk"
+import { Command, MenuItem } from "@omnixa/gui-extensions/sdk"
 import { useExtensionHost } from "@/runtime/extension/host"
 import type { Region } from "@/runtime/extension/panels"
 

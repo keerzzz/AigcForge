@@ -1,9 +1,9 @@
-import { AssetPlacement } from "@aigcfroge/core/asset-placement"
-import { PromptAsset } from "@aigcfroge/core/prompt-asset"
-import { PromptAssetService } from "@aigcfroge/core/prompt-asset-service"
-import { Flag } from "@aigcfroge/core/flag/flag"
-import { ApiNotFoundError, ConflictError, InvalidRequestError } from "@aigcfroge/protocol/errors"
-import { Info, InvalidEntry, Summary } from "@aigcfroge/schema/prompt-asset"
+import { AssetPlacement } from "@omnixa/core/asset-placement"
+import { PromptAsset } from "@omnixa/core/prompt-asset"
+import { PromptAssetService } from "@omnixa/core/prompt-asset-service"
+import { Flag } from "@omnixa/core/flag/flag"
+import { ApiNotFoundError, ConflictError, InvalidRequestError } from "@omnixa/protocol/errors"
+import { Info, InvalidEntry, Summary } from "@omnixa/schema/prompt-asset"
 import { HttpApiBuilder } from "effect/http-api"
 import { Effect, Schema } from "effect"
 import { Api } from "../api"
@@ -58,7 +58,7 @@ export const PromptAssetHandler = HttpApiBuilder.group(Api, "prompt-asset", (han
         scope.atSessionLocation(
           params.sessionID,
           Effect.gen(function* () {
-            if (!Flag.AIGCFROGE_EXPERIMENTAL_CHAT_ASSET)
+            if (!Flag.OMNIXA_EXPERIMENTAL_CHAT_ASSET)
               return yield* new InvalidRequestError({
                 message: "Prompt asset creation is not enabled",
                 kind: "disabled",

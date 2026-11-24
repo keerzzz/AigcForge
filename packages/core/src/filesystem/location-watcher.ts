@@ -1,11 +1,11 @@
 export * as LocationWatcher from "./location-watcher.js"
 
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
 import { Cause, Context, Effect, Exit, Layer, Scope, Semaphore, Stream } from "effect"
-import { FileSystem } from "@aigcfroge/schema/filesystem"
+import { FileSystem } from "@omnixa/schema/filesystem"
 import path from "path"
 import { Bus } from "../bus.js"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { FSUtil } from "@omnixa/util/fs-util"
 import { Git } from "../git.js"
 import { Location } from "../location.js"
 import { Plugin } from "../plugin.js"
@@ -14,7 +14,7 @@ import { Watcher } from "./watcher.js"
 
 export interface Interface {}
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/LocationWatcher") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/LocationWatcher") {}
 
 const layer = Layer.effect(
   Service,

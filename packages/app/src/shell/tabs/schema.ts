@@ -1,8 +1,8 @@
 export * as TabStorage from "./schema"
 
 import { Schema, SchemaGetter } from "effect"
-import { ProductMode } from "@aigcfroge/schema/product-mode"
-import { Location } from "@aigcfroge/schema/location"
+import { ProductMode } from "@omnixa/schema/product-mode"
+import { Location } from "@omnixa/schema/location"
 import { ServerKey } from "@/runtime/server/persistence"
 import { Persistence } from "@/runtime/persistence/schema"
 

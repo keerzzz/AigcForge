@@ -1,7 +1,7 @@
 import { BackgroundMoveHint } from "./message-timeline"
 
 export default {
-  title: "AigcForge/Session/Background work",
+  title: "Omnixa/Session/Background work",
   id: "session-background-work",
   parameters: {
     docs: {

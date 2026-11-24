@@ -1,6 +1,6 @@
 import { batch, onCleanup } from "solid-js"
 import { createStore } from "solid-js/store"
-import type { AigcForgeClient, AigcForgeEvent } from "../promise"
+import type { OmnixaClient, OmnixaEvent } from "../promise"
 
 export type ClientConnectionStatus = "connected" | "connecting" | "reconnecting"
 export type ClientConnectionEvent = {
@@ -14,8 +14,8 @@ export type ClientConnectionEvent = {
 }
 
 export type ClientConnectionOptions = {
-  readonly reconnect?: (signal: AbortSignal) => Promise<AigcForgeClient>
-  readonly onEvent: (event: AigcForgeEvent) => void
+  readonly reconnect?: (signal: AbortSignal) => Promise<OmnixaClient>
+  readonly onEvent: (event: OmnixaEvent) => void
   readonly flushInterval?: number
   readonly pageLifecycle?: boolean
   /**
@@ -37,7 +37,7 @@ export const defaultIdleTimeout = 45_000
 // returns to the foreground is probably half-open after the device slept.
 export const foregroundIdleThreshold = 20_000
 
-export function createClientConnection(initialApi: AigcForgeClient, options: ClientConnectionOptions) {
+export function createClientConnection(initialApi: OmnixaClient, options: ClientConnectionOptions) {
   const abort = new AbortController()
   const history: ClientConnectionEvent[] = []
   const idleTimeout = options.idleTimeout ?? defaultIdleTimeout
@@ -47,7 +47,7 @@ export function createClientConnection(initialApi: AigcForgeClient, options: Cli
     error?: string
   }>({ status: "connecting", attempt: 0 })
   let api = initialApi
-  let pending: AigcForgeEvent[] = []
+  let pending: OmnixaEvent[] = []
   let flushTimer: ReturnType<typeof setTimeout> | undefined
   let stream: AbortController | undefined
   let current: AbortController | undefined
@@ -62,7 +62,7 @@ export function createClientConnection(initialApi: AigcForgeClient, options: Cli
     if (history.length > connectionHistoryLimit) history.shift()
   }
 
-  function publish(event: AigcForgeEvent) {
+  function publish(event: OmnixaEvent) {
     pending.push(event)
     if (flushTimer) return
     flushTimer = setTimeout(() => {
@@ -214,7 +214,7 @@ export function createClientConnection(initialApi: AigcForgeClient, options: Cli
   }
 
   // A new API owns a new event stream; buffered events still belong to the previous API.
-  function replaceApi(next: AigcForgeClient) {
+  function replaceApi(next: OmnixaClient) {
     if (api === next) return
     api = next
     pending = []

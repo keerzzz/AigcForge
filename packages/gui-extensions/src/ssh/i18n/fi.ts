@@ -19,13 +19,8 @@ export default {
   "stage.incompatible": "Palvelinpäivitys vaaditaan",
   "error.input": "Anna isäntä- tai SSH-yhteyskomento. Etäkomennot ja ei-tuetut SSH-vaihtoehdot eivät ole sallittuja.",
   "error.connection": "SSH-yhteyttä ei voitu muodostaa. Tarkista verkkosi ja SSH-kokoonpanosi.",
-  "error.platform":
-    "Tätä etäympäristöä ei tueta. Automaattinen asetus vaatii tällä hetkellä Linux:n tai macOS:n mallissa x64 tai arm64.",
   "error.version": "Etäpalvelun on vastattava tätä työpöytäversiota ennen yhteyden muodostamista.",
-  "error.install": "Etäpalvelinta ei voitu asentaa. Tarkista liitettävyys, levytila ​​ja että tarra on asennettu.",
-  "error.unpublished":
-    "Tällä työpöytäversiolla ei ole julkaistua etäpalvelinta. Kehityskoonnuksia varten asenna ja käynnistä V2 isännässä ja yritä sitten uudelleen.",
-  "error.service": "SSH yhdistetty, mutta AigcForge-palvelin ei tullut valmiiksi.",
+  "error.service": "SSH yhdistetty, mutta Omnixa-palvelin ei tullut valmiiksi.",
   "error.host-key":
     "Isännän henkilöllisyyttä ei voitu vahvistaa. Tarkista sen sormenjälki ennen kuin päivität tunnettuja SSH-isäntiäsi.",
   "error.ssh-missing": "OpenSSH ei löytynyt. Asenna OpenSSH-asiakas ja varmista, että ssh on saatavilla PATH:ssä.",

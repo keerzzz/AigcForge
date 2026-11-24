@@ -1,5 +1,5 @@
 /// <reference types="vite/client" />
-import { host } from "@aigcfroge/cli/vite-host"
+import { host } from "@omnixa/cli/vite-host"
 import { configureErrorOverlay } from "./refresh"
 
 if (import.meta.hot) {

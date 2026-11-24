@@ -3,13 +3,13 @@ import { createRequire } from "node:module"
 import path from "node:path"
 import { mkdir, rename, symlink } from "node:fs/promises"
 import { fileURLToPath, pathToFileURL } from "node:url"
-import { Host } from "@aigcfroge/plugin/host"
+import { Host } from "@omnixa/plugin/host"
 import "../src/plugin/runtime-plugin-support.bun"
 import { createPluginSources } from "../src/plugin/source"
 import { createSourceWatcher } from "../src/plugin/watch"
 import { createSignal } from "solid-js"
 import { Effect, Option, Schema } from "effect"
-import { Plugin } from "@aigcfroge/plugin/tui"
+import { Plugin } from "@omnixa/plugin/tui"
 import { tmpdir } from "./fixture/fixture"
 
 test("a fresh local plugin generation observes edited helper exports", async () => {
@@ -127,7 +127,7 @@ test("shared runtime and ordinary package identities survive plugin generations"
     await Bun.write(
       entry,
       `import { createSignal } from "solid-js"
-      import { Plugin } from "@aigcfroge/plugin/tui"
+      import { Plugin } from "@omnixa/plugin/tui"
       import value from "example"
       export { createSignal, Plugin, value }; export const label = ${JSON.stringify(label)}`,
     )
@@ -140,12 +140,12 @@ test("shared runtime and ordinary package identities survive plugin generations"
   }
 })
 
-test("TUI plugins importing @aigcfroge/plugin/tui and solid-js alongside effect resolve effect and effect/* to the host copy without rewriting host Effect or hijacking plugin dependencies", async () => {
-  const effectPlugin = await import("@aigcfroge/plugin/effect")
+test("TUI plugins importing @omnixa/plugin/tui and solid-js alongside effect resolve effect and effect/* to the host copy without rewriting host Effect or hijacking plugin dependencies", async () => {
+  const effectPlugin = await import("@omnixa/plugin/effect")
   const req = createRequire(import.meta.url)
   expect(req("effect").Effect).toBe(Effect)
   expect(req("effect/Option").some).toBe(Option.some)
-  expect(req("@aigcfroge/plugin/effect").Plugin).toBe(effectPlugin.Plugin)
+  expect(req("@omnixa/plugin/effect").Plugin).toBe(effectPlugin.Plugin)
   expect(JSON.stringify(Schema.Option(Schema.String).ast)).not.toContain("opentui:runtime-module:")
 
   const standalone = Bun.spawnSync(
@@ -159,10 +159,10 @@ test("TUI plugins importing @aigcfroge/plugin/tui and solid-js alongside effect 
         "const req = createRequire(import.meta.url)",
         'const eff = req("effect")',
         'const opt = req("effect/Option")',
-        'const plug = req("@aigcfroge/plugin/effect")',
+        'const plug = req("@omnixa/plugin/effect")',
         'const { Effect } = await import("effect")',
         'const { some } = await import("effect/Option")',
-        'const { Plugin } = await import("@aigcfroge/plugin/effect")',
+        'const { Plugin } = await import("@omnixa/plugin/effect")',
         "assert.equal(eff.Effect, Effect)",
         "assert.equal(opt.some, some)",
         "assert.equal(plug.Plugin, Plugin)",
@@ -197,8 +197,8 @@ test("TUI plugins importing @aigcfroge/plugin/tui and solid-js alongside effect 
         "import { createSignal }",
         'from "solid-js"',
         "import { Plugin }",
-        'from "@aigcfroge/plugin/tui"',
-        'import { Plugin as HostEffectPlugin } from "@aigcfroge/plugin/effect"',
+        'from "@omnixa/plugin/tui"',
+        'import { Plugin as HostEffectPlugin } from "@omnixa/plugin/effect"',
         'import { Effect, Schema } from "effect"',
         'import { some } from "effect/Option"',
         "import pkg",
@@ -206,13 +206,13 @@ test("TUI plugins importing @aigcfroge/plugin/tui and solid-js alongside effect 
         'import { helper } from "effect-helper"',
         'const { fromPluginZod } = await import("./helper.ts")',
         'const dynOption = await import("effect/Option")',
-        'const dynEffectPlugin = await import("@aigcfroge/plugin/effect")',
+        'const dynEffectPlugin = await import("@omnixa/plugin/effect")',
         "export const plugin = { createSignal, Plugin, HostEffectPlugin, Effect, Schema, some, dynSome: dynOption.some, dynEffectPlugin: dynEffectPlugin.Plugin, pkgName: pkg.name, fromPluginZod }",
         "export { helper }",
       ].join("\n"),
       "bad-tui.ts": [
         "import { Plugin }",
-        'from "@aigcfroge/plugin/tui"; import { removed } from "effect/RemovedSubpath"; export default { Plugin, removed }',
+        'from "@omnixa/plugin/tui"; import { removed } from "effect/RemovedSubpath"; export default { Plugin, removed }',
       ].join(" "),
     }).map(([file, text]) => Bun.write(new URL(file, sources.url), text)),
   )
@@ -234,7 +234,7 @@ test("TUI plugins importing @aigcfroge/plugin/tui and solid-js alongside effect 
   expect(loaded.helper.Schema).toBe(Schema)
   expect(loaded.helper.some).toBe(Option.some)
   expect(watched.some((item) => item.replaceAll("\\", "/").endsWith("/node_modules/effect"))).toBe(false)
-  expect(watched.some((item) => item.replaceAll("\\", "/").endsWith("/node_modules/@aigcfroge/plugin"))).toBe(false)
+  expect(watched.some((item) => item.replaceAll("\\", "/").endsWith("/node_modules/@omnixa/plugin"))).toBe(false)
   await expect(sources.read(badEntry.href)).rejects.toThrow("effect/dist/esm/RemovedSubpath.js")
 })
 
@@ -455,7 +455,7 @@ test("each helper resolves packages from its own directory", async () => {
   const entry = new URL("tui.ts", sources.url)
   await Bun.write(
     entry,
-    'import { Plugin } from "@aigcfroge/plugin/tui"; import value from "./nested/helper"; export default { Plugin, value }',
+    'import { Plugin } from "@omnixa/plugin/tui"; import value from "./nested/helper"; export default { Plugin, value }',
   )
   await Bun.write(new URL("nested/helper.ts", sources.url), 'import value from "example"; export default value')
   for (const directory of ["", "nested/"]) {

@@ -17,16 +17,16 @@ import {
   type SQL,
 } from "drizzle-orm"
 import { Context, Effect, Layer, Schema } from "effect"
-import { Project } from "@aigcfroge/schema/project"
-import { ProductMode } from "@aigcfroge/schema/product-mode"
-import { Workspace } from "@aigcfroge/schema/workspace"
-import { AbsolutePath, PositiveInt, RelativePath } from "@aigcfroge/schema/schema"
+import { Project } from "@omnixa/schema/project"
+import { ProductMode } from "@omnixa/schema/product-mode"
+import { Workspace } from "@omnixa/schema/workspace"
+import { AbsolutePath, PositiveInt, RelativePath } from "@omnixa/schema/schema"
 import { Database } from "../database/database.js"
-import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
+import { makeGlobalNode } from "@omnixa/util/effect/app-node"
 import { SessionHistory } from "./history.js"
 import { MessageDecodeError } from "./error.js"
 import { SessionMessage } from "./message.js"
-import { Session } from "@aigcfroge/schema/session"
+import { Session } from "@omnixa/schema/session"
 import { SessionMessageTable, SessionTable } from "./sql.js"
 import { fromRow } from "./info.js"
 
@@ -106,7 +106,7 @@ export interface Interface {
   readonly countResume: (sessionID: Session.ID) => Effect.Effect<number | undefined>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/SessionStore") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/SessionStore") {}
 
 const layer = Layer.effect(
   Service,

@@ -1,5 +1,5 @@
 import { Predicate } from "effect"
-import type { Bridge, BridgeMessage } from "@aigcfroge/gui-extensions/sdk/bridge"
+import type { Bridge, BridgeMessage } from "@omnixa/gui-extensions/sdk/bridge"
 import type { ExtensionFailure } from "../shared/ipc-rpc/extensions"
 import { api } from "./api"
 import { cancellable, invoke, listen, send } from "./ipc-client"

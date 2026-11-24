@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { PermissionStateContext } from "@aigcfroge/core/system-context/permission-state"
+import { PermissionStateContext } from "@omnixa/core/system-context/permission-state"
 
 function input(overrides: Partial<Parameters<typeof PermissionStateContext.render>[0]> = {}) {
   return {

@@ -1,5 +1,5 @@
-import type { SkillApi } from "@aigcfroge/client/promise/api"
-import type { Skill } from "@aigcfroge/schema/skill"
+import type { SkillApi } from "@omnixa/client/promise/api"
+import type { Skill } from "@omnixa/schema/skill"
 import type { Transform } from "./registration.js"
 import type { DeepMutable } from "./types.js"
 

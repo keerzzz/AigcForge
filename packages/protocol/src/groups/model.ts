@@ -1,8 +1,8 @@
-import { Model } from "@aigcfroge/schema/model"
+import { Model } from "@omnixa/schema/model"
 // The existing protocol group export already owns the name ModelGroup.
-import { ModelGroup as ModelGroupSchema } from "@aigcfroge/schema/model-group"
-import { Location } from "@aigcfroge/schema/location"
-import { optional } from "@aigcfroge/schema/schema"
+import { ModelGroup as ModelGroupSchema } from "@omnixa/schema/model-group"
+import { Location } from "@omnixa/schema/location"
+import { optional } from "@omnixa/schema/schema"
 import { Schema } from "effect"
 import { HttpApi, HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/http-api"
 import { InvalidRequestError, ServiceUnavailableError } from "../errors.js"

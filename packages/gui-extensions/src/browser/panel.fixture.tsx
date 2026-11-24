@@ -1,5 +1,5 @@
-import { Browser } from "@aigcfroge/plugin-browser/rpc"
-import { DialogProvider } from "@aigcfroge/ui/context/dialog"
+import { Browser } from "@omnixa/plugin-browser/rpc"
+import { DialogProvider } from "@omnixa/ui/context/dialog"
 import {
   batch,
   createSignal,

@@ -1,9 +1,9 @@
 import { describe, expect } from "bun:test"
 import { Effect } from "effect"
-import { Plugin } from "@aigcfroge/core/plugin"
-import { PluginHost } from "@aigcfroge/core/plugin/host"
-import { CerebrasPlugin } from "@aigcfroge/core/plugin/provider/cerebras"
-import { Provider } from "@aigcfroge/core/provider"
+import { Plugin } from "@omnixa/core/plugin"
+import { PluginHost } from "@omnixa/core/plugin/host"
+import { CerebrasPlugin } from "@omnixa/core/plugin/provider/cerebras"
+import { Provider } from "@omnixa/core/provider"
 import { testEffect } from "../lib/effect"
 import { PluginTestLayer } from "./fixture"
 
@@ -21,14 +21,14 @@ describe("CerebrasPlugin", () => {
       const catalog = yield* Provider.Service
       yield* catalog.transform((catalog) => {
         catalog.update(Provider.ID.make("cerebras"), (item) => {
-          item.package = "@aigcfroge/ai/providers/cerebras"
+          item.package = "@omnixa/ai/providers/cerebras"
           item.headers = { ...item.headers, Existing: "1" }
         })
       })
       yield* addPlugin()
       expect((yield* catalog.get(Provider.ID.make("cerebras")))?.headers).toEqual({
         Existing: "1",
-        "X-Cerebras-3rd-Party-Integration": "aigcfroge",
+        "X-Cerebras-3rd-Party-Integration": "omnixa",
       })
     }),
   )
@@ -48,14 +48,14 @@ describe("CerebrasPlugin", () => {
       const providerID = Provider.ID.make("custom-cerebras")
       yield* catalog.transform((catalog) => {
         catalog.update(providerID, (item) => {
-          item.package = "@aigcfroge/ai/providers/cerebras"
+          item.package = "@omnixa/ai/providers/cerebras"
           item.headers = { Existing: "1" }
         })
       })
       yield* addPlugin()
       expect((yield* catalog.get(providerID))?.headers).toEqual({
         Existing: "1",
-        "X-Cerebras-3rd-Party-Integration": "aigcfroge",
+        "X-Cerebras-3rd-Party-Integration": "omnixa",
       })
     }),
   )

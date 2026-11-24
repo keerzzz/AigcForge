@@ -123,7 +123,7 @@ type CleanupCandidate = PullRequest & {
 
 const message = `Automated PR Cleanup
 
-Thank you for contributing to aigcfroge.
+Thank you for contributing to omnixa.
 
 Due to the high volume of PRs from users and AI agents, we periodically close older PRs using automated criteria so maintainers can focus review time on the most active and community-supported contributions.
 

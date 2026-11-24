@@ -54,7 +54,7 @@ export function createEarlyWindow() {
     height: state.height,
     show: true,
     autoHideMenuBar: true,
-    title: "AigcForge",
+    title: "Omnixa",
     icon: path.join(icons, `icon.${process.platform === "win32" ? "ico" : "png"}`),
     backgroundColor: storedBackgroundColor(),
     ...(process.platform === "darwin"

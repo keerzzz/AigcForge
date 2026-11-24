@@ -1,4 +1,4 @@
-import { Location } from "@aigcfroge/schema/location"
+import { Location } from "@omnixa/schema/location"
 import { Context, Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, HttpApiMiddleware, HttpApiSchema, OpenApi } from "effect/http-api"
 import { ServiceUnavailableError } from "../errors.js"

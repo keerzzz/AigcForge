@@ -55,7 +55,7 @@ export namespace FSUtil {
     readonly globMatch: (pattern: string, filepath: string) => boolean
   }
 
-  export class Service extends Context.Service<Service, Interface>()("@aigcfroge/FSUtil") {}
+  export class Service extends Context.Service<Service, Interface>()("@omnixa/FSUtil") {}
 
   export const use = serviceUse(Service)
 

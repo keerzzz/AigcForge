@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { Schema } from "effect"
-import { Delegation, RevisionDigest } from "@aigcfroge/schema/delegation"
-import { TurnID } from "@aigcfroge/schema/delegation-id"
+import { Delegation, RevisionDigest } from "@omnixa/schema/delegation"
+import { TurnID } from "@omnixa/schema/delegation-id"
 import { canComplete, copyable, evaluateReviewBarrier, retractRejection } from "../src/delegation/review"
 
 describe("Delegation Review Barrier and Copyability (Phase 1)", () => {

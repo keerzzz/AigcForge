@@ -1,6 +1,6 @@
-import { Database } from "@aigcfroge/core/database/database"
-import { ModelsDev } from "@aigcfroge/core/models-dev"
-import { PersistentPty } from "@aigcfroge/core/persistent-pty"
+import { Database } from "@omnixa/core/database/database"
+import { ModelsDev } from "@omnixa/core/models-dev"
+import { PersistentPty } from "@omnixa/core/persistent-pty"
 import { Schema } from "effect"
 
 export const ServerOptions = Schema.Struct({

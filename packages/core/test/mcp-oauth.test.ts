@@ -1,10 +1,10 @@
 import { afterAll, describe, expect, test } from "bun:test"
 import { auth, refreshAuthorization } from "@modelcontextprotocol/client"
-import { ConfigMCP } from "@aigcfroge/schema/config/mcp"
-import { Credential } from "@aigcfroge/core/credential"
-import { Integration } from "@aigcfroge/core/integration"
-import { McpClient } from "@aigcfroge/core/mcp/client"
-import { McpOAuth } from "@aigcfroge/core/mcp/oauth"
+import { ConfigMCP } from "@omnixa/schema/config/mcp"
+import { Credential } from "@omnixa/core/credential"
+import { Integration } from "@omnixa/core/integration"
+import { McpClient } from "@omnixa/core/mcp/client"
+import { McpOAuth } from "@omnixa/core/mcp/oauth"
 import { Cause, Effect, Exit } from "effect"
 import { hostEnvironmentLayer } from "./fixture/environment"
 
@@ -492,26 +492,69 @@ describe("MCP OAuth", () => {
   describe("client registration", () => {
     const cimd = { client_id_metadata_document_supported: true, token_endpoint_auth_methods_supported: ["none"] }
 
-    test("uses the client metadata document when the server supports public CIMD clients", async () => {
-      const { server, registrations, tokenRequests } = authorizationServer(cimd)
-      const credential = await Effect.runPromise(
-        Effect.scoped(
-          Effect.gen(function* () {
-            const { authorization, url } = yield* start(server)
-            expect(url.searchParams.get("client_id")).toBe(McpOAuth.CLIENT_METADATA_URL)
+    test("registers dynamically when the server advertises CIMD and rejects unpublished metadata URLs", async () => {
+      const registrations: unknown[] = []
+      const tokenRequests: URLSearchParams[] = []
+      const server = Bun.serve({
+        hostname: "127.0.0.1",
+        port: 0,
+        async fetch(request) {
+          const url = new URL(request.url)
+          if (url.pathname === "/.well-known/oauth-authorization-server")
+            return Response.json({
+              issuer: url.origin,
+              authorization_endpoint: `${url.origin}/authorize`,
+              token_endpoint: `${url.origin}/token`,
+              registration_endpoint: `${url.origin}/register`,
+              response_types_supported: ["code"],
+              ...cimd,
+            })
+          if (url.pathname === "/mcp")
+            return new Response(null, { status: 401, headers: { "www-authenticate": "Bearer" } })
+          if (request.method === "POST" && url.pathname === "/register") {
+            registrations.push(await request.json())
+            return Response.json({ client_id: "registered", redirect_uris: [] })
+          }
+          if (url.pathname === "/authorize") {
+            const clientID = url.searchParams.get("client_id") ?? ""
+            if (clientID.startsWith("https://") || clientID !== "registered")
+              return Response.json({ error: "invalid_client" }, { status: 400 })
             const redirect = new URL(url.searchParams.get("redirect_uri")!)
             redirect.searchParams.set("code", "accepted")
             redirect.searchParams.set("state", url.searchParams.get("state")!)
-            yield* Effect.promise(() => fetch(redirect))
+            return Response.redirect(redirect.href, 302)
+          }
+          if (request.method === "POST" && url.pathname === "/token") {
+            const params = new URLSearchParams(await request.text())
+            tokenRequests.push(params)
+            if (params.get("client_id") !== "registered")
+              return Response.json({ error: "invalid_client" }, { status: 400 })
+            return Response.json({ access_token: "access", token_type: "Bearer" })
+          }
+          return new Response(null, { status: 404 })
+        },
+      })
+
+      const credential = await Effect.runPromise(
+        Effect.scoped(
+          Effect.gen(function* () {
+            const { authorization, url } = yield* start(`${server.url.origin}/mcp`, {
+              auth_server_metadata_url: `${server.url.origin}/.well-known/oauth-authorization-server`,
+            })
+            expect(url.searchParams.get("client_id")).toBe("registered")
+            const response = yield* Effect.promise(() => fetch(url))
+            expect(response.status).toBe(200)
             return yield* authorization.callback
           }),
         ),
       ).finally(() => server.stop(true))
 
-      expect(registrations).toHaveLength(0)
-      expect(tokenRequests[0]?.get("client_id")).toBe(McpOAuth.CLIENT_METADATA_URL)
-      expect(McpOAuth.clientFromCredential(credential)).toEqual({
-        client_id: McpOAuth.CLIENT_METADATA_URL,
+      expect(registrations).toHaveLength(1)
+      expect(tokenRequests).toHaveLength(1)
+      expect(tokenRequests[0]?.get("client_id")).toBe("registered")
+      expect(credential.access).toBe("access")
+      expect(McpOAuth.clientFromCredential(credential)).toMatchObject({
+        client_id: "registered",
         issuer: server.url.origin,
       })
     })

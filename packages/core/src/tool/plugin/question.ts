@@ -1,11 +1,11 @@
 export * as QuestionTool from "./question.js"
 
-import type { Context } from "@aigcfroge/plugin/effect/plugin"
-import { ToolFailure } from "@aigcfroge/ai"
+import type { Context } from "@omnixa/plugin/effect/plugin"
+import { ToolFailure } from "@omnixa/ai"
 import { Effect, Schema } from "effect"
 import { Form } from "../../form.js"
 import { Permission } from "../../permission.js"
-import { Question } from "@aigcfroge/schema/question"
+import { Question } from "@omnixa/schema/question"
 
 export const name = "question"
 
@@ -46,7 +46,7 @@ export const toModelContent = (questions: ReadonlyArray<Question.Prompt>, answer
 }
 
 export const Plugin = {
-  id: "aigcfroge.tool.question",
+  id: "omnixa.tool.question",
   effect: Effect.fn("QuestionTool.Plugin")(function* (ctx: Context) {
     const forms = yield* Form.Service
     const permission = yield* Permission.Service

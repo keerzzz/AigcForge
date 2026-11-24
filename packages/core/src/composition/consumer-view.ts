@@ -13,5 +13,5 @@ export {
   getPrompts,
   getSkills,
   getCommands,
-} from "@aigcfroge/schema/composition-consumer-view"
-export type { Scope } from "@aigcfroge/schema/composition-consumer-view"
+} from "@omnixa/schema/composition-consumer-view"
+export type { Scope } from "@omnixa/schema/composition-consumer-view"

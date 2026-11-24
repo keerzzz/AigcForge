@@ -1,7 +1,7 @@
 import { afterEach, expect, test } from "bun:test"
 import { Context, Effect } from "effect"
-import { Credential } from "@aigcfroge/core/credential"
-import { register, getCredential } from "@aigcfroge/core/session/runner/auth-seam"
+import { Credential } from "@omnixa/core/credential"
+import { register, getCredential } from "@omnixa/core/session/runner/auth-seam"
 
 // The seam is a module-level singleton (same pattern as TaskDriver).
 // Reset to a no-op resolver after each test to prevent cross-test leakage.

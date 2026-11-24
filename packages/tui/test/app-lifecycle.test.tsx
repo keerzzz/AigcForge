@@ -2,12 +2,12 @@ import { expect, test } from "bun:test"
 import { EmbeddedTerminalRenderable } from "@opentui/core"
 import { createTestRenderer } from "@opentui/core/testing"
 import { Effect, FileSystem } from "effect"
-import { Global } from "@aigcfroge/util/global"
+import { Global } from "@omnixa/util/global"
 import path from "node:path"
 import { createEventStream, createFetch, directory, json } from "./fixture/tui-client"
 import { tmpdir } from "./fixture/fixture"
 import { createAppFixture } from "./fixture/app"
-import type { PluginInfo } from "@aigcfroge/client"
+import type { PluginInfo } from "@omnixa/client"
 
 test.each([100, 44])("Ctrl-O is immediate, dismissible, and prunes cached deletions at width %s", async (width) => {
   await using state = await tmpdir()
@@ -225,7 +225,7 @@ test("SIGHUP clears title and disposes scoped resources once", async () => {
   const setTitle = setup.renderer.setTerminalTitle.bind(setup.renderer)
   setup.renderer.setTerminalTitle = (title) => {
     titles.push(title)
-    if (title === "AigcForge") started()
+    if (title === "Omnixa") started()
     setTitle(title)
   }
   const listeners = new Set(process.listeners("SIGHUP"))
@@ -271,15 +271,15 @@ test("session lifecycle updates the terminal title and prints the epilogue after
   })
   const setTitle = setup.renderer.setTerminalTitle.bind(setup.renderer)
   setup.renderer.setTerminalTitle = (title) => {
-    if (title === "OC | Demo session") initialTitle()
-    if (title === "OC | Renamed session") renamedTitle()
+    if (title === "Omnixa | Demo session") initialTitle()
+    if (title === "Omnixa | Renamed session") renamedTitle()
     setTitle(title)
   }
   const events = createEventStream()
   let promptRequests = 0
   const calls = createFetch((url) => {
     const session = {
-      id: "dummy",
+      id: "ses_dummy",
       title: "Demo session",
       projectID: "project",
       location: { directory },
@@ -292,11 +292,11 @@ test("session lifecycle updates the terminal title and prints the epilogue after
         data: [session],
         cursor: {},
       })
-    if (url.pathname === "/api/session/dummy") return json({ data: session })
-    if (url.pathname === "/api/session/dummy/message") return json({ data: [], cursor: {} })
-    if (url.pathname === "/api/session/dummy/inbox") return json({ data: [] })
-    if (url.pathname === "/api/session/dummy/permission") return json({ data: [] })
-    if (url.pathname === "/api/session/dummy/prompt") {
+    if (url.pathname === "/api/session/ses_dummy") return json({ data: session })
+    if (url.pathname === "/api/session/ses_dummy/message") return json({ data: [], cursor: {} })
+    if (url.pathname === "/api/session/ses_dummy/inbox") return json({ data: [] })
+    if (url.pathname === "/api/session/ses_dummy/permission") return json({ data: [] })
+    if (url.pathname === "/api/session/ses_dummy/prompt") {
       promptRequests++
       return json({ data: {} })
     }
@@ -318,7 +318,7 @@ test("session lifecycle updates the terminal title and prints the epilogue after
         config: { get: async () => ({}), update: async () => ({}) },
         packages: { prepare: async () => ({ directory: "" }) },
         terminalHandoff: async () => ({ renderer: setup.renderer, mode: "dark", complete: () => {} }),
-        args: { sessionID: "dummy" },
+        args: { sessionID: "ses_dummy" },
         log: () => {},
       }).pipe(Effect.provide(Global.layerWith({ state: state.path })), Effect.provide(FileSystem.layerNoop({}))),
     )
@@ -328,15 +328,15 @@ test("session lifecycle updates the terminal title and prints the epilogue after
       id: "evt_renamed",
       created: 1,
       type: "session.renamed",
-      durable: { aggregateID: "dummy", seq: 1, version: 1 },
-      data: { sessionID: "dummy", title: "Renamed session" },
+      durable: { aggregateID: "ses_dummy", seq: 1, version: 1 },
+      data: { sessionID: "ses_dummy", title: "Renamed session" },
     })
     await renamedTitleSet
     setup.renderer.destroy()
     await task
 
     expect(stdout).toContain("Renamed session")
-    expect(stdout).toContain("aigcfroge -s dummy")
+    expect(stdout).toContain("omnixa -s ses_dummy")
     expect(promptRequests).toBe(0)
   } finally {
     process.stdout.write = originalWrite
@@ -353,7 +353,7 @@ test("session title generated while an untitled session is loading remains visib
   const generatedTitle = Promise.withResolvers<void>()
   setup.renderer.setTerminalTitle = (title) => {
     titles.push(title)
-    if (title === "OC | Generated title") generatedTitle.resolve()
+    if (title === "Omnixa | Generated title") generatedTitle.resolve()
     setTitle(title)
   }
   const sessionRequested = Promise.withResolvers<void>()
@@ -361,7 +361,7 @@ test("session title generated while an untitled session is loading remains visib
   const releaseSession = Promise.withResolvers<void>()
   let sessionRequests = 0
   const session = {
-    id: "dummy",
+    id: "ses_dummy",
     projectID: "project",
     location: { directory },
     cost: 0,
@@ -371,16 +371,16 @@ test("session title generated while an untitled session is loading remains visib
   const events = createEventStream()
   const calls = createFetch(async (url) => {
     if (url.pathname === "/api/session") return json({ data: [], cursor: {} })
-    if (url.pathname === "/api/session/dummy") {
+    if (url.pathname === "/api/session/ses_dummy") {
       sessionRequests++
       sessionRequested.resolve()
       if (sessionRequests === 2) renameSyncRequested.resolve()
       await releaseSession.promise
       return json({ data: session })
     }
-    if (url.pathname === "/api/session/dummy/message") return json({ data: [], cursor: {} })
-    if (url.pathname === "/api/session/dummy/inbox") return json({ data: [] })
-    if (url.pathname === "/api/session/dummy/permission") return json({ data: [] })
+    if (url.pathname === "/api/session/ses_dummy/message") return json({ data: [], cursor: {} })
+    if (url.pathname === "/api/session/ses_dummy/inbox") return json({ data: [] })
+    if (url.pathname === "/api/session/ses_dummy/permission") return json({ data: [] })
   }, events)
   const server = Bun.serve({ port: 0, fetch: (request) => calls.fetch(request) })
 
@@ -393,7 +393,7 @@ test("session title generated while an untitled session is loading remains visib
         config: { get: async () => ({}), update: async () => ({}) },
         packages: { prepare: async () => ({ directory: "" }) },
         terminalHandoff: async () => ({ renderer: setup.renderer, mode: "dark", complete: () => {} }),
-        args: { sessionID: "dummy" },
+        args: { sessionID: "ses_dummy" },
         log: () => {},
       }).pipe(Effect.provide(Global.layerWith({ state: state.path })), Effect.provide(FileSystem.layerNoop({}))),
     )
@@ -403,8 +403,8 @@ test("session title generated while an untitled session is loading remains visib
       id: "evt_renamed",
       created: 1,
       type: "session.renamed",
-      durable: { aggregateID: "dummy", seq: 1, version: 1 },
-      data: { sessionID: "dummy", title: "Generated title" },
+      durable: { aggregateID: "ses_dummy", seq: 1, version: 1 },
+      data: { sessionID: "ses_dummy", title: "Generated title" },
     })
     await Promise.race([
       renameSyncRequested.promise,
@@ -421,9 +421,9 @@ test("session title generated while an untitled session is loading remains visib
     ])
     await Bun.sleep(20)
 
-    const generated = titles.lastIndexOf("OC | Generated title")
+    const generated = titles.lastIndexOf("Omnixa | Generated title")
     expect(generated).toBeGreaterThan(-1)
-    expect(titles.slice(generated + 1)).not.toContain("AigcForge")
+    expect(titles.slice(generated + 1)).not.toContain("Omnixa")
     setup.renderer.destroy()
     await task
   } finally {
@@ -688,6 +688,7 @@ test("keeps assistant footer metrics current after prepend, same-length refresh,
     time: { created: 100, updated: 5000 },
   }
   let refresh = false
+  let didRevert = false
   await using setup = await createAppFixture({
     width: 100,
     height: 40,
@@ -713,7 +714,7 @@ test("keeps assistant footer metrics current after prepend, same-length refresh,
           })
         return json({
           data: [
-            ...(refresh
+            ...(refresh && !didRevert
               ? [
                   {
                     id: "msg_0005",
@@ -788,6 +789,7 @@ test("keeps assistant footer metrics current after prepend, same-length refresh,
   expect(refreshed).toContain("4.0s \u00b7 20.0 tok/s")
   expect(refreshed).toContain("3.0s \u00b7 50.0 tok/s")
 
+  didRevert = true
   setup.events.emit({
     id: "evt_footer_reverted",
     created: 10000,
@@ -810,7 +812,7 @@ test("session startup prompt is submitted exactly once", async () => {
   const cwd = process.cwd()
   const location = { directory: cwd, project: { id: "project", directory: cwd } }
   const session = {
-    id: "dummy",
+    id: "ses_dummy",
     title: "Demo session",
     projectID: "project",
     location: { directory: cwd },
@@ -825,10 +827,10 @@ test("session startup prompt is submitted exactly once", async () => {
   const calls = createFetch(async (url, request) => {
     if (url.pathname === "/api/location") return json(location)
     if (url.pathname === "/api/session") return json({ data: [session], cursor: {} })
-    if (url.pathname === "/api/session/dummy") return json({ data: session })
-    if (url.pathname === "/api/session/dummy/message") return json({ data: [], cursor: {} })
-    if (url.pathname === "/api/session/dummy/inbox") return json({ data: [] })
-    if (url.pathname === "/api/session/dummy/permission") return json({ data: [] })
+    if (url.pathname === "/api/session/ses_dummy") return json({ data: session })
+    if (url.pathname === "/api/session/ses_dummy/message") return json({ data: [], cursor: {} })
+    if (url.pathname === "/api/session/ses_dummy/inbox") return json({ data: [] })
+    if (url.pathname === "/api/session/ses_dummy/permission") return json({ data: [] })
     if (url.pathname === "/api/agent")
       return json({
         location,
@@ -839,7 +841,7 @@ test("session startup prompt is submitted exactly once", async () => {
         location,
         data: [{ id: "model", providerID: "provider", name: "Model", variants: [] }],
       })
-    if (url.pathname === "/api/session/dummy/prompt") {
+    if (url.pathname === "/api/session/ses_dummy/prompt") {
       bodies.push(await request.json())
       promptSubmitted.resolve()
       return json({ data: {} })
@@ -856,7 +858,7 @@ test("session startup prompt is submitted exactly once", async () => {
         config: { get: async () => ({}), update: async () => ({}) },
         packages: { prepare: async () => ({ directory: "" }) },
         terminalHandoff: async () => ({ renderer: setup.renderer, mode: "dark", complete: () => {} }),
-        args: { sessionID: "dummy", prompt: "RESUME_READY" },
+        args: { sessionID: "ses_dummy", prompt: "RESUME_READY" },
         log: () => {},
       }).pipe(Effect.provide(Global.layerWith({ state: state.path })), Effect.provide(FileSystem.layerNoop({}))),
     )
@@ -1161,7 +1163,7 @@ test("new session inherits the active session model", async () => {
   const cwd = process.cwd()
   const location = { directory: cwd, project: { id: "project", directory: cwd } }
   const session = {
-    id: "dummy",
+    id: "ses_dummy",
     title: "Demo session",
     projectID: "project",
     location: { directory: cwd },
@@ -1174,15 +1176,15 @@ test("new session inherits the active session model", async () => {
   await using setup = await createAppFixture({
     width: 80,
     height: 24,
-    args: { sessionID: "dummy" },
+    args: { sessionID: "ses_dummy" },
     fetch: (url) => {
       if (url.pathname === "/api/fs/list") return json({ location, data: [] })
       if (url.pathname === "/api/location") return json(location)
       if (url.pathname === "/api/session") return json({ data: [session], cursor: {} })
-      if (url.pathname === "/api/session/dummy") return json({ data: session })
-      if (url.pathname === "/api/session/dummy/message") return json({ data: [], cursor: {} })
-      if (url.pathname === "/api/session/dummy/inbox") return json({ data: [] })
-      if (url.pathname === "/api/session/dummy/permission") return json({ data: [] })
+      if (url.pathname === "/api/session/ses_dummy") return json({ data: session })
+      if (url.pathname === "/api/session/ses_dummy/message") return json({ data: [], cursor: {} })
+      if (url.pathname === "/api/session/ses_dummy/inbox") return json({ data: [] })
+      if (url.pathname === "/api/session/ses_dummy/permission") return json({ data: [] })
       if (url.pathname === "/api/agent")
         return json({ location, data: [{ id: "build", mode: "primary", hidden: false, permissions: [] }] })
       if (url.pathname === "/api/provider") return json({ location, data: [{ id: "provider", name: "Provider" }] })
@@ -1208,7 +1210,7 @@ test("new session inherits the active session model", async () => {
 
 test("keeps the prompt display stable while a new location catalog loads", async () => {
   const source = process.cwd()
-  const target = path.join(path.parse(source).root, "aigcfroge-target")
+  const target = path.join(path.parse(source).root, "omnixa-target")
   const locationCatalog = Promise.withResolvers<void>()
   const catalog = Promise.withResolvers<void>()
   const providerCatalog = Promise.withResolvers<void>()
@@ -1315,7 +1317,7 @@ test("keeps the prompt display stable while a new location catalog loads", async
 
 test("configured app binding opens settings", async () => {
   await using setup = await createAppFixture({
-    config: { animations: false, keybinds: { "aigcfroge.settings": "f6" } },
+    config: { animations: false, keybinds: { "omnixa.settings": "f6" } },
   })
   await setup.ready
   await setup.waitForFrame((frame) => frame.includes("commands"))
@@ -1352,7 +1354,7 @@ test.skipIf(process.platform === "win32").each(["manual", "select"] as const)(
     setup.renderer.start()
     const ready = Promise.withResolvers<void>()
     const session = {
-      id: "dummy",
+      id: "ses_dummy",
       title: "Selection fixture",
       projectID: "project",
       location: { directory },
@@ -1376,11 +1378,11 @@ test.skipIf(process.platform === "win32").each(["manual", "select"] as const)(
     const input: string[] = []
     const calls = createFetch((url, request) => {
       if (url.pathname === "/api/session") return json({ data: [session], cursor: {} })
-      if (url.pathname === "/api/session/dummy") return json({ data: session })
-      if (url.pathname === "/api/session/dummy/message") return json({ data: [], cursor: {} })
-      if (url.pathname === "/api/session/dummy/inbox") return json({ data: [] })
-      if (url.pathname === "/api/session/dummy/permission") return json({ data: [] })
-      if (url.pathname === "/api/experimental/session/dummy/terminal")
+      if (url.pathname === "/api/session/ses_dummy") return json({ data: session })
+      if (url.pathname === "/api/session/ses_dummy/message") return json({ data: [], cursor: {} })
+      if (url.pathname === "/api/session/ses_dummy/inbox") return json({ data: [] })
+      if (url.pathname === "/api/session/ses_dummy/permission") return json({ data: [] })
+      if (url.pathname === "/api/experimental/session/ses_dummy/terminal")
         return json({ data: request.method === "POST" ? pty : [pty] })
       if (url.pathname === "/api/experimental/persistent-pty/pty_fixture/snapshot")
         return json({

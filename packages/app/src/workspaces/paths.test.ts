@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import type { SessionInfo } from "@aigcfroge/client/promise"
+import type { SessionInfo } from "@omnixa/client/promise"
 import {
   filterWorkspaceInventory,
   inspectWorkspaceDeletion,
@@ -31,7 +31,7 @@ describe("isWorkspaceDirectory", () => {
     expect(isWorkspaceDirectory(undefined, "C:\\repo-workspaces\\feature")).toBe(false)
   })
 
-  const root = "C:/AigcForge/WorkspaceAccent"
+  const root = "C:/Omnixa/WorkspaceAccent"
 
   const inventoried = withWorktreeInventory(
     normalizeProjectInfo({
@@ -43,16 +43,16 @@ describe("isWorkspaceDirectory", () => {
     [
       { directory: root },
       { directory: `${root}/.worktrees/feature`, strategy: "git" },
-      { directory: "C:/AigcForge/WorkspaceCopy", strategy: "copy" },
-      { directory: "C:/AigcForge/RegisteredDirectory" },
+      { directory: "C:/Omnixa/WorkspaceCopy", strategy: "copy" },
+      { directory: "C:/Omnixa/RegisteredDirectory" },
     ],
   )
 
   test.each([
     { name: "nested main directory", directory: `${root}/packages/app`, expected: false },
     { name: "unregistered sibling with the same prefix", directory: `${root}/.worktrees/feature-x`, expected: false },
-    { name: "workspace using another strategy", directory: "C:/AigcForge/WorkspaceCopy", expected: true },
-    { name: "registered directory without a strategy", directory: "C:/AigcForge/RegisteredDirectory", expected: true },
+    { name: "workspace using another strategy", directory: "C:/Omnixa/WorkspaceCopy", expected: true },
+    { name: "registered directory without a strategy", directory: "C:/Omnixa/RegisteredDirectory", expected: true },
   ])("classifies an inventoried $name", ({ directory, expected }) => {
     expect(isWorkspaceDirectory(inventoried, directory)).toBe(expected)
   })

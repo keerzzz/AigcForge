@@ -16,7 +16,7 @@ export function requireInteractive(message: string) {
 }
 
 export const openUrl = Effect.fn("cli.prompt.open-url")(function* (url: string) {
-  const browser = yield* Effect.promise(() => import("@aigcfroge/util/open"))
+  const browser = yield* Effect.promise(() => import("@omnixa/util/open"))
   yield* Effect.promise(() => browser.openUrl(url)).pipe(Effect.ignore)
 })
 

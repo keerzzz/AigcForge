@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test"
-import type { JsonValue, SessionMessageInfo, WorkflowAssetApplyOutput } from "@aigcfroge/client/promise"
+import type { JsonValue, SessionMessageInfo, WorkflowAssetApplyOutput } from "@omnixa/client/promise"
 import { SkillAssets } from "./skill-asset"
 
 export function body() {

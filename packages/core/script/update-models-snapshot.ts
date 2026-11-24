@@ -4,7 +4,7 @@
  * The snapshot is the boot-time floor for the catalog when no cache entry exists
  * and fetching is disabled or unavailable; live fetch still refreshes on top.
  */
-const source = process.env.AIGCFROGE_MODELS_URL || "https://models.dev"
+const source = process.env.OMNIXA_MODELS_URL || "https://models.dev"
 const response = await fetch(`${source}/api.json`)
 if (!response.ok) {
   console.error(`Failed to fetch ${source}/api.json: ${response.status} ${response.statusText}`)

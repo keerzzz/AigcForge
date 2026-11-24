@@ -3,9 +3,9 @@ import type {
   CommandListOutput,
   LocationRef,
   ModelListOutput,
-  AigcForgeClient,
+  OmnixaClient,
   ProviderListOutput,
-} from "@aigcfroge/client/promise"
+} from "@omnixa/client/promise"
 import type { RunAgent, RunCommand, RunProvider, RunReference } from "./types"
 
 type CurrentAgent = AgentListOutput["data"][number]
@@ -76,13 +76,13 @@ export function runProviders(providers: CurrentProvider[], models: CurrentModel[
   return [...grouped.values()]
 }
 
-export async function loadRunAgents(sdk: AigcForgeClient, ref: LocationRef, signal?: AbortSignal): Promise<RunAgent[]> {
+export async function loadRunAgents(sdk: OmnixaClient, ref: LocationRef, signal?: AbortSignal): Promise<RunAgent[]> {
   const result = await sdk.agent.list(location(ref), ...requestOptions(signal))
   return result.data.map(runAgent)
 }
 
 export async function loadRunCommands(
-  sdk: AigcForgeClient,
+  sdk: OmnixaClient,
   ref: LocationRef,
   signal?: AbortSignal,
 ): Promise<RunCommand[]> {
@@ -91,7 +91,7 @@ export async function loadRunCommands(
 }
 
 export async function loadRunReferences(
-  sdk: AigcForgeClient,
+  sdk: OmnixaClient,
   ref: LocationRef,
   signal?: AbortSignal,
 ): Promise<RunReference[]> {
@@ -100,7 +100,7 @@ export async function loadRunReferences(
 }
 
 export async function loadRunProviders(
-  sdk: AigcForgeClient,
+  sdk: OmnixaClient,
   ref: LocationRef,
   signal?: AbortSignal,
 ): Promise<RunProvider[]> {

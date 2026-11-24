@@ -1,12 +1,12 @@
 export * as SessionErrors from "./error.js"
 
 import { Schema } from "effect"
-import { Agent } from "@aigcfroge/schema/agent"
-import { Skill } from "@aigcfroge/schema/skill"
+import { Agent } from "@omnixa/schema/agent"
+import { Skill } from "@omnixa/schema/skill"
 import { SessionMessage } from "./message.js"
 import { SessionSchema } from "./schema.js"
-import { SessionError } from "@aigcfroge/schema/session-error"
-import { Model } from "@aigcfroge/schema/model"
+import { SessionError } from "@omnixa/schema/session-error"
+import { Model } from "@omnixa/schema/model"
 
 export class ControllerConflictError extends Schema.TaggedError<ControllerConflictError>()(
   "Session.ControllerConflictError",

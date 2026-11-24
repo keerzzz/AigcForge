@@ -20,14 +20,8 @@ export default {
   "error.input":
     "Voer een host- of SSH-verbindingsopdracht in. Externe opdrachten en niet-ondersteunde SSH-opties zijn niet toegestaan.",
   "error.connection": "Kan de SSH-verbinding niet tot stand brengen. Controleer uw netwerk- en SSH-configuratie.",
-  "error.platform":
-    "Dit externe platform wordt niet ondersteund. Voor automatische configuratie is momenteel Linux of macOS op x64 of arm64 vereist.",
   "error.version": "De externe service moet overeenkomen met deze desktopversie voordat verbinding wordt gemaakt.",
-  "error.install":
-    "Kan de externe server niet installeren. Controleer de connectiviteit, schijfruimte en of tar is geïnstalleerd.",
-  "error.unpublished":
-    "Deze desktopversie heeft geen gepubliceerde externe server. Voor ontwikkelingsbuilds installeert en start u V2 op de host en probeert u het vervolgens opnieuw.",
-  "error.service": "SSH verbonden, maar de AigcForge-server is niet gereed geworden.",
+  "error.service": "SSH verbonden, maar de Omnixa-server is niet gereed geworden.",
   "error.host-key":
     "De identiteit van de host kon niet worden geverifieerd. Controleer de vingerafdruk voordat u uw bekende SSH-hosts bijwerkt.",
   "error.ssh-missing":

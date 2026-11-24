@@ -1,60 +1,60 @@
 import { describe, expect } from "bun:test"
-import { AIError, InvalidRequestError, LanguageModel, LLMClient } from "@aigcfroge/ai"
-import { OpenAIChat } from "@aigcfroge/ai/protocols"
-import { TestLLM } from "@aigcfroge/ai/testing"
-import { Agent } from "@aigcfroge/core/agent"
-import { App } from "@aigcfroge/core/app"
-import { Bus } from "@aigcfroge/core/bus"
-import { Config } from "@aigcfroge/core/config"
-import { Database } from "@aigcfroge/core/database/database"
-import { CompositionDigest } from "@aigcfroge/core/composition/digest"
-import { DelegationExecution } from "@aigcfroge/core/delegation/execution"
-import { DelegationReceipt } from "@aigcfroge/core/delegation/receipt"
-import { DelegationService } from "@aigcfroge/core/delegation/service"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { LayerNodePlatform } from "@aigcfroge/core/effect/app-node-platform"
-import { Job } from "@aigcfroge/core/job"
-import { Git } from "@aigcfroge/core/git"
-import { AppProcess } from "@aigcfroge/util/process"
-import { KV } from "@aigcfroge/core/kv"
-import { Instance } from "@aigcfroge/core/instance/service"
-import { Location } from "@aigcfroge/core/location"
-import { LocationServiceMap } from "@aigcfroge/core/location-service-map"
-import { Model } from "@aigcfroge/core/model"
-import { MetaAgentStepTable } from "@aigcfroge/core/meta-agent/sql"
-import { Plugin } from "@aigcfroge/core/plugin"
-import { PluginHooks } from "@aigcfroge/core/plugin/hooks"
-import { Provider } from "@aigcfroge/core/provider"
-import { Project } from "@aigcfroge/core/project"
-import { AbsolutePath } from "@aigcfroge/core/schema"
-import { Session } from "@aigcfroge/core/session"
-import { SessionSchema } from "@aigcfroge/core/session/schema"
-import { SessionComposition } from "@aigcfroge/core/session/composition"
-import { SessionExecution } from "@aigcfroge/core/session/execution"
-import { SessionRestart } from "@aigcfroge/core/session/execution/restart"
-import { SessionInbox } from "@aigcfroge/core/session/inbox"
-import { SessionInputResult } from "@aigcfroge/core/session/input-result"
-import { SessionMessage } from "@aigcfroge/core/session/message"
-import { SessionRunnerModel } from "@aigcfroge/core/session/runner/model"
-import { ScheduleService } from "@aigcfroge/core/session/schedule-service"
-import { SessionTable, SessionInboxTable, SessionMessageTable } from "@aigcfroge/core/session/sql"
-import { SessionStore } from "@aigcfroge/core/session/store"
-import { SessionTask } from "@aigcfroge/core/session/task"
-import { Tool } from "@aigcfroge/core/tool"
-import { CliAdapter } from "@aigcfroge/core/tool/cli-adapter"
-import { CodexAppServer } from "@aigcfroge/core/tool/codex-app-server"
-import { WorkflowExecution } from "@aigcfroge/core/workflow/execution"
-import { WorkflowRun } from "@aigcfroge/core/workflow/workflow-run"
-import type { Delegation } from "@aigcfroge/schema/delegation"
-import { DelegationID, type TurnID } from "@aigcfroge/schema/delegation-id"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
-import { Global } from "@aigcfroge/util/global"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { AIError, InvalidRequestError, LanguageModel, LLMClient } from "@omnixa/ai"
+import { OpenAIChat } from "@omnixa/ai/protocols"
+import { TestLLM } from "@omnixa/ai/testing"
+import { Agent } from "@omnixa/core/agent"
+import { App } from "@omnixa/core/app"
+import { Bus } from "@omnixa/core/bus"
+import { Config } from "@omnixa/core/config"
+import { Database } from "@omnixa/core/database/database"
+import { CompositionDigest } from "@omnixa/core/composition/digest"
+import { DelegationExecution } from "@omnixa/core/delegation/execution"
+import { DelegationReceipt } from "@omnixa/core/delegation/receipt"
+import { DelegationService } from "@omnixa/core/delegation/service"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { LayerNodePlatform } from "@omnixa/core/effect/app-node-platform"
+import { Job } from "@omnixa/core/job"
+import { Git } from "@omnixa/core/git"
+import { AppProcess } from "@omnixa/util/process"
+import { KV } from "@omnixa/core/kv"
+import { Instance } from "@omnixa/core/instance/service"
+import { Location } from "@omnixa/core/location"
+import { LocationServiceMap } from "@omnixa/core/location-service-map"
+import { Model } from "@omnixa/core/model"
+import { MetaAgentStepTable } from "@omnixa/core/meta-agent/sql"
+import { Plugin } from "@omnixa/core/plugin"
+import { PluginHooks } from "@omnixa/core/plugin/hooks"
+import { Provider } from "@omnixa/core/provider"
+import { Project } from "@omnixa/core/project"
+import { AbsolutePath } from "@omnixa/core/schema"
+import { Session } from "@omnixa/core/session"
+import { SessionSchema } from "@omnixa/core/session/schema"
+import { SessionComposition } from "@omnixa/core/session/composition"
+import { SessionExecution } from "@omnixa/core/session/execution"
+import { SessionRestart } from "@omnixa/core/session/execution/restart"
+import { SessionInbox } from "@omnixa/core/session/inbox"
+import { SessionInputResult } from "@omnixa/core/session/input-result"
+import { SessionMessage } from "@omnixa/core/session/message"
+import { SessionRunnerModel } from "@omnixa/core/session/runner/model"
+import { ScheduleService } from "@omnixa/core/session/schedule-service"
+import { SessionTable, SessionInboxTable, SessionMessageTable } from "@omnixa/core/session/sql"
+import { SessionStore } from "@omnixa/core/session/store"
+import { SessionTask } from "@omnixa/core/session/task"
+import { Tool } from "@omnixa/core/tool"
+import { CliAdapter } from "@omnixa/core/tool/cli-adapter"
+import { CodexAppServer } from "@omnixa/core/tool/codex-app-server"
+import { WorkflowExecution } from "@omnixa/core/workflow/execution"
+import { WorkflowRun } from "@omnixa/core/workflow/workflow-run"
+import type { Delegation } from "@omnixa/schema/delegation"
+import { DelegationID, type TurnID } from "@omnixa/schema/delegation-id"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { makeGlobalNode } from "@omnixa/util/effect/app-node"
+import { Global } from "@omnixa/util/global"
+import { FSUtil } from "@omnixa/util/fs-util"
 import { eq, sql } from "drizzle-orm"
 import { Cause, Context, Deferred, Effect, Exit, Fiber, Layer, Option, Schema, Scope, Stream } from "effect"
 import { isReadonlyArrayNonEmpty } from "effect/Array"
-import { SessionEvent } from "@aigcfroge/core/session/event"
+import { SessionEvent } from "@omnixa/core/session/event"
 import { tempGlobalLayer } from "./fixture/global"
 import { createLegacySession, offlineModels, useOfflineCatalog } from "./fixture/models"
 import { tmpdirScoped } from "./fixture/tmpdir"
@@ -124,8 +124,8 @@ const externalRecoveryFixture = (
   queuePhase?: "pending" | "bound",
 ) =>
   Effect.gen(function* () {
-    const directory = yield* tmpdirScoped("aigcfroge-external-recovery-workspace-")
-    const databaseDirectory = yield* tmpdirScoped("aigcfroge-external-recovery-database-")
+    const directory = yield* tmpdirScoped("omnixa-external-recovery-workspace-")
+    const databaseDirectory = yield* tmpdirScoped("omnixa-external-recovery-database-")
     const databasePath = `${databaseDirectory.path}/external-recovery.sqlite`
     const location = Location.Ref.make({ directory: AbsolutePath.make(directory.path) })
     const text = "MC06_RECOVERED_" + "x".repeat(characters)
@@ -156,7 +156,7 @@ const externalRecoveryFixture = (
     )
     yield* Effect.promise(() =>
       Bun.write(
-        `${directory.path}/aigcfroge.json`,
+        `${directory.path}/omnixa.json`,
         JSON.stringify({ cli_agents: { codex: { command: adapter.command, transport: "app-server" } } }),
       ),
     )
@@ -176,7 +176,7 @@ const externalRecoveryFixture = (
               info: Provider.Info.make({
                 ...Provider.Info.empty(model.providerID),
                 activation: "enabled",
-                package: "@aigcfroge/ai/providers/openai/responses",
+                package: "@omnixa/ai/providers/openai/responses",
               }),
               models: [Model.Info.make(Model.Info.default(model.providerID, model.id))],
             },
@@ -2078,9 +2078,9 @@ describe("DelegationExecution authoritative Session results", () => {
     "reopens a successful internal Task delivery and consumes its exact parent notice once",
     () =>
       Effect.gen(function* () {
-        const directory = yield* tmpdirScoped("aigcfroge-delegation-workspace-")
+        const directory = yield* tmpdirScoped("omnixa-delegation-workspace-")
         // Revert captures the workspace even with files disabled; keep SQLite outside that snapshot.
-        const databaseDirectory = yield* tmpdirScoped("aigcfroge-delegation-database-")
+        const databaseDirectory = yield* tmpdirScoped("omnixa-delegation-database-")
         const databasePath = `${databaseDirectory.path}/success-delivery.sqlite`
         const location = Location.Ref.make({ directory: AbsolutePath.make(directory.path) })
         const open = (scope: Scope.Scope) =>
@@ -2392,9 +2392,9 @@ describe("DelegationExecution authoritative Session results", () => {
     "isolates a real Location config boot failure during restart and rebuilds after repair",
     () =>
       Effect.gen(function* () {
-        const badDirectory = yield* tmpdirScoped("aigcfroge-restart-bad-location-")
-        const goodDirectory = yield* tmpdirScoped("aigcfroge-restart-good-location-")
-        const databaseDirectory = yield* tmpdirScoped("aigcfroge-restart-location-database-")
+        const badDirectory = yield* tmpdirScoped("omnixa-restart-bad-location-")
+        const goodDirectory = yield* tmpdirScoped("omnixa-restart-good-location-")
+        const databaseDirectory = yield* tmpdirScoped("omnixa-restart-location-database-")
         const databasePath = `${databaseDirectory.path}/location-restart.sqlite`
         const open = (scope: Scope.Scope) =>
           Layer.build(
@@ -2466,7 +2466,7 @@ describe("DelegationExecution authoritative Session results", () => {
         })
         yield* Scope.close(originalScope, Exit.void)
         yield* Effect.promise(() =>
-          Bun.write(`${badDirectory.path}/aigcfroge.json`, JSON.stringify({ username: "{file:username.txt}" })),
+          Bun.write(`${badDirectory.path}/omnixa.json`, JSON.stringify({ username: "{file:username.txt}" })),
         )
 
         const reopenedScope = yield* Scope.make()

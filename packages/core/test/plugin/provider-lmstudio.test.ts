@@ -1,13 +1,13 @@
-import { Bus } from "@aigcfroge/core/bus"
-import { Config } from "@aigcfroge/core/config"
-import { Integration } from "@aigcfroge/core/integration"
-import { Model } from "@aigcfroge/core/model"
-import { Plugin } from "@aigcfroge/core/plugin"
-import { PluginHost } from "@aigcfroge/core/plugin/host"
-import { LMStudioPlugin, make } from "@aigcfroge/core/plugin/provider/lmstudio"
-import { ProviderPlugins } from "@aigcfroge/core/plugin/provider"
-import { Provider } from "@aigcfroge/core/provider"
-import { Document, Event, Info } from "@aigcfroge/schema/config"
+import { Bus } from "@omnixa/core/bus"
+import { Config } from "@omnixa/core/config"
+import { Integration } from "@omnixa/core/integration"
+import { Model } from "@omnixa/core/model"
+import { Plugin } from "@omnixa/core/plugin"
+import { PluginHost } from "@omnixa/core/plugin/host"
+import { LMStudioPlugin, make } from "@omnixa/core/plugin/provider/lmstudio"
+import { ProviderPlugins } from "@omnixa/core/plugin/provider"
+import { Provider } from "@omnixa/core/provider"
+import { Document, Event, Info } from "@omnixa/schema/config"
 import { describe, expect, test } from "bun:test"
 import { Duration, Effect, Layer, Schema } from "effect"
 import { testEffect } from "../lib/effect"
@@ -38,8 +38,8 @@ function eventually<A>(
 
 describe("LMStudioPlugin", () => {
   test("is registered as a built-in provider plugin", () => {
-    expect(LMStudioPlugin.id).toBe("aigcfroge.provider.lmstudio")
-    expect(ProviderPlugins.map((item) => item.id)).toContain("aigcfroge.provider.lmstudio")
+    expect(LMStudioPlugin.id).toBe("omnixa.provider.lmstudio")
+    expect(ProviderPlugins.map((item) => item.id)).toContain("omnixa.provider.lmstudio")
   })
 
   it.live("discovers local language models with their capabilities and effective context", () =>
@@ -101,7 +101,7 @@ describe("LMStudioPlugin", () => {
             id: providerID,
             name: "LM Studio",
             activation: "enabled",
-            package: "@aigcfroge/ai/providers/openai-compatible",
+            package: "@omnixa/ai/providers/openai-compatible",
             settings: { baseURL: `${server.url.origin}/v1`, provider: "lmstudio", apiKey: "" },
           })
           expect((yield* providers.available()).map((provider) => provider.id)).toContain(providerID)
@@ -311,7 +311,7 @@ describe("LMStudioPlugin", () => {
           yield* providers.transform((editor) => {
             editor.update(providerID, (provider) => {
               provider.name = "LMStudio"
-              provider.package = "@aigcfroge/ai/providers/openai-compatible"
+              provider.package = "@omnixa/ai/providers/openai-compatible"
               provider.integrationID = Integration.ID.make("lmstudio")
             })
             editor.models.update(providerID, Model.ID.make("static-model"), () => {})

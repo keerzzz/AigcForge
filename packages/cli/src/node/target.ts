@@ -13,7 +13,7 @@ export function nodeTarget(platform: string, arch: string) {
   const parcelWatcherPackage = `@parcel/watcher-${targetPlatform}-${targetArch}${targetPlatform === "linux" ? "-glibc" : ""}`
   const fffPackage = `@ff-labs/fff-bin-${targetPlatform}-${targetArch}${targetPlatform === "linux" ? "-gnu" : ""}`
   const fffFfiPackage = `@yuuang/ffi-rs-${targetPlatform}-${targetArch}${targetPlatform === "linux" ? "-gnu" : targetPlatform === "win32" ? "-msvc" : ""}`
-  const aigcfrogePtyAsset = targetPlatform === "win32" ? undefined : "aigcfroge-pty/aigcfroge-pty"
+  const omnixaPtyAsset = targetPlatform === "win32" ? undefined : "omnixa-pty/omnixa-pty"
 
   return {
     platform: targetPlatform,
@@ -26,7 +26,7 @@ export function nodeTarget(platform: string, arch: string) {
     fffAsset: `${fffPackage}/${targetPlatform === "darwin" ? "libfff_c.dylib" : targetPlatform === "win32" ? "fff_c.dll" : "libfff_c.so"}`,
     fffFfiPackage,
     fffFfiAsset: `${fffFfiPackage}/ffi-rs.${targetPlatform}-${targetArch}${targetPlatform === "linux" ? "-gnu" : targetPlatform === "win32" ? "-msvc" : ""}.node`,
-    aigcfrogePtyAsset,
+    omnixaPtyAsset,
   }
 }
 
@@ -39,9 +39,9 @@ export const shellParserWasmAssets = {
 export const nodeExecArgv = ["--experimental-ffi", "--use-system-ca", "--disable-warning=ExperimentalWarning"] as const
 
 export const attentionSoundAssets = [
-  "@aigcfroge/ui/audio/bip-bop-01.mp3",
-  "@aigcfroge/ui/audio/bip-bop-03.mp3",
-  "@aigcfroge/ui/audio/staplebops-06.mp3",
-  "@aigcfroge/ui/audio/nope-03.mp3",
-  "@aigcfroge/ui/audio/yup-01.mp3",
+  "@omnixa/ui/audio/bip-bop-01.mp3",
+  "@omnixa/ui/audio/bip-bop-03.mp3",
+  "@omnixa/ui/audio/staplebops-06.mp3",
+  "@omnixa/ui/audio/nope-03.mp3",
+  "@omnixa/ui/audio/yup-01.mp3",
 ] as const

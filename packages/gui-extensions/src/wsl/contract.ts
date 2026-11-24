@@ -28,7 +28,7 @@ export const WslJob = Schema.Union([
     distros: Schema.Array(Schema.String),
     startedAt: Schema.Number,
   }),
-  Schema.Struct({ kind: Schema.Literal("install-aigcfroge"), distro: Schema.String, startedAt: Schema.Number }),
+  Schema.Struct({ kind: Schema.Literal("install-omnixa"), distro: Schema.String, startedAt: Schema.Number }),
 ])
 
 export type WslJob = typeof WslJob.Type
@@ -57,13 +57,12 @@ export const WslDistroProbe = Schema.Struct({
   name: Schema.String,
   canExecute: Schema.Boolean,
   hasBash: Schema.Boolean,
-  hasCurl: Schema.Boolean,
   error: Schema.NullOr(Schema.String),
 })
 
 export type WslDistroProbe = typeof WslDistroProbe.Type
 
-export const WslAigcfrogeCheck = Schema.Struct({
+export const WslOmnixaCheck = Schema.Struct({
   distro: Schema.String,
   resolvedPath: Schema.NullOr(Schema.String),
   version: Schema.NullOr(Schema.String),
@@ -72,7 +71,7 @@ export const WslAigcfrogeCheck = Schema.Struct({
   error: Schema.NullOr(Schema.String),
 })
 
-export type WslAigcfrogeCheck = typeof WslAigcfrogeCheck.Type
+export type WslOmnixaCheck = typeof WslOmnixaCheck.Type
 
 export const WslServerItem = Schema.Struct({ config: WslServerConfig, runtime: WslServerRuntime })
 
@@ -83,7 +82,7 @@ export const WslServersState = Schema.Struct({
   installed: Schema.Array(WslInstalledDistro),
   online: Schema.Array(WslOnlineDistro),
   distroProbes: Schema.Record(Schema.String, WslDistroProbe),
-  aigcfrogeChecks: Schema.Record(Schema.String, WslAigcfrogeCheck),
+  omnixaChecks: Schema.Record(Schema.String, WslOmnixaCheck),
   pendingRestart: Schema.Boolean,
   servers: Schema.Array(WslServerItem),
   job: Schema.NullOr(WslJob),
@@ -95,7 +94,7 @@ const Name = Schema.Struct({ name: Schema.NonEmptyString })
 
 const Id = Schema.Struct({ id: Schema.NonEmptyString })
 
-/** WSL runtime, distros, and the AigcForge servers the main process runs inside them. */
+/** WSL runtime, distros, and the Omnixa servers the main process runs inside them. */
 export const Wsl = Ipc.define({
   id: "wsl",
   state: WslServersState,
@@ -105,7 +104,7 @@ export const Wsl = Ipc.define({
     installWsl: {},
     installDistro: { input: Name },
     probeAddable: { input: Schema.Struct({ distros: Schema.Array(Schema.NonEmptyString) }) },
-    installAigcfroge: { input: Name },
+    installOmnixa: { input: Name },
     addServer: { input: Schema.Struct({ distro: Schema.NonEmptyString }), output: WslServerConfig },
     removeServer: { input: Id },
     startServer: { input: Id },

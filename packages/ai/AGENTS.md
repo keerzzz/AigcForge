@@ -18,9 +18,9 @@ Media payloads are always `Media.Asset` (`src/media.ts`). Construct them with `M
 
 `schema/messages.ts → media.ts → route/executor-service.ts` is an accepted runtime dependency from the schema layer on the executor service tag: `Media.Asset.bytes()` must be able to download `url` sources, and the tag lives in that leaf module precisely so the schema barrel never imports the executor implementation (which imports the schema barrel back). Do not move the tag into `route/executor.ts` or import `route/executor.ts` from `src/schema/*` or `src/media.ts`.
 
-Nothing in `src/*` except `src/promise.ts` may know about Promises. `@aigcfroge/ai/promise` (`AI.make({ layer? })`, default `ai`) is the single Promise/`AsyncIterable` surface for LLM and media; it runs the Effect APIs in one `ManagedRuntime` and rethrows `AIError` unchanged.
+Nothing in `src/*` except `src/promise.ts` may know about Promises. `@omnixa/ai/promise` (`AI.make({ layer? })`, default `ai`) is the single Promise/`AsyncIterable` surface for LLM and media; it runs the Effect APIs in one `ManagedRuntime` and rethrows `AIError` unchanged.
 
-- Prefer forward compatibility for provider-defined options that AigcForge only passes through. For pass-through string enums, expose known values for autocomplete while accepting future values with `Known | (string & {})`, and accept any string at runtime. Closed literals are appropriate when AigcForge branches on a value, transforms its associated structure, or otherwise cannot correctly handle an unknown variant. New options whose shape or behavior requires implementation remain unsupported until they are handled; do not blindly forward unknown structures.
+- Prefer forward compatibility for provider-defined options that Omnixa only passes through. For pass-through string enums, expose known values for autocomplete while accepting future values with `Known | (string & {})`, and accept any string at runtime. Closed literals are appropriate when Omnixa branches on a value, transforms its associated structure, or otherwise cannot correctly handle an unknown variant. New options whose shape or behavior requires implementation remain unsupported until they are handled; do not blindly forward unknown structures.
 - Order reasoning-effort values from lowest to highest: `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`. Provider-specific subsets follow the same relative order in types, schemas, option lists, and tests.
 
 ## Tests
@@ -141,10 +141,10 @@ Keep provider facades small and explicit:
 
 ### Provider Package Entrypoints
 
-Catalog-selected native providers use package-like export paths from `@aigcfroge/ai`. They are internal entrypoints in one npm package, not separately published provider packages. Every entrypoint implements `ProviderPackage.Definition` and exposes `model(modelID, settings)`, where settings are one flat serializable object: the connection keys the entrypoint declares (`apiKey`, `baseURL`, `region`, …), the common `headers` and `body` overlays, and the protocol's request options (`reasoningEffort`, `thinking`, …) side by side. Each entrypoint destructures its own connection keys and passes the rest to the route as `providerOptions`; there is no nested `providerOptions` at the entrypoint.
+Catalog-selected native providers use package-like export paths from `@omnixa/ai`. They are internal entrypoints in one npm package, not separately published provider packages. Every entrypoint implements `ProviderPackage.Definition` and exposes `model(modelID, settings)`, where settings are one flat serializable object: the connection keys the entrypoint declares (`apiKey`, `baseURL`, `region`, …), the common `headers` and `body` overlays, and the protocol's request options (`reasoningEffort`, `thinking`, …) side by side. Each entrypoint destructures its own connection keys and passes the rest to the route as `providerOptions`; there is no nested `providerOptions` at the entrypoint.
 
 ```ts
-import { model } from "@aigcfroge/ai/providers/openai/responses"
+import { model } from "@omnixa/ai/providers/openai/responses"
 
 const selected = model("gpt-5", {
   apiKey,

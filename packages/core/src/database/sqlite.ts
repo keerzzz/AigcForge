@@ -6,7 +6,7 @@ import { SqlClient, Statement } from "effect/sql"
 import type { Connection } from "effect/sql/SqlConnection"
 import type { SqlError } from "effect/sql/SqlError"
 
-export class Native extends Context.Service<Native, unknown>()("@aigcfroge/core/database/SqliteNative") {}
+export class Native extends Context.Service<Native, unknown>()("@omnixa/core/database/SqliteNative") {}
 
 export interface ClientConfig {
   readonly spanAttributes?: Record<string, unknown>

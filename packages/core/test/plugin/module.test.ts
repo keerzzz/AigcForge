@@ -2,26 +2,22 @@ import { expect } from "bun:test"
 import { cp } from "node:fs/promises"
 import path from "node:path"
 import { Brand, Cause, Deferred, Effect, Exit, Fiber, Layer, Option, Schedule, Schema, Scope, Stream } from "effect"
-import { Agent } from "@aigcfroge/schema/agent"
-import { Session } from "@aigcfroge/schema/session"
-import { SessionMessage } from "@aigcfroge/schema/session-message"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { Watcher } from "@aigcfroge/core/filesystem/watcher"
-import { Plugin } from "@aigcfroge/core/plugin"
-import { ManagedPolicy } from "@aigcfroge/core/managed-policy"
-import { PluginModule } from "@aigcfroge/core/plugin/module"
-import { CompositionDigest } from "@aigcfroge/core/composition/digest"
-import { Rpc } from "@aigcfroge/core/rpc"
-import { Tool } from "@aigcfroge/core/tool"
-import { execute } from "@aigcfroge/core/tool/runtime"
-import { Global } from "@aigcfroge/util/global"
-import { Npm } from "@aigcfroge/util/npm"
-import { createForeignPackageFilter, ensurePluginRuntime } from "@aigcfroge/plugin/runtime"
-import {
-  createLoader,
-  discoverPluginRuntimeSpecifiers,
-  pluginRuntimeLoaderCode,
-} from "@aigcfroge/plugin/runtime-modules"
+import { Agent } from "@omnixa/schema/agent"
+import { Session } from "@omnixa/schema/session"
+import { SessionMessage } from "@omnixa/schema/session-message"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { Watcher } from "@omnixa/core/filesystem/watcher"
+import { Plugin } from "@omnixa/core/plugin"
+import { ManagedPolicy } from "@omnixa/core/managed-policy"
+import { PluginModule } from "@omnixa/core/plugin/module"
+import { CompositionDigest } from "@omnixa/core/composition/digest"
+import { Rpc } from "@omnixa/core/rpc"
+import { Tool } from "@omnixa/core/tool"
+import { execute } from "@omnixa/core/tool/runtime"
+import { Global } from "@omnixa/util/global"
+import { Npm } from "@omnixa/util/npm"
+import { createForeignPackageFilter, ensurePluginRuntime } from "@omnixa/plugin/runtime"
+import { createLoader, discoverPluginRuntimeSpecifiers, pluginRuntimeLoaderCode } from "@omnixa/plugin/runtime-modules"
 import { tempGlobalLayer } from "../fixture/global"
 import { tmpdirScoped } from "../fixture/tmpdir"
 import { testEffect } from "../lib/effect"
@@ -189,49 +185,46 @@ it.live("interrupts pending watcher setup when the loader scope closes during mo
   }),
 )
 
-it.live(
-  "loads plugins and their transitive dependencies against the host's Effect and @aigcfroge/plugin instances",
-  () =>
-    Effect.gen(function* () {
-      const directory = yield* tmpdirScoped()
-      const pluginDir = path.join(directory.path, "plugin")
-      const pluginEffectDir = path.join(pluginDir, "node_modules/effect")
-      const hostEffectDir = path.dirname(Bun.resolveSync("effect/package.json", import.meta.dir))
+it.live("loads plugins and their transitive dependencies against the host's Effect and @omnixa/plugin instances", () =>
+  Effect.gen(function* () {
+    const directory = yield* tmpdirScoped()
+    const pluginDir = path.join(directory.path, "plugin")
+    const pluginEffectDir = path.join(pluginDir, "node_modules/effect")
+    const hostEffectDir = path.dirname(Bun.resolveSync("effect/package.json", import.meta.dir))
 
-      yield* Effect.promise(async () => {
-        await cp(path.join(hostEffectDir, "dist"), path.join(pluginEffectDir, "dist"), {
-          recursive: true,
-          filter: (src) =>
-            !src.endsWith(".d.ts") && !src.endsWith(".map") && !/httpApi(?:Scalar|Swagger)\.js$/.test(src),
-        })
-        const pkg = { ...(await Bun.file(path.join(hostEffectDir, "package.json")).json()), version: "4.0.0-rc.111" }
+    yield* Effect.promise(async () => {
+      await cp(path.join(hostEffectDir, "dist"), path.join(pluginEffectDir, "dist"), {
+        recursive: true,
+        filter: (src) => !src.endsWith(".d.ts") && !src.endsWith(".map") && !/httpApi(?:Scalar|Swagger)\.js$/.test(src),
+      })
+      const pkg = { ...(await Bun.file(path.join(hostEffectDir, "package.json")).json()), version: "4.0.0-rc.111" }
 
-        // Sabotage the plugin's own Effect copy with the version-skew failure modes so loading it would crash:
-        // 1. Effect.log reading an incompatible fiber log-level property (crashing host logger with logLevel.toUpperCase)
-        // 2. Effect.runPromise calling fiber.succeedWith on a host fiber
-        // 3. Schema.withDecodingDefault / Schema.Int / Schema.isPattern / Schema.Trim using foreign parser sentinels
-        const internalEffectPath = path.join(pluginEffectDir, "dist/internal/effect.js")
-        const originalInternalEffect = await Bun.file(internalEffectPath).text()
-        const logPattern =
-          /const logLevel = level \?\? fiber\.(?:currentLogLevel|cache\.logLevel);\r?\n\s*if \(isLogLevelGreaterThan\(fiber\.(?:minimumLogLevel|cache\.minimumLogLevel), logLevel\)\) \{/
-        const runPromisePattern = /const runPromiseExit = runPromiseExitWith\(context\);/
-        expect(logPattern.test(originalInternalEffect)).toBe(true)
-        expect(runPromisePattern.test(originalInternalEffect)).toBe(true)
+      // Sabotage the plugin's own Effect copy with the version-skew failure modes so loading it would crash:
+      // 1. Effect.log reading an incompatible fiber log-level property (crashing host logger with logLevel.toUpperCase)
+      // 2. Effect.runPromise calling fiber.succeedWith on a host fiber
+      // 3. Schema.withDecodingDefault / Schema.Int / Schema.isPattern / Schema.Trim using foreign parser sentinels
+      const internalEffectPath = path.join(pluginEffectDir, "dist/internal/effect.js")
+      const originalInternalEffect = await Bun.file(internalEffectPath).text()
+      const logPattern =
+        /const logLevel = level \?\? fiber\.(?:currentLogLevel|cache\.logLevel);\r?\n\s*if \(isLogLevelGreaterThan\(fiber\.(?:minimumLogLevel|cache\.minimumLogLevel), logLevel\)\) \{/
+      const runPromisePattern = /const runPromiseExit = runPromiseExitWith\(context\);/
+      expect(logPattern.test(originalInternalEffect)).toBe(true)
+      expect(runPromisePattern.test(originalInternalEffect)).toBe(true)
 
-        await writeFiles(pluginDir, {
-          "node_modules/effect/package.json": JSON.stringify(pkg),
-          "node_modules/effect/dist/internal/effect.js": originalInternalEffect
-            .replace(
-              logPattern,
-              "const logLevel = level ?? fiber.foreignSkew?.logLevel;\n    if (isLogLevelGreaterThan(fiber.foreignSkew?.minimumLogLevel, logLevel)) {",
-            )
-            .replace(
-              runPromisePattern,
-              "if (true) return (effect) => Promise.resolve().then(() => { const fiber = {}; return fiber.succeedWith(effect); });\n  const runPromiseExit = runPromiseExitWith(context);",
-            ),
-          "node_modules/transitive-dep/package.json":
-            '{"name":"transitive-dep","type":"module","exports":{".":"./index.js"}}',
-          "node_modules/transitive-dep/index.js": `import { Effect, Schema } from "effect"
+      await writeFiles(pluginDir, {
+        "node_modules/effect/package.json": JSON.stringify(pkg),
+        "node_modules/effect/dist/internal/effect.js": originalInternalEffect
+          .replace(
+            logPattern,
+            "const logLevel = level ?? fiber.foreignSkew?.logLevel;\n    if (isLogLevelGreaterThan(fiber.foreignSkew?.minimumLogLevel, logLevel)) {",
+          )
+          .replace(
+            runPromisePattern,
+            "if (true) return (effect) => Promise.resolve().then(() => { const fiber = {}; return fiber.succeedWith(effect); });\n  const runPromiseExit = runPromiseExitWith(context);",
+          ),
+        "node_modules/transitive-dep/package.json":
+          '{"name":"transitive-dep","type":"module","exports":{".":"./index.js"}}',
+        "node_modules/transitive-dep/index.js": `import { Effect, Schema } from "effect"
 import { some } from "effect/Option"
 export const depToolInput = Schema.Struct({
   mode: Schema.String.pipe(Schema.withDecodingDefault(Effect.succeed("from-dep"))),
@@ -239,12 +232,12 @@ export const depToolInput = Schema.Struct({
   code: Schema.Trim.check(Schema.isPattern(/^v[0-9]+$/)),
 })
 export const depCaptured = { Effect, Schema, some }`,
-          "node_modules/@aigcfroge/plugin/package.json":
-            '{"name":"@aigcfroge/plugin","type":"module","exports":{"./effect":"./effect.js","./rpc":"./rpc.js"}}',
-          "node_modules/@aigcfroge/plugin/effect.js": "export const Plugin = { define: (p) => p }",
-          "node_modules/@aigcfroge/plugin/rpc.js": "export const Rpc = { define: (d) => d }",
-          "index.ts": `import { Plugin } from "@aigcfroge/plugin/effect"
-import { Rpc } from "@aigcfroge/plugin/rpc"
+        "node_modules/@omnixa/plugin/package.json":
+          '{"name":"@omnixa/plugin","type":"module","exports":{"./effect":"./effect.js","./rpc":"./rpc.js"}}',
+        "node_modules/@omnixa/plugin/effect.js": "export const Plugin = { define: (p) => p }",
+        "node_modules/@omnixa/plugin/rpc.js": "export const Rpc = { define: (d) => d }",
+        "index.ts": `import { Plugin } from "@omnixa/plugin/effect"
+import { Rpc } from "@omnixa/plugin/rpc"
 import { Effect, Schema } from "effect"
 import { some } from "effect/Option"
 import { nominal } from "effect/Brand"
@@ -304,51 +297,51 @@ export default Plugin.define({
       }).pipe(Effect.orDie)
     }),
 })`,
-        })
       })
+    })
 
-      const modules = yield* PluginModule.make()
-      const plugins = yield* Plugin.Service
-      const tools = yield* Tool.Service
-      const rpc = yield* Rpc.Service
+    const modules = yield* PluginModule.make()
+    const plugins = yield* Plugin.Service
+    const tools = yield* Tool.Service
+    const rpc = yield* Rpc.Service
 
-      const definition = yield* modules.load({ type: "add", target: pluginDir, options: {} })
-      if ("pending" in definition || "blocked" in definition)
-        return yield* Effect.die(new Error("Local plugin was not loaded"))
-      yield* plugins.activate([definition])
-      yield* plugins.awaitActivation
+    const definition = yield* modules.load({ type: "add", target: pluginDir, options: {} })
+    if ("pending" in definition || "blocked" in definition)
+      return yield* Effect.die(new Error("Local plugin was not loaded"))
+    yield* plugins.activate([definition])
+    yield* plugins.awaitActivation
 
-      expect(yield* plugins.list()).toMatchObject([{ id: "host-effect-fixture", state: { status: "active" } }])
+    expect(yield* plugins.list()).toMatchObject([{ id: "host-effect-fixture", state: { status: "active" } }])
 
-      const imported = yield* Effect.promise(() => import(path.join(pluginDir, "index.ts")))
-      expect(imported.captured.plugin.Effect).toBe(Effect)
-      expect(imported.captured.plugin.Schema).toBe(Schema)
-      expect(imported.captured.plugin.some).toBe(Option.some)
-      expect(imported.captured.plugin.nominal).toBe(Brand.nominal)
-      expect(imported.captured.dep.Effect).toBe(Effect)
-      expect(imported.captured.dep.Schema).toBe(Schema)
-      expect(imported.captured.dep.some).toBe(Option.some)
-      expect(imported.captured.pluginCount).toBe(0)
+    const imported = yield* Effect.promise(() => import(path.join(pluginDir, "index.ts")))
+    expect(imported.captured.plugin.Effect).toBe(Effect)
+    expect(imported.captured.plugin.Schema).toBe(Schema)
+    expect(imported.captured.plugin.some).toBe(Option.some)
+    expect(imported.captured.plugin.nominal).toBe(Brand.nominal)
+    expect(imported.captured.dep.Effect).toBe(Effect)
+    expect(imported.captured.dep.Schema).toBe(Schema)
+    expect(imported.captured.dep.some).toBe(Option.some)
+    expect(imported.captured.pluginCount).toBe(0)
 
-      const checkTool = (yield* tools.list()).find((tool) => tool.id === "check_tool")
-      expect(checkTool).toBeDefined()
-      if (!checkTool) return undefined
+    const checkTool = (yield* tools.list()).find((tool) => tool.id === "check_tool")
+    expect(checkTool).toBeDefined()
+    if (!checkTool) return undefined
 
-      const context = {
-        sessionID: Session.ID.make("ses_host_effect"),
-        agent: Agent.ID.make("build"),
-        messageID: SessionMessage.ID.make("msg_host_effect"),
-        id: Tool.CallID.make("call_host_effect"),
-        progress: () => Effect.void,
-      }
+    const context = {
+      sessionID: Session.ID.make("ses_host_effect"),
+      agent: Agent.ID.make("build"),
+      messageID: SessionMessage.ID.make("msg_host_effect"),
+      id: Tool.CallID.make("call_host_effect"),
+      progress: () => Effect.void,
+    }
 
-      expect(yield* execute(checkTool, { count: 3, code: "  v42  " }, context)).toEqual({
-        output: { formatted: "from-dep:v42:3" },
-        content: [{ type: "text", text: "from-dep:v42:3" }],
-      })
-      expect(yield* rpc.call("host-effect-rpc", "check", { tag: " v9 " })).toEqual({ value: "v9#5" })
-      return undefined
-    }),
+    expect(yield* execute(checkTool, { count: 3, code: "  v42  " }, context)).toEqual({
+      output: { formatted: "from-dep:v42:3" },
+      content: [{ type: "text", text: "from-dep:v42:3" }],
+    })
+    expect(yield* rpc.call("host-effect-rpc", "check", { tag: " v9 " })).toEqual({ value: "v9#5" })
+    return undefined
+  }),
 )
 
 it.live(
@@ -419,8 +412,8 @@ it.live(
 
       yield* Effect.promise(() =>
         writeFiles(directory.path, {
-          "consumer/node_modules/@aigcfroge/plugin/package.json": JSON.stringify({
-            name: "@aigcfroge/plugin",
+          "consumer/node_modules/@omnixa/plugin/package.json": JSON.stringify({
+            name: "@omnixa/plugin",
             type: "module",
             exports: {
               ".": "./src/promise/index.ts",
@@ -428,22 +421,22 @@ it.live(
               "./effect/*": "./src/effect/*.ts",
             },
           }),
-          "consumer/node_modules/@aigcfroge/plugin/src/promise/index.ts": "export const root = 'src'",
-          "consumer/node_modules/@aigcfroge/plugin/src/effect/index.ts": "export * as plugin from './plugin.ts'",
-          "consumer/node_modules/@aigcfroge/plugin/src/effect/plugin.ts": "export const leaf = 'src'",
-          "consumer/node_modules/@aigcfroge/plugin/src/unexported.ts": "export const secret = true",
-          "consumer/node_modules/@aigcfroge/plugin/dist/promise/index.js": "export const root = 'dist'",
-          "consumer/node_modules/@aigcfroge/plugin/dist/effect/index.js": "export const index = 'dist'",
-          "consumer/node_modules/@aigcfroge/plugin/dist/effect/plugin.js": "export const leaf = 'dist'",
+          "consumer/node_modules/@omnixa/plugin/src/promise/index.ts": "export const root = 'src'",
+          "consumer/node_modules/@omnixa/plugin/src/effect/index.ts": "export * as plugin from './plugin.ts'",
+          "consumer/node_modules/@omnixa/plugin/src/effect/plugin.ts": "export const leaf = 'src'",
+          "consumer/node_modules/@omnixa/plugin/src/unexported.ts": "export const secret = true",
+          "consumer/node_modules/@omnixa/plugin/dist/promise/index.js": "export const root = 'dist'",
+          "consumer/node_modules/@omnixa/plugin/dist/effect/index.js": "export const index = 'dist'",
+          "consumer/node_modules/@omnixa/plugin/dist/effect/plugin.js": "export const leaf = 'dist'",
           "async-mod.ts": "await new Promise((r) => setTimeout(r, 20)); export const nonce = Math.random()",
         }),
       )
 
-      const discovered = discoverPluginRuntimeSpecifiers(consumerDir, ["@aigcfroge/plugin"])
-      expect(discovered.get("@aigcfroge/plugin")?.replaceAll("\\", "/")).toEndWith("src/promise/index.ts")
-      expect(discovered.get("@aigcfroge/plugin/effect")?.replaceAll("\\", "/")).toEndWith("src/effect/index.ts")
-      expect(discovered.get("@aigcfroge/plugin/effect/plugin")?.replaceAll("\\", "/")).toEndWith("src/effect/plugin.ts")
-      expect(discovered.has("@aigcfroge/plugin/unexported")).toBe(false)
+      const discovered = discoverPluginRuntimeSpecifiers(consumerDir, ["@omnixa/plugin"])
+      expect(discovered.get("@omnixa/plugin")?.replaceAll("\\", "/")).toEndWith("src/promise/index.ts")
+      expect(discovered.get("@omnixa/plugin/effect")?.replaceAll("\\", "/")).toEndWith("src/effect/index.ts")
+      expect(discovered.get("@omnixa/plugin/effect/plugin")?.replaceAll("\\", "/")).toEndWith("src/effect/plugin.ts")
+      expect(discovered.has("@omnixa/plugin/unexported")).toBe(false)
 
       const hostDiscovered = discoverPluginRuntimeSpecifiers()
       expect(hostDiscovered.has("effect/schema/SchemaJITCompiler")).toBe(true)
@@ -470,16 +463,16 @@ it.live(
       expect(res1).toBe(res2)
 
       const winFilter = createForeignPackageFilter([
-        "C:\\runner\\_work\\aigcfroge\\node_modules\\.bun\\effect@4.0.0-rc.112\\node_modules\\effect",
+        "C:\\runner\\_work\\omnixa\\node_modules\\.bun\\effect@4.0.0-rc.112\\node_modules\\effect",
       ])
       expect(
         winFilter.test(
-          "C:\\runner\\_work\\aigcfroge\\node_modules\\.bun\\effect@4.0.0-rc.112\\node_modules\\effect\\dist\\index.js",
+          "C:\\runner\\_work\\omnixa\\node_modules\\.bun\\effect@4.0.0-rc.112\\node_modules\\effect\\dist\\index.js",
         ),
       ).toBe(false)
       expect(
         winFilter.test(
-          "C:/runner/_work/aigcfroge/node_modules/.bun/effect@4.0.0-rc.112/node_modules/effect/dist/index.js",
+          "C:/runner/_work/omnixa/node_modules/.bun/effect@4.0.0-rc.112/node_modules/effect/dist/index.js",
         ),
       ).toBe(false)
       expect(winFilter.test("C:\\Users\\plugin\\node_modules\\effect\\dist\\index.js")).toBe(true)

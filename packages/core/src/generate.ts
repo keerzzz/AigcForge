@@ -1,9 +1,9 @@
 export * as Generate from "./generate.js"
 
-import { LLM, LLMClient, AIError } from "@aigcfroge/ai"
-import { SessionID } from "@aigcfroge/schema/session-id"
+import { LLM, LLMClient, AIError } from "@omnixa/ai"
+import { SessionID } from "@omnixa/schema/session-id"
 import { Context, Effect, Layer, Schema } from "effect"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
 import { llmClient } from "./effect/app-node-platform.js"
 import { ModelResolver } from "./model-resolver.js"
 import { Model } from "./model.js"
@@ -28,7 +28,7 @@ export interface Interface {
   readonly text: (input: TextInput) => Effect.Effect<string, Error>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/Generate") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/Generate") {}
 
 export const layer = Layer.effect(
   Service,
@@ -67,7 +67,7 @@ export const layer = Layer.effect(
             model: resolved.model,
             prompt: input.prompt,
             // Gateways require session attribution even for a stateless call; no Session is stored.
-            http: { headers: { "x-aigcfroge-session": SessionID.create() } },
+            http: { headers: { "x-omnixa-session": SessionID.create() } },
           }),
         )
         .pipe(

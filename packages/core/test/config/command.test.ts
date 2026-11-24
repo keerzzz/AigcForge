@@ -3,31 +3,31 @@ import path from "path"
 import { describe, expect } from "bun:test"
 import { DateTime, Deferred, Effect, Fiber, Layer, Option, PubSub, Schema, Stream } from "effect"
 import { advance, drain } from "../lib/clock"
-import { Directory, Document, Event, Info } from "@aigcfroge/schema/config"
-import { Session } from "@aigcfroge/core/session"
-import { SessionExecution } from "@aigcfroge/core/session/execution"
-import { Job } from "@aigcfroge/core/job"
-import { SubagentJob } from "@aigcfroge/core/session/subagent-job"
-import { Agent } from "@aigcfroge/core/agent"
-import { SessionInbox } from "@aigcfroge/schema/session-inbox"
-import { SessionMessage } from "@aigcfroge/schema/session-message"
-import { Command } from "@aigcfroge/core/command"
-import { Config } from "@aigcfroge/core/config"
-import { ConfigCommandPlugin } from "@aigcfroge/core/config/plugin/command"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { FSUtil } from "@aigcfroge/util/fs-util"
-import { Bus } from "@aigcfroge/core/bus"
-import { Credential } from "@aigcfroge/core/credential"
-import { WellKnown } from "@aigcfroge/core/wellknown"
-import { Global } from "@aigcfroge/util/global"
-import { AppProcess } from "@aigcfroge/util/process"
-import { Location } from "@aigcfroge/core/location"
-import { Model } from "@aigcfroge/core/model"
-import { Mcp } from "@aigcfroge/core/mcp/index"
-import { AbsolutePath } from "@aigcfroge/core/schema"
-import { ShellSelect } from "@aigcfroge/core/shell/select"
-import { Watcher } from "@aigcfroge/core/filesystem/watcher"
+import { Directory, Document, Event, Info } from "@omnixa/schema/config"
+import { Session } from "@omnixa/core/session"
+import { SessionExecution } from "@omnixa/core/session/execution"
+import { Job } from "@omnixa/core/job"
+import { SubagentJob } from "@omnixa/core/session/subagent-job"
+import { Agent } from "@omnixa/core/agent"
+import { SessionInbox } from "@omnixa/schema/session-inbox"
+import { SessionMessage } from "@omnixa/schema/session-message"
+import { Command } from "@omnixa/core/command"
+import { Config } from "@omnixa/core/config"
+import { ConfigCommandPlugin } from "@omnixa/core/config/plugin/command"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { FSUtil } from "@omnixa/util/fs-util"
+import { Bus } from "@omnixa/core/bus"
+import { Credential } from "@omnixa/core/credential"
+import { WellKnown } from "@omnixa/core/wellknown"
+import { Global } from "@omnixa/util/global"
+import { AppProcess } from "@omnixa/util/process"
+import { Location } from "@omnixa/core/location"
+import { Model } from "@omnixa/core/model"
+import { Mcp } from "@omnixa/core/mcp/index"
+import { AbsolutePath } from "@omnixa/core/schema"
+import { ShellSelect } from "@omnixa/core/shell/select"
+import { Watcher } from "@omnixa/core/filesystem/watcher"
 import { emptyCredentialNode, emptyWellknownNode } from "../fixture/config-nodes"
 import { emptyConfigLayer, emptyMcpLayer, testLocationLayer } from "../fixture/mcp"
 import { location } from "../fixture/location"
@@ -447,7 +447,7 @@ Review files`,
           )
 
           yield* configTest.emitChange({ type: "create", path: path.join(tmp.path, "notes", "todo.md") })
-          yield* configTest.emitChange({ type: "update", path: path.join(tmp.path, "aigcfroge.json") })
+          yield* configTest.emitChange({ type: "update", path: path.join(tmp.path, "omnixa.json") })
           yield* drain
           expect(reloads).toBe(0)
 
@@ -474,9 +474,7 @@ describeNative("ConfigCommandPlugin native watcher", () => {
     Effect.gen(function* () {
       const fs = yield* FSUtil.Service
       // Watcher events report real paths, so resolve the tempdir symlink up front.
-      const tmp = yield* fs
-        .makeTempDirectoryScoped({ prefix: "aigcfroge-core-test-" })
-        .pipe(Effect.flatMap(fs.realPath))
+      const tmp = yield* fs.makeTempDirectoryScoped({ prefix: "omnixa-core-test-" }).pipe(Effect.flatMap(fs.realPath))
       const global = path.join(tmp, "global")
       yield* fs.makeDirectory(path.join(global, "commands"), { recursive: true })
       yield* fs.makeDirectory(path.join(tmp, "project"))

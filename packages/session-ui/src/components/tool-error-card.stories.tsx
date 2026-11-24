@@ -35,8 +35,7 @@ const samples: { tool: string; error: string; subtitle?: string; defaultOpen?: b
   },
   {
     tool: "read",
-    error:
-      "read File not found: /Users/davidhill/Documents/Local/aigcfroge/packages/ui/src/components/does-not-exist.tsx",
+    error: "read File not found: /Users/davidhill/Documents/Local/omnixa/packages/ui/src/components/does-not-exist.tsx",
   },
   {
     tool: "glob",
@@ -61,7 +60,7 @@ const samples: { tool: string; error: string; subtitle?: string; defaultOpen?: b
 ]
 
 export default {
-  title: "AigcForge/Tools/Failure details",
+  title: "Omnixa/Tools/Failure details",
   id: "components-tool-error-card",
   component: ToolErrorCard,
   tags: ["autodocs"],

@@ -47,7 +47,7 @@ export async function createAcpFixture(
     readonly respond?: (request: unknown) => string | Response | Promise<string | Response>
   } = {},
 ) {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "aigcfroge-cli-acp-"))
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "omnixa-cli-acp-"))
   const home = path.join(root, "workspace")
   const config = path.join(root, "config")
   const models = path.join(root, "models.json")
@@ -70,10 +70,7 @@ export async function createAcpFixture(
       })
     },
   })
-  await Bun.write(
-    path.join(config, "aigcfroge.json"),
-    JSON.stringify(verifierConfig(`http://127.0.0.1:${llm.port}/v1`)),
-  )
+  await Bun.write(path.join(config, "omnixa.json"), JSON.stringify(verifierConfig(`http://127.0.0.1:${llm.port}/v1`)))
   await Bun.write(models, "{}")
 
   const processes = new Set<AcpProcess>()
@@ -85,10 +82,10 @@ export async function createAcpFixture(
       const acp = spawnAcp({
         env: isolatedEnv(root, {
           USERPROFILE: root,
-          AIGCFROGE_CONFIG: undefined,
-          AIGCFROGE_CONFIG_CONTENT: undefined,
-          AIGCFROGE_DISABLE_AUTOUPDATE: "true",
-          AIGCFROGE_MODELS_PATH: models,
+          OMNIXA_CONFIG: undefined,
+          OMNIXA_CONFIG_CONTENT: undefined,
+          OMNIXA_DISABLE_AUTOUPDATE: "true",
+          OMNIXA_MODELS_PATH: models,
         }),
       })
       processes.add(acp)
@@ -115,7 +112,7 @@ export function initialize(acp: AcpProcess) {
     .request<InitializeResponse>("initialize", {
       protocolVersion: 1,
       clientCapabilities: { _meta: { "terminal-auth": true } },
-      clientInfo: { name: "aigcfroge-local-acp", version: "0.1.0" },
+      clientInfo: { name: "omnixa-local-acp", version: "0.1.0" },
     })
     .then(expectOk)
 }

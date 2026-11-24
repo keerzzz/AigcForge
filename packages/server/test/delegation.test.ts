@@ -1,40 +1,40 @@
 import path from "node:path"
 import { expect } from "bun:test"
-import { AigcForge } from "@aigcfroge/client"
+import { Omnixa } from "@omnixa/client"
 import { LanguageModel, LLMClient } from "../../ai/src"
 import { OpenAIChat } from "../../ai/src/protocols"
 import { TestLLM } from "../../ai/src/testing"
-import { Agent } from "@aigcfroge/core/agent"
-import { Bus } from "@aigcfroge/core/bus"
-import { Database } from "@aigcfroge/core/database/database"
-import { DelegationService } from "@aigcfroge/core/delegation/service"
-import { DelegationEvent } from "@aigcfroge/core/delegation/event"
-import { DelegationParticipantTable, DelegationTable, DelegationTurnTable } from "@aigcfroge/core/delegation/sql"
-import { EventSequenceTable, EventTable } from "@aigcfroge/core/event/sql"
-import { LayerNodePlatform } from "@aigcfroge/core/effect/app-node-platform"
-import { Location } from "@aigcfroge/core/location"
-import { LocationServiceMap } from "@aigcfroge/core/location-service-map"
-import { Model } from "@aigcfroge/core/model"
-import { Job } from "@aigcfroge/core/job"
-import { Plugin } from "@aigcfroge/core/plugin"
-import { Provider } from "@aigcfroge/core/provider"
-import { SessionRunnerModel } from "@aigcfroge/core/session/runner/model"
-import { SessionInbox } from "@aigcfroge/core/session/inbox"
-import { SessionInboxTable, SessionMessageTable, SessionTable } from "@aigcfroge/core/session/sql"
-import { Session } from "@aigcfroge/core/session"
-import { DelegationExecution } from "@aigcfroge/core/delegation/execution"
-import { LegacyDelegationState } from "@aigcfroge/protocol/groups/delegation"
-import { Delegation } from "@aigcfroge/schema/delegation"
-import { DelegationID, ParticipantID, TurnID } from "@aigcfroge/schema/delegation-id"
-import { Event } from "@aigcfroge/schema/event"
-import { AbsolutePath } from "@aigcfroge/schema/schema"
+import { Agent } from "@omnixa/core/agent"
+import { Bus } from "@omnixa/core/bus"
+import { Database } from "@omnixa/core/database/database"
+import { DelegationService } from "@omnixa/core/delegation/service"
+import { DelegationEvent } from "@omnixa/core/delegation/event"
+import { DelegationParticipantTable, DelegationTable, DelegationTurnTable } from "@omnixa/core/delegation/sql"
+import { EventSequenceTable, EventTable } from "@omnixa/core/event/sql"
+import { LayerNodePlatform } from "@omnixa/core/effect/app-node-platform"
+import { Location } from "@omnixa/core/location"
+import { LocationServiceMap } from "@omnixa/core/location-service-map"
+import { Model } from "@omnixa/core/model"
+import { Job } from "@omnixa/core/job"
+import { Plugin } from "@omnixa/core/plugin"
+import { Provider } from "@omnixa/core/provider"
+import { SessionRunnerModel } from "@omnixa/core/session/runner/model"
+import { SessionInbox } from "@omnixa/core/session/inbox"
+import { SessionInboxTable, SessionMessageTable, SessionTable } from "@omnixa/core/session/sql"
+import { Session } from "@omnixa/core/session"
+import { DelegationExecution } from "@omnixa/core/delegation/execution"
+import { LegacyDelegationState } from "@omnixa/protocol/groups/delegation"
+import { Delegation } from "@omnixa/schema/delegation"
+import { DelegationID, ParticipantID, TurnID } from "@omnixa/schema/delegation-id"
+import { Event } from "@omnixa/schema/event"
+import { AbsolutePath } from "@omnixa/schema/schema"
 import { Context, DateTime, Effect, Layer, Option, Schema, Stream } from "effect"
 import { HttpEffect, HttpRouter, HttpServer } from "effect/http"
 import { withEnv } from "../../core/test/fixture/env"
 import { createLegacySession } from "../../core/test/fixture/models"
 import { tmpdirScoped } from "../../core/test/fixture/tmpdir"
 import { awaitWithTimeout, it } from "../../core/test/lib/effect"
-import type { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import type { LayerNode } from "@omnixa/util/effect/layer-node"
 import { createRoutes } from "../src/routes"
 import type { ServerOptions } from "../src/options"
 
@@ -62,14 +62,14 @@ const boot = (directory: string, options: ServerOptions = {}, overrides: LayerNo
       input: { body?: unknown; directory?: string; authenticated?: boolean; method?: string } = {},
     ) =>
       Effect.promise(() => {
-        const url = new URL(route, "http://aigcfroge.local")
+        const url = new URL(route, "http://omnixa.local")
         url.searchParams.set("directory", input.directory ?? directory)
         return handler(
           new Request(url, {
             method: input.method ?? (input.body === undefined ? "GET" : "POST"),
             headers: {
               "content-type": "application/json",
-              ...(input.authenticated === false ? {} : { authorization: `Basic ${btoa("aigcfroge:secret")}` }),
+              ...(input.authenticated === false ? {} : { authorization: `Basic ${btoa("omnixa:secret")}` }),
             },
             body: input.body === undefined ? undefined : JSON.stringify(input.body),
           }),
@@ -83,9 +83,9 @@ const boot = (directory: string, options: ServerOptions = {}, overrides: LayerNo
       Effect.provide(context),
       Effect.map((session) => session.id),
     )
-    const api = AigcForge.make({
-      baseUrl: "http://aigcfroge.local",
-      headers: { authorization: `Basic ${btoa("aigcfroge:secret")}` },
+    const api = Omnixa.make({
+      baseUrl: "http://omnixa.local",
+      headers: { authorization: `Basic ${btoa("omnixa:secret")}` },
       fetch: Object.assign((input: string | URL | Request, init?: RequestInit) => handler(new Request(input, init)), {
         preconnect: fetch.preconnect,
       }),
@@ -215,7 +215,7 @@ const lifecycleOperations = (delegationID: DelegationID.ID, participantID: Parti
 }
 
 it.live("serves delegation lifecycle close, complete, and archive through the generated client", () =>
-  withEnv({ AIGCFROGE_EXPERIMENTAL_PERSISTENT_DELEGATIONS: "true" }, () =>
+  withEnv({ OMNIXA_EXPERIMENTAL_PERSISTENT_DELEGATIONS: "true" }, () =>
     Effect.gen(function* () {
       const directory = (yield* tmpdirScoped()).path
       const test = yield* boot(directory)
@@ -253,7 +253,7 @@ it.live("serves delegation lifecycle close, complete, and archive through the ge
 )
 
 it.live("keeps rejection retraction distinct from approval and rejects an unmet completion barrier", () =>
-  withEnv({ AIGCFROGE_EXPERIMENTAL_PERSISTENT_DELEGATIONS: "true" }, () =>
+  withEnv({ OMNIXA_EXPERIMENTAL_PERSISTENT_DELEGATIONS: "true" }, () =>
     Effect.gen(function* () {
       const directory = (yield* tmpdirScoped()).path
       const test = yield* boot(directory)
@@ -295,7 +295,7 @@ it.live("keeps rejection retraction distinct from approval and rejects an unmet 
 )
 
 it.live("keeps resume reconciliation receipts unchanged and forks fresh rosters without executing work", () =>
-  withEnv({ AIGCFROGE_EXPERIMENTAL_PERSISTENT_DELEGATIONS: "true" }, () =>
+  withEnv({ OMNIXA_EXPERIMENTAL_PERSISTENT_DELEGATIONS: "true" }, () =>
     Effect.gen(function* () {
       const directory = (yield* tmpdirScoped()).path
       const test = yield* boot(directory)
@@ -377,7 +377,7 @@ it.live("keeps resume reconciliation receipts unchanged and forks fresh rosters 
 )
 
 it.live("rejects draft purge and restores cancelled archives without reopening execution", () =>
-  withEnv({ AIGCFROGE_EXPERIMENTAL_PERSISTENT_DELEGATIONS: "true" }, () =>
+  withEnv({ OMNIXA_EXPERIMENTAL_PERSISTENT_DELEGATIONS: "true" }, () =>
     Effect.gen(function* () {
       const directory = (yield* tmpdirScoped()).path
       const test = yield* boot(directory)
@@ -442,7 +442,7 @@ it.live("rejects draft purge and restores cancelled archives without reopening e
 )
 
 it.live("serves durable delegation admission and queries through the production graph", () =>
-  withEnv({ AIGCFROGE_EXPERIMENTAL_PERSISTENT_DELEGATIONS: "true" }, () =>
+  withEnv({ OMNIXA_EXPERIMENTAL_PERSISTENT_DELEGATIONS: "true" }, () =>
     Effect.gen(function* () {
       const directory = (yield* tmpdirScoped()).path
       const test = yield* boot(directory)
@@ -519,7 +519,7 @@ it.live("serves durable delegation admission and queries through the production 
 it.live(
   "executes full prompts and interrupts through the generated client and production Session owners",
   () =>
-    withEnv({ AIGCFROGE_EXPERIMENTAL_PERSISTENT_DELEGATIONS: "true" }, () =>
+    withEnv({ OMNIXA_EXPERIMENTAL_PERSISTENT_DELEGATIONS: "true" }, () =>
       Effect.gen(function* () {
         const directory = (yield* tmpdirScoped()).path
         const llm = Context.get(yield* Layer.build(TestLLM.testLayer()), TestLLM.Test)
@@ -915,24 +915,22 @@ it.live("defaults to retained Bus and enforces explicit disabling and authentica
   Effect.gen(function* () {
     const directory = (yield* tmpdirScoped()).path
     for (const value of [undefined, "false"] as const) {
-      const defaultBoot = yield* withEnv({ AIGCFROGE_EXPERIMENTAL_PERSISTENT_DELEGATIONS: value }, () =>
-        boot(directory),
-      )
+      const defaultBoot = yield* withEnv({ OMNIXA_EXPERIMENTAL_PERSISTENT_DELEGATIONS: value }, () => boot(directory))
       expect(Context.get(defaultBoot.context, Bus.Service).retainsEvents).toBe(value === undefined)
     }
-    const test = yield* withEnv({ AIGCFROGE_EXPERIMENTAL_PERSISTENT_DELEGATIONS: "true" }, () =>
+    const test = yield* withEnv({ OMNIXA_EXPERIMENTAL_PERSISTENT_DELEGATIONS: "true" }, () =>
       boot(directory, { events: { persist: false } }),
     )
     expect(Context.get(test.context, Bus.Service).retainsEvents).toBe(false)
     const unauthorized = yield* test.request("/delegation", { authenticated: false })
     expect(unauthorized.status).toBe(401)
-    const disabled = yield* withEnv({ AIGCFROGE_EXPERIMENTAL_PERSISTENT_DELEGATIONS: "false" }, () =>
+    const disabled = yield* withEnv({ OMNIXA_EXPERIMENTAL_PERSISTENT_DELEGATIONS: "false" }, () =>
       test.request("/delegation"),
     )
     expect(disabled.status).toBe(400)
     expect(yield* Effect.promise(() => disabled.json())).toMatchObject({ kind: "disabled" })
     const parentSessionID = yield* test.session
-    const noRetention = yield* withEnv({ AIGCFROGE_EXPERIMENTAL_PERSISTENT_DELEGATIONS: "true" }, () =>
+    const noRetention = yield* withEnv({ OMNIXA_EXPERIMENTAL_PERSISTENT_DELEGATIONS: "true" }, () =>
       test.request("/delegation", { body: { parentSessionID, title: "Must retain events" } }),
     )
     expect(noRetention.status).toBe(400)
@@ -942,12 +940,12 @@ it.live("defaults to retained Bus and enforces explicit disabling and authentica
       (operation) =>
         Effect.gen(function* () {
           expect((yield* test.request(operation.route, { ...operation, authenticated: false })).status).toBe(401)
-          const disabled = yield* withEnv({ AIGCFROGE_EXPERIMENTAL_PERSISTENT_DELEGATIONS: "false" }, () =>
+          const disabled = yield* withEnv({ OMNIXA_EXPERIMENTAL_PERSISTENT_DELEGATIONS: "false" }, () =>
             test.request(operation.route, operation),
           )
           expect(disabled.status).toBe(400)
           expect(yield* Effect.promise(() => disabled.json())).toMatchObject({ kind: "disabled" })
-          const noRetention = yield* withEnv({ AIGCFROGE_EXPERIMENTAL_PERSISTENT_DELEGATIONS: "true" }, () =>
+          const noRetention = yield* withEnv({ OMNIXA_EXPERIMENTAL_PERSISTENT_DELEGATIONS: "true" }, () =>
             test.request(operation.route, operation),
           )
           expect(noRetention.status).toBe(400)
@@ -959,9 +957,9 @@ it.live("defaults to retained Bus and enforces explicit disabling and authentica
 )
 
 it.live("isolates delegation lists and mutations by canonical Session Location without double decoding", () =>
-  withEnv({ AIGCFROGE_EXPERIMENTAL_PERSISTENT_DELEGATIONS: "true" }, () =>
+  withEnv({ OMNIXA_EXPERIMENTAL_PERSISTENT_DELEGATIONS: "true" }, () =>
     Effect.gen(function* () {
-      const directory = (yield* tmpdirScoped("aigcfroge-%2F-delegation-")).path
+      const directory = (yield* tmpdirScoped("omnixa-%2F-delegation-")).path
       const other = (yield* tmpdirScoped()).path
       const test = yield* boot(directory)
       const parentSessionID = yield* test.session
@@ -992,9 +990,9 @@ it.live("isolates delegation lists and mutations by canonical Session Location w
 )
 
 it.live("serves delegation lifecycle for a stored directory alias and fences every mutation by Location", () =>
-  withEnv({ AIGCFROGE_EXPERIMENTAL_PERSISTENT_DELEGATIONS: "true" }, () =>
+  withEnv({ OMNIXA_EXPERIMENTAL_PERSISTENT_DELEGATIONS: "true" }, () =>
     Effect.gen(function* () {
-      const directory = (yield* tmpdirScoped("aigcfroge-%2F-lifecycle-")).path
+      const directory = (yield* tmpdirScoped("omnixa-%2F-lifecycle-")).path
       const alias = `${directory}${path.sep}.`
       const other = (yield* tmpdirScoped()).path
       const test = yield* boot(directory)
@@ -1064,7 +1062,7 @@ it.live("serves delegation lifecycle for a stored directory alias and fences eve
 )
 
 it.live("reopens admitted delegation history from the same isolated database without execution", () =>
-  withEnv({ AIGCFROGE_EXPERIMENTAL_PERSISTENT_DELEGATIONS: "true" }, () =>
+  withEnv({ OMNIXA_EXPERIMENTAL_PERSISTENT_DELEGATIONS: "true" }, () =>
     Effect.gen(function* () {
       const directory = (yield* tmpdirScoped()).path
       const options = { database: { path: path.join(directory, "delegation.db") } }

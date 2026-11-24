@@ -1,5 +1,5 @@
 import { NodeFileSystem } from "@effect/platform-node"
-import { Global } from "@aigcfroge/util/global"
+import { Global } from "@omnixa/util/global"
 import { Effect, FileSystem } from "effect"
 import { Config } from "../../src/config"
 

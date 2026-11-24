@@ -17,7 +17,7 @@ export interface Interface {
   ) => Effect.Effect<EvaluationResponseFor<Questions>, AIError>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/AI/Experimental/EvaluationClient") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/AI/Experimental/EvaluationClient") {}
 
 export const evaluate = <Options extends EvaluationOptions, const Questions extends EvaluationQuestions>(
   request: EvaluationRequestFor<Options, Questions>,

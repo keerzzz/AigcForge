@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import type { SessionMessageAssistant, SessionMessageInfo } from "@aigcfroge/client/promise"
+import type { SessionMessageAssistant, SessionMessageInfo } from "@omnixa/client/promise"
 import type { ProviderMetricEvent, ProviderMetricState } from "./metrics"
 import { applyProviderMetricEvent, projectedProviderMetrics } from "./metrics"
 

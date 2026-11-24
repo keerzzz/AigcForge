@@ -1,4 +1,4 @@
-import { sampledChecksum } from "@aigcfroge/util/encode"
+import { sampledChecksum } from "@omnixa/util/encode"
 import {
   areFilesEqual,
   areOptionsEqual,

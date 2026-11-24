@@ -1,7 +1,7 @@
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
-import { httpClient } from "@aigcfroge/util/effect/app-node-platform"
-import { SdkPlugins } from "@aigcfroge/core/plugin/sdk"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { makeGlobalNode } from "@omnixa/util/effect/app-node"
+import { httpClient } from "@omnixa/util/effect/app-node-platform"
+import { SdkPlugins } from "@omnixa/core/plugin/sdk"
 import { Config, Effect, FileSystem, Layer } from "effect"
 import { HttpClient } from "effect/http"
 import { DriveManifest } from "../manifest"
@@ -28,7 +28,7 @@ export const simulationReplacements: (app: {
     // ModelsDev dies when its catalog fetch fails, so simulation answers it with
     // an empty catalog; providers come from seeded config instead.
     const models = SimulationNetwork.json("GET", "https://models.dev/api.json", {})
-    const drive = yield* Config.String("AIGCFROGE_DRIVE").pipe(Config.withDefault(undefined))
+    const drive = yield* Config.String("OMNIXA_DRIVE").pipe(Config.withDefault(undefined))
     if (!drive) return [httpClient.replace(SimulationNetwork.layer([models]))] satisfies LayerNode.Replacements
 
     const manifest = yield* DriveManifest.resolve()

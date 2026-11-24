@@ -2,23 +2,23 @@ import { describe, expect } from "bun:test"
 import { eq } from "drizzle-orm"
 import { DateTime, Effect, Layer, Stream } from "effect"
 import { TestClock } from "effect/testing"
-import { Bus } from "@aigcfroge/core/bus"
-import { Database } from "@aigcfroge/core/database/database"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { Project } from "@aigcfroge/core/project"
-import { ProjectTable } from "@aigcfroge/core/project/sql"
-import { AbsolutePath } from "@aigcfroge/core/schema"
-import { ScheduleService } from "@aigcfroge/core/session/schedule-service"
-import { ScheduleTask } from "@aigcfroge/core/session/schedule-task"
-import { SessionTable, TaskTable } from "@aigcfroge/core/session/sql"
-import { DeliveryTable, ScheduleTable } from "@aigcfroge/core/session/schedule.sql"
-import { Schedule } from "@aigcfroge/schema/schedule"
-import { SessionID } from "@aigcfroge/schema/session-id"
-import { SessionMessage } from "@aigcfroge/schema/session-message"
-import { Agent } from "@aigcfroge/schema/agent"
-import { SessionTask } from "@aigcfroge/schema/session-task"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { Global } from "@aigcfroge/util/global"
+import { Bus } from "@omnixa/core/bus"
+import { Database } from "@omnixa/core/database/database"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { Project } from "@omnixa/core/project"
+import { ProjectTable } from "@omnixa/core/project/sql"
+import { AbsolutePath } from "@omnixa/core/schema"
+import { ScheduleService } from "@omnixa/core/session/schedule-service"
+import { ScheduleTask } from "@omnixa/core/session/schedule-task"
+import { SessionTable, TaskTable } from "@omnixa/core/session/sql"
+import { DeliveryTable, ScheduleTable } from "@omnixa/core/session/schedule.sql"
+import { Schedule } from "@omnixa/schema/schedule"
+import { SessionID } from "@omnixa/schema/session-id"
+import { SessionMessage } from "@omnixa/schema/session-message"
+import { Agent } from "@omnixa/schema/agent"
+import { SessionTask } from "@omnixa/schema/session-task"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { Global } from "@omnixa/util/global"
 import { testEffect } from "./lib/effect"
 
 const sessionID = SessionID.make("ses_schedule_rules")
@@ -28,7 +28,7 @@ const globalLayer = Layer.succeed(
     Global.make({
       data: "/data",
       config: "/config",
-      tmp: "/tmp/aigcfroge",
+      tmp: "/tmp/omnixa",
     }),
   ),
 )

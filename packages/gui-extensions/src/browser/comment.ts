@@ -1,4 +1,4 @@
-import { Browser } from "@aigcfroge/plugin-browser/rpc"
+import { Browser } from "@omnixa/plugin-browser/rpc"
 import { Schema } from "effect"
 import type { ComposerNote } from "../sdk"
 import type { PaneElement } from "./ipc"

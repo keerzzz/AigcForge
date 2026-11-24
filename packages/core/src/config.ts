@@ -1,16 +1,16 @@
 export * as Config from "./config.js"
 
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
 import path from "path"
 import { isDeepStrictEqual } from "node:util"
 import { applyEdits, modify, type ParseError, parse } from "jsonc-parser"
 import { Context, Effect, FiberMap, Layer, Option, PubSub, Ref, Schema, Semaphore, Stream } from "effect"
-import { Directory, Document, Info, type Patch, type Entry, Event } from "@aigcfroge/schema/config"
+import { Directory, Document, Info, type Patch, type Entry, Event } from "@omnixa/schema/config"
 import { Credential } from "./credential.js"
 import { Bus } from "./bus.js"
 import { Watcher } from "./filesystem/watcher.js"
-import { FSUtil } from "@aigcfroge/util/fs-util"
-import { Global } from "@aigcfroge/util/global"
+import { FSUtil } from "@omnixa/util/fs-util"
+import { Global } from "@omnixa/util/global"
 import { Location } from "./location.js"
 import { AbsolutePath } from "./schema.js"
 import { ConfigVariable } from "./config/variable.js"
@@ -18,15 +18,15 @@ import { ConfigNormalize } from "./config/normalize.js"
 import { ConfigDiscovery } from "./config/discovery.js"
 import { ConfigWatch } from "./config/watch.js"
 import { ConfigProviderFile } from "./config/provider-file.js"
-import { ProviderDefinition } from "@aigcfroge/schema/provider-definition"
-import { Provider } from "@aigcfroge/schema/provider"
-import { Model } from "@aigcfroge/schema/model"
-import { ModelGroup } from "@aigcfroge/schema/model-group"
-import { ConfigProvider } from "@aigcfroge/schema/config/provider"
+import { ProviderDefinition } from "@omnixa/schema/provider-definition"
+import { Provider } from "@omnixa/schema/provider"
+import { Model } from "@omnixa/schema/model"
+import { ModelGroup } from "@omnixa/schema/model-group"
+import { ConfigProvider } from "@omnixa/schema/config/provider"
 import { FileMutation } from "./file-mutation.js"
 import { Environment } from "./environment/index.js"
 import { ChildProcessSpawner } from "effect/process/ChildProcessSpawner"
-import { CrossSpawnSpawner } from "@aigcfroge/util/cross-spawn-spawner"
+import { CrossSpawnSpawner } from "@omnixa/util/cross-spawn-spawner"
 import { WellKnown } from "./wellknown.js"
 
 export function latest<K extends keyof Info>(entries: readonly Entry[], key: K): Info[K] | undefined {
@@ -106,7 +106,7 @@ export const Options = Schema.Struct({
 })
 export type Options = typeof Options.Type
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/Config") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/Config") {}
 
 export interface TestInterface extends Interface {
   /** Replaces the entries returned by subsequent entries() calls. */
@@ -115,7 +115,7 @@ export interface TestInterface extends Interface {
   readonly emitChange: (update: Watcher.Update) => Effect.Effect<void>
 }
 
-export class Test extends Context.Service<Test, TestInterface>()("@aigcfroge/Config/Test") {}
+export class Test extends Context.Service<Test, TestInterface>()("@omnixa/Config/Test") {}
 
 /** In-memory config for tests: static entries with replaceable state and a test-driven change feed. */
 export const testLayer = (
@@ -271,11 +271,11 @@ export const layer = (options?: Options) =>
           options?.content !== undefined
             ? yield* ConfigVariable.substitute({
                 type: "virtual",
-                source: "AIGCFROGE_CONFIG_CONTENT",
+                source: "OMNIXA_CONFIG_CONTENT",
                 dir: location.directory,
                 text: options.content,
               }).pipe(
-                Effect.flatMap((text) => parseInfo(text, "AIGCFROGE_CONFIG_CONTENT")),
+                Effect.flatMap((text) => parseInfo(text, "OMNIXA_CONFIG_CONTENT")),
                 Effect.map((info) => (info ? [new Document({ type: "document", info })] : [])),
                 Effect.orDie,
               )
@@ -393,7 +393,7 @@ export const layer = (options?: Options) =>
       const update = Effect.fn("Config.update")(function* (patch: Patch) {
         const directory = initial.global ?? AbsolutePath.make(globalService.config)
         const candidates = ConfigDiscovery.names.map((name) => path.join(directory, name))
-        const filepath = (yield* Effect.filter(candidates, fs.isFile)).at(-1) ?? path.join(directory, "aigcfroge.jsonc")
+        const filepath = (yield* Effect.filter(candidates, fs.isFile)).at(-1) ?? path.join(directory, "omnixa.jsonc")
         const resolved = yield* fs.resolve(filepath)
         yield* fileMutation.withLock([resolved])(
           Effect.gen(function* () {
@@ -460,12 +460,10 @@ export const layer = (options?: Options) =>
         )
         const preferred = new Set([
           targets.filter((target) => target.scope === "global" && present.has(target.path)).at(-1)?.path ??
-            targets.find((target) => target.scope === "global" && path.basename(target.path) === "aigcfroge.jsonc")
-              ?.path,
+            targets.find((target) => target.scope === "global" && path.basename(target.path) === "omnixa.jsonc")?.path,
           targets.filter((target) => target.scope === "project" && present.has(target.path)).at(-1)?.path ??
             targets.find(
-              (target) =>
-                target.scope === "project" && target.path === path.join(location.directory, "aigcfroge.jsonc"),
+              (target) => target.scope === "project" && target.path === path.join(location.directory, "omnixa.jsonc"),
             )?.path,
           targets.find((target) => target.scope === "explicit")?.path,
         ])

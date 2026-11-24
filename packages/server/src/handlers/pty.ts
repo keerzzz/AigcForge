@@ -1,20 +1,20 @@
-import { Pty } from "@aigcfroge/core/pty"
-import { PtyProtocol } from "@aigcfroge/core/pty/protocol"
-import { PtyTicket } from "@aigcfroge/core/pty/ticket"
-import { Location } from "@aigcfroge/core/location"
-import { LocationServiceMap } from "@aigcfroge/core/location-service-map"
+import { Pty } from "@omnixa/core/pty"
+import { PtyProtocol } from "@omnixa/core/pty/protocol"
+import { PtyTicket } from "@omnixa/core/pty/ticket"
+import { Location } from "@omnixa/core/location"
+import { LocationServiceMap } from "@omnixa/core/location-service-map"
 import { Effect, Queue } from "effect"
 import { HttpServerRequest, HttpServerResponse } from "effect/http"
 import { HttpApiBuilder, HttpApiSchema } from "effect/http-api"
 import { Socket } from "effect/socket"
 import { Api } from "../api"
 import { CorsConfig, isAllowedRequestOrigin } from "../cors"
-import { ForbiddenError, PtyNotFoundError } from "@aigcfroge/protocol/errors"
+import { ForbiddenError, PtyNotFoundError } from "@omnixa/protocol/errors"
 import {
   PTY_CONNECT_TICKET_QUERY,
   PTY_CONNECT_TOKEN_HEADER,
   PTY_CONNECT_TOKEN_HEADER_VALUE,
-} from "@aigcfroge/protocol/groups/pty"
+} from "@omnixa/protocol/groups/pty"
 import { locationErrors, requestRef, response } from "../location"
 import { PtyEnvironment } from "../pty-environment"
 import { type Outbound, runPtySocket } from "./pty-socket"

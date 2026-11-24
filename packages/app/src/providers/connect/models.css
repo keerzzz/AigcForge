@@ -40,29 +40,6 @@
   padding-inline: 0;
 }
 
-[data-component="first-provider-models"] .provider-model-groups--dialog .provider-model-group {
-  background-color: var(--v2-background-bg-layer-02);
-}
-
-[data-component="first-provider-models"] .provider-model-groups--dialog .provider-model-group-models {
-  padding-inline: 0;
-}
-
-[data-component="first-provider-models"]
-  .provider-model-groups--dialog
-  .provider-model-group-models
-  > [data-component="settings-list"] {
-  background-color: transparent;
-}
-
-@media (hover: hover) {
-  [data-component="first-provider-models"]
-    .provider-model-groups--dialog
-    .provider-model-group-trigger:not(:disabled):hover {
-    background-color: var(--v2-background-bg-layer-03);
-  }
-}
-
 [data-component="first-provider-models"] .settings-section {
   gap: 8px;
 }

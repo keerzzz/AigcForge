@@ -9,13 +9,13 @@ import {
   type WebSocketChannelExecutor,
   type WebSocketConnection,
   type WebSocketConnector,
-} from "@aigcfroge/ai/route"
-import { AIError, AIErrorReason, TransportError, type TransportOperation } from "@aigcfroge/ai"
-import { Hash } from "@aigcfroge/util/hash"
+} from "@omnixa/ai/route"
+import { AIError, AIErrorReason, TransportError, type TransportOperation } from "@omnixa/ai"
+import { Hash } from "@omnixa/util/hash"
 import { Cause, Clock, Context, Duration, Effect, Fiber, Layer, Metric, Queue, Scope, Semaphore, Stream } from "effect"
 import { Headers } from "effect/http"
 import { Socket } from "effect/socket"
-import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
+import { makeGlobalNode } from "@omnixa/util/effect/app-node"
 import { SessionSchema } from "./schema.js"
 import type { SessionProviderContext } from "./provider-context.js"
 import { webSocketConstructor } from "../effect/app-node-platform.js"
@@ -26,7 +26,7 @@ const CONNECT_TIMEOUT = "15 seconds"
 const IDLE_TIMEOUT = "30 minutes"
 /** Consecutive exchanges lost to the socket before the Session stays on HTTP. */
 const MAX_STREAM_FAILURES = 5
-const events = Metric.counter("aigcfroge_session_websocket_events_total", {
+const events = Metric.counter("omnixa_session_websocket_events_total", {
   description: "Session WebSocket lifecycle events",
   incremental: true,
 })
@@ -86,7 +86,7 @@ export interface Interface {
   readonly closeAll: Effect.Effect<void>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/SessionModelTransport") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/SessionModelTransport") {}
 
 const transportError = (
   message: string,

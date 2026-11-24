@@ -1,14 +1,14 @@
 export * as RpcClientRuntime from "./rpc.js"
 
-import type { Rpc } from "@aigcfroge/schema/rpc"
-import type { RpcError, RpcInternalError } from "@aigcfroge/protocol/errors"
-import type { AigcForgeEvent } from "@aigcfroge/protocol/groups/event"
+import type { Rpc } from "@omnixa/schema/rpc"
+import type { RpcError, RpcInternalError } from "@omnixa/protocol/errors"
+import type { OmnixaEvent } from "@omnixa/protocol/groups/event"
 import { Effect, Schema, Stream } from "effect"
 import type { RpcArguments, RpcCallOptions } from "../promise/rpc.js"
 import { RpcRuntime } from "../rpc-runtime.js"
 import type { RpcCallInput, RpcCallOutput } from "./api/api.js"
 
-type RpcEvent = Extract<AigcForgeEvent, { type: `rpc.${string}` }>
+type RpcEvent = Extract<OmnixaEvent, { type: `rpc.${string}` }>
 type DecodeError<S> = S extends Schema.Top ? Schema.SchemaError : never
 
 export type RpcClient<D extends Rpc.Definition, E = never, Options = RpcCallOptions, EventError = E> = {
@@ -32,7 +32,7 @@ export interface RpcApi<E = never, Options = RpcCallOptions, EventError = E> {
 
 export function make<CallError, EventError>(
   call: (input: RpcCallInput, options?: RpcCallOptions) => Effect.Effect<RpcCallOutput, CallError>,
-  subscribe: () => Stream.Stream<AigcForgeEvent, EventError>,
+  subscribe: () => Stream.Stream<OmnixaEvent, EventError>,
 ): RpcApi<Exclude<CallError, RpcError | RpcInternalError> | Rpc.SystemError, RpcCallOptions, EventError> {
   return <D extends Rpc.Definition>(definition: D) => {
     const methods = Object.fromEntries(

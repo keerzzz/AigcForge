@@ -1,6 +1,6 @@
 import { defineConfig } from "@playwright/test"
 
-process.env.AIGCFROGE_PERFORMANCE_RUN_ID ??= `${new Date().toISOString().replace(/[:.]/g, "-")}-${process.pid}`
+process.env.OMNIXA_PERFORMANCE_RUN_ID ??= `${new Date().toISOString().replace(/[:.]/g, "-")}-${process.pid}`
 
 export default defineConfig({
   testDir: ".",

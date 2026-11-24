@@ -8,7 +8,7 @@ import { Sqlite } from "./sqlite.js"
 
 const ATTR_DB_SYSTEM_NAME = "db.system.name"
 
-const TypeId = "~@aigcfroge/core/database/SqliteWorkerd" as const
+const TypeId = "~@omnixa/core/database/SqliteWorkerd" as const
 type TypeId = typeof TypeId
 
 // Durable Object SQLite only allowlists introspection pragmas; journal_mode,
@@ -60,7 +60,7 @@ interface Config {
 // DurableObjectStorage.transaction-backed implementation; this service only
 // tracks the active transaction connection for statements and nesting checks.
 const WorkerdTransaction = Context.Service<SqlClient.TransactionConnection, SqlClient.TransactionConnection.Service>(
-  "@aigcfroge/core/database/SqliteWorkerdTransaction",
+  "@omnixa/core/database/SqliteWorkerdTransaction",
 )
 
 const transactionError = (message: string) =>

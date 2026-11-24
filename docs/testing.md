@@ -20,29 +20,29 @@
 Core 走包 wrapper，不能裸 `bun test` 绕过隔离：
 
 ```bash
-/home/keer/workspace/aigcfroge-v2/script/bun run --cwd=packages/core test --timeout 30000
+./script/bun run --cwd=packages/core test --timeout 30000
 ```
 
 ```bash
-/home/keer/workspace/aigcfroge-v2/script/bun run --cwd=packages/core typecheck
+./script/bun run --cwd=packages/core typecheck
 ```
 
 App 的单元、browser 与 E2E 类型各有独立入口：
 
 ```bash
-/home/keer/workspace/aigcfroge-v2/script/bun run --cwd=packages/app test:unit --timeout 30000
+./script/bun run --cwd=packages/app test:unit --timeout 30000
 ```
 
 ```bash
-/home/keer/workspace/aigcfroge-v2/script/bun run --cwd=packages/app test:browser --timeout 30000
+./script/bun run --cwd=packages/app test:browser --timeout 30000
 ```
 
 ```bash
-/home/keer/workspace/aigcfroge-v2/script/bun run --cwd=packages/app typecheck
+./script/bun run --cwd=packages/app typecheck
 ```
 
 ```bash
-/home/keer/workspace/aigcfroge-v2/script/bun run --cwd=packages/app typecheck:e2e
+./script/bun run --cwd=packages/app typecheck:e2e
 ```
 
 其它拥有脚本的包用同一 launcher 的 `run --cwd=packages/<name> test/typecheck`，定向用例按其真实脚本传参；不把示例扩成每片全仓重跑。
@@ -60,11 +60,11 @@ App 的单元、browser 与 E2E 类型各有独立入口：
 正式生成入口：
 
 ```bash
-/home/keer/workspace/aigcfroge-v2/script/bun run --cwd=packages/client generate
+./script/bun run --cwd=packages/client generate
 ```
 
 ```bash
-/home/keer/workspace/aigcfroge-v2/script/bun run --cwd=packages/protocol check:generated
+./script/bun run --cwd=packages/protocol check:generated
 ```
 
 根 `check` 为 canonical lint/typecheck，默认 typecheck concurrency=1，保留全部包任务。日常按受影响包串行；低资源全类型检查需明确任务与资源安排。禁止 `tsc`、跳 hook 或假定旧 skip 环境变量仍适用。

@@ -1,8 +1,8 @@
-import type { ConnectionInfo } from "@aigcfroge/client"
-import type { IntegrationApi } from "@aigcfroge/client/effect/api"
-import { Connection } from "@aigcfroge/schema/connection"
-import { Credential } from "@aigcfroge/schema/credential"
-import { Form } from "@aigcfroge/schema/form"
+import type { ConnectionInfo } from "@omnixa/client"
+import type { IntegrationApi } from "@omnixa/client/effect/api"
+import { Connection } from "@omnixa/schema/connection"
+import { Credential } from "@omnixa/schema/credential"
+import { Form } from "@omnixa/schema/form"
 import type { Effect, Scope } from "effect"
 import type { Transform } from "./registration.js"
 

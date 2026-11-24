@@ -1,5 +1,5 @@
 import { createServer, type ServerResponse } from "node:http"
-import type { AigcForgeEvent } from "@aigcfroge/client/promise"
+import type { SseEvent } from "../../utils/sse-transport"
 import { Predicate } from "effect"
 import { benchmark, benchmarkDiagnostics, expect } from "../benchmark"
 import {
@@ -50,7 +50,7 @@ for (const scenario of [
     if (!address || Predicate.isString(address)) throw new Error("Missing fixture SSE address")
     let timer: ReturnType<typeof setInterval> | undefined
 
-    const send = (events: AigcForgeEvent[]) =>
+    const send = (events: readonly SseEvent[]) =>
       responses.forEach((response) => events.forEach((event) => response.write(`data: ${JSON.stringify(event)}\n\n`)))
 
     try {

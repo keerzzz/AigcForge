@@ -1,5 +1,5 @@
 import { untrack } from "solid-js"
-import type { ServerRow } from "@aigcfroge/gui-extensions/sdk"
+import type { ServerRow } from "@omnixa/gui-extensions/sdk"
 import { Contribution } from "@/runtime/extension/render"
 import { useExtensionServers } from "@/runtime/extension/servers"
 import type { ServerConnection } from "@/runtime/server/registry"

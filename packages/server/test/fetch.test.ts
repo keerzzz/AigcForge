@@ -2,12 +2,12 @@ import { expect } from "bun:test"
 import fs from "node:fs/promises"
 import { createServer } from "node:http"
 import path from "node:path"
-import { Agent } from "@aigcfroge/schema/agent"
-import { Integration } from "@aigcfroge/schema/integration"
-import { ServerInfo } from "@aigcfroge/protocol/groups/server"
+import { Agent } from "@omnixa/schema/agent"
+import { Integration } from "@omnixa/schema/integration"
+import { ServerInfo } from "@omnixa/protocol/groups/server"
 import { Effect, Schedule, Schema } from "effect"
-import { Session } from "@aigcfroge/schema/session"
-import { AbsolutePath } from "@aigcfroge/schema/schema"
+import { Session } from "@omnixa/schema/session"
+import { AbsolutePath } from "@omnixa/schema/schema"
 import { tmpdir, tmpdirScoped } from "../../core/test/fixture/tmpdir"
 import { it } from "../../core/test/lib/effect"
 import { ServerFetch } from "../src/fetch"
@@ -22,7 +22,7 @@ const options = {
 } as const
 
 const makeHandler = Effect.fnUntraced(function* (overrides: ServerOptions = {}) {
-  const directory = overrides.config?.directory ?? (yield* tmpdirScoped("aigcfroge-fetch-config-")).path
+  const directory = overrides.config?.directory ?? (yield* tmpdirScoped("omnixa-fetch-config-")).path
   return yield* ServerFetch.make({
     ...options,
     ...overrides,
@@ -33,12 +33,12 @@ const makeHandler = Effect.fnUntraced(function* (overrides: ServerOptions = {}) 
 
 it.live("returns LocationNotFoundError for a missing folder and recovers once it exists", () =>
   Effect.gen(function* () {
-    const config = yield* Effect.acquireDisposable(Effect.promise(() => tmpdir("aigcfroge-directory-errors-")))
+    const config = yield* Effect.acquireDisposable(Effect.promise(() => tmpdir("omnixa-directory-errors-")))
     const directory = path.join(config.path, "project")
     const handler = yield* makeHandler({ config: { directory: config.path } })
-    const request = new Request("http://aigcfroge.local/api/session", {
+    const request = new Request("http://omnixa.local/api/session", {
       method: "POST",
-      headers: { "content-type": "application/json", "x-aigcfroge-directory": encodeURIComponent(directory) },
+      headers: { "content-type": "application/json", "x-omnixa-directory": encodeURIComponent(directory) },
       body: JSON.stringify({ location: { directory } }),
     })
     const rejected = yield* Effect.promise(() => handler(request.clone()))
@@ -52,8 +52,8 @@ it.live("returns LocationNotFoundError for a missing folder and recovers once it
     for (const endpoint of endpoints) {
       const response = yield* Effect.promise(() =>
         handler(
-          new Request(`http://aigcfroge.local${endpoint}`, {
-            headers: { "x-aigcfroge-directory": encodeURIComponent(directory) },
+          new Request(`http://omnixa.local${endpoint}`, {
+            headers: { "x-omnixa-directory": encodeURIComponent(directory) },
           }),
         ),
       )
@@ -74,8 +74,8 @@ it.live("returns LocationNotFoundError for a missing folder and recovers once it
     for (const endpoint of endpoints) {
       const recovered = yield* Effect.promise(() =>
         handler(
-          new Request(`http://aigcfroge.local${endpoint}`, {
-            headers: { "x-aigcfroge-directory": encodeURIComponent(directory) },
+          new Request(`http://omnixa.local${endpoint}`, {
+            headers: { "x-omnixa-directory": encodeURIComponent(directory) },
           }),
         ),
       )
@@ -130,7 +130,7 @@ const connectOpenAI = (handler: Handler) =>
   Effect.gen(function* () {
     // Catalog endpoints no longer wait for plugin initialization.
     yield* Effect.gen(function* () {
-      const response = yield* Effect.promise(() => handler(new Request("http://aigcfroge.local/api/integration")))
+      const response = yield* Effect.promise(() => handler(new Request("http://omnixa.local/api/integration")))
       expect(response.status).toBe(200)
       const body = Schema.decodeUnknownSync(Schema.Struct({ data: Schema.Array(Integration.Info) }))(
         yield* Effect.promise(() => response.json()),
@@ -147,7 +147,7 @@ const connectOpenAI = (handler: Handler) =>
     )
     return yield* Effect.promise(() =>
       handler(
-        new Request("http://aigcfroge.local/api/integration/openai/connect/oauth", {
+        new Request("http://omnixa.local/api/integration/openai/connect/oauth", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ methodID: "chatgpt-browser" }),
@@ -160,13 +160,13 @@ it.live("serves the HttpApi and enforces Basic auth like the Node server", () =>
   Effect.gen(function* () {
     const handler = yield* makeHandler({ password: "secret" })
 
-    const denied = yield* Effect.promise(() => handler(new Request("http://aigcfroge.local/api/info")))
+    const denied = yield* Effect.promise(() => handler(new Request("http://omnixa.local/api/info")))
     expect(denied.status).toBe(401)
 
     const response = yield* Effect.promise(() =>
       handler(
-        new Request("http://aigcfroge.local/api/info", {
-          headers: { authorization: `Basic ${btoa("aigcfroge:secret")}` },
+        new Request("http://omnixa.local/api/info", {
+          headers: { authorization: `Basic ${btoa("omnixa:secret")}` },
         }),
       ),
     )
@@ -175,7 +175,7 @@ it.live("serves the HttpApi and enforces Basic auth like the Node server", () =>
       Effect.flatMap(Schema.decodeUnknownEffect(ServerInfo)),
     )
     expect(body.version).toBe("test-version")
-    expect(body.paths.tmp).toEndWith("aigcfroge")
+    expect(body.paths.tmp).toEndWith("omnixa")
     expect(body.capabilities?.persistentPty).toBe(process.platform !== "win32")
   }),
 )
@@ -184,7 +184,7 @@ it.live("activates credentials through the HttpApi", () =>
   Effect.gen(function* () {
     const handler = yield* makeHandler()
     const response = yield* Effect.promise(() =>
-      handler(new Request("http://aigcfroge.local/api/credential/cred_missing/activate", { method: "POST" })),
+      handler(new Request("http://omnixa.local/api/credential/cred_missing/activate", { method: "POST" })),
     )
     expect(response.status).toBe(204)
   }),
@@ -194,12 +194,12 @@ it.live("serves unauthenticated and answers CORS preflight when no password is c
   Effect.gen(function* () {
     const handler = yield* makeHandler()
 
-    const response = yield* Effect.promise(() => handler(new Request("http://aigcfroge.local/api/info")))
+    const response = yield* Effect.promise(() => handler(new Request("http://omnixa.local/api/info")))
     expect(response.status).toBe(200)
 
     const preflight = yield* Effect.promise(() =>
       handler(
-        new Request("http://aigcfroge.local/api/info", {
+        new Request("http://omnixa.local/api/info", {
           method: "OPTIONS",
           headers: {
             origin: "http://localhost:3000",
@@ -225,7 +225,7 @@ it.live("applies custom CORS origins to HTTP responses and PTY ticket checks", (
           const allowed = origin !== "https://untrusted.example.com"
           const preflight = yield* Effect.promise(() =>
             handler(
-              new Request("http://aigcfroge.local/api/info", {
+              new Request("http://omnixa.local/api/info", {
                 method: "OPTIONS",
                 headers: {
                   origin,
@@ -241,8 +241,8 @@ it.live("applies custom CORS origins to HTTP responses and PTY ticket checks", (
 
           const response = yield* Effect.promise(() =>
             handler(
-              new Request("http://aigcfroge.local/api/info", {
-                headers: { origin, authorization: `Basic ${btoa("aigcfroge:secret")}` },
+              new Request("http://omnixa.local/api/info", {
+                headers: { origin, authorization: `Basic ${btoa("omnixa:secret")}` },
               }),
             ),
           )
@@ -251,9 +251,9 @@ it.live("applies custom CORS origins to HTTP responses and PTY ticket checks", (
 
           const ticket = yield* Effect.promise(() =>
             handler(
-              new Request("http://aigcfroge.local/api/experimental/persistent-pty/pty_missing/connect-token", {
+              new Request("http://omnixa.local/api/experimental/persistent-pty/pty_missing/connect-token", {
                 method: "POST",
-                headers: { origin, authorization: `Basic ${btoa("aigcfroge:secret")}`, "x-aigcfroge-ticket": "1" },
+                headers: { origin, authorization: `Basic ${btoa("omnixa:secret")}`, "x-omnixa-ticket": "1" },
               }),
             ),
           )
@@ -262,20 +262,17 @@ it.live("applies custom CORS origins to HTTP responses and PTY ticket checks", (
 
           const invalidTicket = yield* Effect.promise(() =>
             handler(
-              new Request(
-                "http://aigcfroge.local/api/pty/pty_missing/connect?ticket=invalid&location[directory]=/tmp",
-                {
-                  headers: { origin },
-                },
-              ),
+              new Request("http://omnixa.local/api/pty/pty_missing/connect?ticket=invalid&location[directory]=/tmp", {
+                headers: { origin },
+              }),
             ),
           )
           expect(invalidTicket.status).toBe(403)
 
           const connect = yield* Effect.promise(() =>
             handler(
-              new Request("http://aigcfroge.local/api/pty/pty_missing/connect", {
-                headers: { origin, authorization: `Basic ${btoa("aigcfroge:secret")}` },
+              new Request("http://omnixa.local/api/pty/pty_missing/connect", {
+                headers: { origin, authorization: `Basic ${btoa("omnixa:secret")}` },
               }),
             ),
           )
@@ -283,8 +280,8 @@ it.live("applies custom CORS origins to HTTP responses and PTY ticket checks", (
 
           const persistentConnect = yield* Effect.promise(() =>
             handler(
-              new Request("http://aigcfroge.local/api/experimental/persistent-pty/pty_missing/connect?cursor=-1", {
-                headers: { origin, authorization: `Basic ${btoa("aigcfroge:secret")}` },
+              new Request("http://omnixa.local/api/experimental/persistent-pty/pty_missing/connect?cursor=-1", {
+                headers: { origin, authorization: `Basic ${btoa("omnixa:secret")}` },
               }),
             ),
           )
@@ -294,8 +291,8 @@ it.live("applies custom CORS origins to HTTP responses and PTY ticket checks", (
 
     const loaded = yield* Effect.promise(() =>
       handler(
-        new Request("http://aigcfroge.local/api/debug/location", {
-          headers: { authorization: `Basic ${btoa("aigcfroge:secret")}` },
+        new Request("http://omnixa.local/api/debug/location", {
+          headers: { authorization: `Basic ${btoa("omnixa:secret")}` },
         }),
       ).then((response) => response.json()),
     )
@@ -303,10 +300,10 @@ it.live("applies custom CORS origins to HTTP responses and PTY ticket checks", (
 
     const created = (yield* Effect.promise(() =>
       handler(
-        new Request("http://aigcfroge.local/api/pty", {
+        new Request("http://omnixa.local/api/pty", {
           method: "POST",
           headers: {
-            authorization: `Basic ${btoa("aigcfroge:secret")}`,
+            authorization: `Basic ${btoa("omnixa:secret")}`,
             "content-type": "application/json",
           },
           body: JSON.stringify({ command: process.execPath, args: ["-e", "setInterval(() => {}, 1000)"] }),
@@ -315,31 +312,31 @@ it.live("applies custom CORS origins to HTTP responses and PTY ticket checks", (
     )) as { data: { id: string } }
     const issued = (yield* Effect.promise(() =>
       handler(
-        new Request(`http://aigcfroge.local/api/pty/${created.data.id}/connect-token`, {
+        new Request(`http://omnixa.local/api/pty/${created.data.id}/connect-token`, {
           method: "POST",
           headers: {
-            authorization: `Basic ${btoa("aigcfroge:secret")}`,
-            "x-aigcfroge-ticket": "1",
+            authorization: `Basic ${btoa("omnixa:secret")}`,
+            "x-omnixa-ticket": "1",
           },
         }),
       ).then((response) => response.json()),
     )) as { data: { ticket: string } }
     yield* Effect.promise(() =>
       handler(
-        new Request(`http://aigcfroge.local/api/pty/${created.data.id}`, {
+        new Request(`http://omnixa.local/api/pty/${created.data.id}`, {
           method: "DELETE",
-          headers: { authorization: `Basic ${btoa("aigcfroge:secret")}` },
+          headers: { authorization: `Basic ${btoa("omnixa:secret")}` },
         }),
       ),
     )
 
     const consumed = yield* Effect.promise(() =>
-      handler(new Request(`http://aigcfroge.local/api/pty/${created.data.id}/connect?ticket=${issued.data.ticket}`)),
+      handler(new Request(`http://omnixa.local/api/pty/${created.data.id}/connect?ticket=${issued.data.ticket}`)),
     )
     expect(consumed.status).toBe(404)
 
     const replayed = yield* Effect.promise(() =>
-      handler(new Request(`http://aigcfroge.local/api/pty/${created.data.id}/connect?ticket=${issued.data.ticket}`)),
+      handler(new Request(`http://omnixa.local/api/pty/${created.data.id}/connect?ticket=${issued.data.ticket}`)),
     )
     expect(replayed.status).toBe(403)
   }).pipe(Effect.scoped),
@@ -347,13 +344,13 @@ it.live("applies custom CORS origins to HTTP responses and PTY ticket checks", (
 
 it.live("returns 404 when a previously readable file is deleted", () =>
   Effect.acquireUseRelease(
-    Effect.promise(() => tmpdir("aigcfroge-fs-read-endpoint-")),
+    Effect.promise(() => tmpdir("omnixa-fs-read-endpoint-")),
     (tmp) =>
       Effect.gen(function* () {
         const handler = yield* makeHandler()
         const file = path.join(tmp.path, "deleted.txt")
         yield* Effect.promise(() => fs.writeFile(file, "content"))
-        const url = new URL("http://aigcfroge.local/api/fs/read/deleted.txt")
+        const url = new URL("http://omnixa.local/api/fs/read/deleted.txt")
         url.searchParams.set("location[directory]", tmp.path)
 
         const readable = yield* Effect.promise(() => handler(new Request(url)))
@@ -425,7 +422,7 @@ it.live("serves the session view operation and missing-session error", () =>
     const handler = yield* makeHandler()
     const created = yield* Effect.promise(() =>
       handler(
-        new Request("http://aigcfroge.local/api/session", {
+        new Request("http://omnixa.local/api/session", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: "{}",
@@ -440,7 +437,7 @@ it.live("serves the session view operation and missing-session error", () =>
 
     const viewed = yield* Effect.promise(() =>
       handler(
-        new Request(`http://aigcfroge.local/api/session/${data.id}/view`, {
+        new Request(`http://omnixa.local/api/session/${data.id}/view`, {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ idle: 0 }),
@@ -450,13 +447,13 @@ it.live("serves the session view operation and missing-session error", () =>
     expect(viewed.status).toBe(204)
 
     const invalid = yield* Effect.promise(() =>
-      handler(new Request(`http://aigcfroge.local/api/session/${data.id}/view`, { method: "POST" })),
+      handler(new Request(`http://omnixa.local/api/session/${data.id}/view`, { method: "POST" })),
     )
     expect(invalid.status).toBe(400)
 
     const missing = yield* Effect.promise(() =>
       handler(
-        new Request("http://aigcfroge.local/api/session/ses_missing_view/view", {
+        new Request("http://omnixa.local/api/session/ses_missing_view/view", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ idle: 0 }),
@@ -469,7 +466,7 @@ it.live("serves the session view operation and missing-session error", () =>
 
 it.live("routes pending requests through the Session's instance", () =>
   Effect.gen(function* () {
-    const config = yield* Effect.acquireDisposable(Effect.promise(() => tmpdir("aigcfroge-pending-read-")))
+    const config = yield* Effect.acquireDisposable(Effect.promise(() => tmpdir("omnixa-pending-read-")))
     const handler = yield* makeHandler({
       config: {
         directory: config.path,
@@ -479,7 +476,7 @@ it.live("routes pending requests through the Session's instance", () =>
     })
     const created = (yield* Effect.promise(() =>
       handler(
-        new Request("http://aigcfroge.local/api/session", {
+        new Request("http://omnixa.local/api/session", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: "{}",
@@ -489,30 +486,30 @@ it.live("routes pending requests through the Session's instance", () =>
 
     const loaded = () =>
       Effect.promise(() =>
-        handler(new Request("http://aigcfroge.local/api/debug/location")).then(
+        handler(new Request("http://omnixa.local/api/debug/location")).then(
           (response) => response.json() as Promise<unknown[]>,
         ),
       )
 
     // Session routing must ignore the caller's unrelated Location.
-    const headers = { "x-aigcfroge-directory": encodeURIComponent(config.path) }
+    const headers = { "x-omnixa-directory": encodeURIComponent(config.path) }
     expect(yield* loaded()).toEqual([{ directory: process.cwd() }])
     for (const resource of ["permission", "form"]) {
       const response = yield* Effect.promise(() =>
-        handler(new Request(`http://aigcfroge.local/api/session/${created.data.id}/${resource}`, { headers })),
+        handler(new Request(`http://omnixa.local/api/session/${created.data.id}/${resource}`, { headers })),
       )
       expect(response.status).toBe(200)
       expect(yield* Effect.promise(() => response.json())).toEqual({ data: [] })
 
       const missing = yield* Effect.promise(() =>
-        handler(new Request(`http://aigcfroge.local/api/session/ses_missing_pending/${resource}`, { headers })),
+        handler(new Request(`http://omnixa.local/api/session/ses_missing_pending/${resource}`, { headers })),
       )
       expect(missing.status).toBe(404)
     }
     const global = yield* Effect.promise(() =>
       handler(
-        new Request("http://aigcfroge.local/api/session/global/form", {
-          headers: { "x-aigcfroge-directory": encodeURIComponent(process.cwd()) },
+        new Request("http://omnixa.local/api/session/global/form", {
+          headers: { "x-omnixa-directory": encodeURIComponent(process.cwd()) },
         }),
       ),
     )
@@ -522,7 +519,7 @@ it.live("routes pending requests through the Session's instance", () =>
 
     const createdForm = yield* Effect.promise(() =>
       handler(
-        new Request(`http://aigcfroge.local/api/session/${created.data.id}/form`, {
+        new Request(`http://omnixa.local/api/session/${created.data.id}/form`, {
           method: "POST",
           headers: { "content-type": "application/json", ...headers },
           body: JSON.stringify({ title: "Test form", fields: [{ key: "answer", type: "string" }] }),
@@ -532,7 +529,7 @@ it.live("routes pending requests through the Session's instance", () =>
     expect(createdForm.status).toBe(200)
 
     const forms = yield* Effect.promise(() =>
-      handler(new Request(`http://aigcfroge.local/api/session/${created.data.id}/form`, { headers })),
+      handler(new Request(`http://omnixa.local/api/session/${created.data.id}/form`, { headers })),
     )
     expect(forms.status).toBe(200)
     expect(yield* Effect.promise(() => forms.json())).toMatchObject({
@@ -542,11 +539,11 @@ it.live("routes pending requests through the Session's instance", () =>
 
     const globalForm = yield* Effect.promise(() =>
       handler(
-        new Request("http://aigcfroge.local/api/session/global/form", {
+        new Request("http://omnixa.local/api/session/global/form", {
           method: "POST",
           headers: {
             "content-type": "application/json",
-            "x-aigcfroge-directory": encodeURIComponent(process.cwd()),
+            "x-omnixa-directory": encodeURIComponent(process.cwd()),
           },
           body: JSON.stringify({ title: "Global form", fields: [{ key: "answer", type: "string" }] }),
         }),
@@ -556,8 +553,8 @@ it.live("routes pending requests through the Session's instance", () =>
 
     const globalForms = yield* Effect.promise(() =>
       handler(
-        new Request("http://aigcfroge.local/api/session/global/form", {
-          headers: { "x-aigcfroge-directory": encodeURIComponent(process.cwd()) },
+        new Request("http://omnixa.local/api/session/global/form", {
+          headers: { "x-omnixa-directory": encodeURIComponent(process.cwd()) },
         }),
       ),
     )
@@ -566,7 +563,7 @@ it.live("routes pending requests through the Session's instance", () =>
 
     // Agent permission policy is installed by plugin activation.
     yield* Effect.gen(function* () {
-      const response = yield* Effect.promise(() => handler(new Request("http://aigcfroge.local/api/agent")))
+      const response = yield* Effect.promise(() => handler(new Request("http://omnixa.local/api/agent")))
       expect(response.status).toBe(200)
       const body = Schema.decodeUnknownSync(Schema.Struct({ data: Schema.Array(Agent.Info) }))(
         yield* Effect.promise(() => response.json()),
@@ -583,7 +580,7 @@ it.live("routes pending requests through the Session's instance", () =>
     )
     const createdPermission = yield* Effect.promise(() =>
       handler(
-        new Request(`http://aigcfroge.local/api/session/${created.data.id}/permission`, {
+        new Request(`http://omnixa.local/api/session/${created.data.id}/permission`, {
           method: "POST",
           headers: { "content-type": "application/json", ...headers },
           body: JSON.stringify({ id: "per_pending_read", action: "shell", resources: ["pwd"] }),
@@ -596,7 +593,7 @@ it.live("routes pending requests through the Session's instance", () =>
     })
 
     const permissions = yield* Effect.promise(() =>
-      handler(new Request(`http://aigcfroge.local/api/session/${created.data.id}/permission`, { headers })),
+      handler(new Request(`http://omnixa.local/api/session/${created.data.id}/permission`, { headers })),
     )
     expect(permissions.status).toBe(200)
     expect(yield* Effect.promise(() => permissions.json())).toMatchObject({
@@ -615,7 +612,7 @@ it.live("stays serviceable when the first request aborts", () =>
 
     const aborted = yield* Effect.promise(() => {
       const controller = new AbortController()
-      const first = handler(new Request("http://aigcfroge.local/api/info", { signal: controller.signal }))
+      const first = handler(new Request("http://omnixa.local/api/info", { signal: controller.signal }))
       controller.abort()
       return first.then(
         () => "resolved" as const,
@@ -624,7 +621,7 @@ it.live("stays serviceable when the first request aborts", () =>
     })
     expect(["resolved", "rejected"]).toContain(aborted)
 
-    const second = yield* Effect.promise(() => handler(new Request("http://aigcfroge.local/api/info")))
+    const second = yield* Effect.promise(() => handler(new Request("http://omnixa.local/api/info")))
     expect(second.status).toBe(200)
   }),
 )

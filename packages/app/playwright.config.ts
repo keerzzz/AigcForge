@@ -30,7 +30,7 @@ export default defineConfig({
   testDir: "./e2e",
   testIgnore: [
     "service-worker/**",
-    process.env.AIGCFROGE_PERFORMANCE === "1" ? "performance/**/*.test.ts" : "performance/**",
+    process.env.OMNIXA_PERFORMANCE === "1" ? "performance/**/*.test.ts" : "performance/**",
   ],
   outputDir: "./e2e/test-results",
   timeout: 60_000,
@@ -50,9 +50,9 @@ export default defineConfig({
         reuseExistingServer: !built,
         timeout: 120_000,
         env: {
-          VITE_AIGCFROGE_TEST_FIXTURES: "1",
-          VITE_AIGCFROGE_SERVER_HOST: serverHost,
-          VITE_AIGCFROGE_SERVER_PORT: serverPort,
+          VITE_OMNIXA_TEST_FIXTURES: "1",
+          VITE_OMNIXA_SERVER_HOST: serverHost,
+          VITE_OMNIXA_SERVER_PORT: serverPort,
         },
       },
   use: {

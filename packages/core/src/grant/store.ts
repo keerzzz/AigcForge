@@ -1,10 +1,10 @@
 export * as ScopedGrantStore from "./store"
 
 import { Cause, Context, Duration, Effect, Layer, Schedule, Schema } from "effect"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
 import { and, eq, gte, isNull, isNotNull, lt, lte, or } from "drizzle-orm"
-import { Composition } from "@aigcfroge/schema/composition"
-import { McpScope } from "@aigcfroge/schema/mcp-scope"
+import { Composition } from "@omnixa/schema/composition"
+import { McpScope } from "@omnixa/schema/mcp-scope"
 import { Database } from "../database/database"
 import { Bus } from "../bus"
 import { Location } from "../location"
@@ -226,7 +226,7 @@ export interface Interface {
   ) => Effect.Effect<Info, NotFoundError | StateError | CommitRejected>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/ScopedGrantStore") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/v2/ScopedGrantStore") {}
 
 export const layer = Layer.effect(
   Service,

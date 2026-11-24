@@ -6,7 +6,7 @@ import { AppNodeBuilder } from "../src/effect/app-node-builder"
 import { Location } from "../src/location"
 import { AbsolutePath } from "../src/schema"
 import { Snapshot } from "../src/snapshot"
-import { Global } from "@aigcfroge/util/global"
+import { Global } from "@omnixa/util/global"
 
 const [data, directory, id, count] = process.argv.slice(2)
 const layer = AppNodeBuilder.build(Snapshot.node, [

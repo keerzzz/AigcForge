@@ -2,12 +2,12 @@ export * as DelegationReceipt from "./receipt"
 
 import { Schema } from "effect"
 import { createHash } from "node:crypto"
-import { DelegationID, ParticipantID, TurnID } from "@aigcfroge/schema/delegation-id"
-import { SessionID } from "@aigcfroge/schema/session-id"
-import { SessionMessage } from "@aigcfroge/schema/session-message"
-import { Location } from "@aigcfroge/schema/location"
-import { Delegation } from "@aigcfroge/schema/delegation"
-import { Permission } from "@aigcfroge/schema/permission"
+import { DelegationID, ParticipantID, TurnID } from "@omnixa/schema/delegation-id"
+import { SessionID } from "@omnixa/schema/session-id"
+import { SessionMessage } from "@omnixa/schema/session-message"
+import { Location } from "@omnixa/schema/location"
+import { Delegation } from "@omnixa/schema/delegation"
+import { Permission } from "@omnixa/schema/permission"
 import { DelegationFold } from "./fold"
 
 const reference = {

@@ -20,14 +20,8 @@ export default {
   "error.input":
     "Immettere un comando di connessione host o SSH. Non sono consentiti comandi remoti e opzioni SSH non supportate.",
   "error.connection": "Impossibile stabilire la connessione SSH. Controlla la tua rete e la configurazione SSH.",
-  "error.platform":
-    "Questa piattaforma remota non è supportata. La configurazione automatica attualmente richiede Linux o macOS su x64 o arm64.",
   "error.version": "Il servizio remoto deve corrispondere a questa versione desktop prima della connessione.",
-  "error.install":
-    "Impossibile installare il server remoto. Controlla la connettività, lo spazio su disco e che tar sia installato.",
-  "error.unpublished":
-    "Questa versione desktop non ha un server remoto pubblicato. Per le build di sviluppo, installa e avvia V2 sull'host, quindi riprova.",
-  "error.service": "SSH si è connesso, ma il server AigcForge non è pronto.",
+  "error.service": "SSH si è connesso, ma il server Omnixa non è pronto.",
   "error.host-key":
     "Non è stato possibile verificare l'identità dell'host. Verifica la sua impronta digitale prima di aggiornare i tuoi host conosciuti SSH.",
   "error.ssh-missing":

@@ -2,8 +2,8 @@ import { describe, expect, test } from "bun:test"
 import { chmod, stat, writeFile } from "node:fs/promises"
 import path from "path"
 import { Effect, Layer } from "effect"
-import { Database } from "@aigcfroge/core/database/database"
-import { Global } from "@aigcfroge/util/global"
+import { Database } from "@omnixa/core/database/database"
+import { Global } from "@omnixa/util/global"
 import { tmpdir } from "./fixture/tmpdir"
 
 // Read while the connection is open: SQLite may remove the sidecars on close.
@@ -21,12 +21,12 @@ describe.skipIf(process.platform === "win32")("Database file permissions", () =>
   test("creates the database and sidecars readable only by the owner", async () => {
     await using tmp = await tmpdir()
 
-    expect(await openModes(path.join(tmp.path, "aigcfroge.db"))).toEqual([0o600, 0o600, 0o600])
+    expect(await openModes(path.join(tmp.path, "omnixa.db"))).toEqual([0o600, 0o600, 0o600])
   })
 
   test("tightens an existing database and sidecars", async () => {
     await using tmp = await tmpdir()
-    const filename = path.join(tmp.path, "aigcfroge.db")
+    const filename = path.join(tmp.path, "omnixa.db")
     await Promise.all(
       ["", "-wal", "-shm"].map(async (suffix) => {
         await writeFile(filename + suffix, "")

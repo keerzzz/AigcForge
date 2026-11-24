@@ -1,9 +1,9 @@
 export * as BrowserConnection from "./connection.js"
 
-import type { Context } from "@aigcfroge/plugin/effect/plugin"
-import type { RpcRegistration } from "@aigcfroge/plugin/effect/rpc"
-import type { Session } from "@aigcfroge/schema/session"
-import { Tool } from "@aigcfroge/schema/tool"
+import type { Context } from "@omnixa/plugin/effect/plugin"
+import type { RpcRegistration } from "@omnixa/plugin/effect/rpc"
+import type { Session } from "@omnixa/schema/session"
+import { Tool } from "@omnixa/schema/tool"
 import { Deferred, Effect, Schema, Stream } from "effect"
 import { Browser } from "./rpc.js"
 import { BrowserTunnel } from "./tunnel.js"

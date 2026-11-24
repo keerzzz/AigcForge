@@ -11,17 +11,12 @@ import {
 } from "solid-js"
 import { createStore } from "solid-js/store"
 import { Predicate } from "effect"
-import { Button } from "@aigcfroge/ui/button"
-import { Menu } from "@aigcfroge/ui/menu"
-import { Icon } from "@aigcfroge/ui/icon"
-import { IconButton } from "@aigcfroge/ui/icon-button"
-import { TextInput } from "@aigcfroge/ui/text-input"
-import {
-  displayName,
-  getProjectAvatarSource,
-  getProjectAvatarVariant,
-  ProjectAvatar,
-} from "@aigcfroge/ui/project-avatar"
+import { Button } from "@omnixa/ui/button"
+import { Menu } from "@omnixa/ui/menu"
+import { Icon } from "@omnixa/ui/icon"
+import { IconButton } from "@omnixa/ui/icon-button"
+import { TextInput } from "@omnixa/ui/text-input"
+import { displayName, getProjectAvatarSource, getProjectAvatarVariant, ProjectAvatar } from "@omnixa/ui/project-avatar"
 import { useLanguage } from "@/runtime/i18n/language"
 import { pathKey } from "@/workspaces/path-key"
 import { handleDocumentSearchKeydown } from "@/shell/commands/search-keydown"

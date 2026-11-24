@@ -3,13 +3,13 @@ export * as PluginAsset from "./plugin-asset"
 import { AssetYaml } from "./util/asset-yaml"
 import { Context, Effect, Layer, Option, Schema, Scope, Stream } from "effect"
 import path from "path"
-import { Frontmatter } from "@aigcfroge/schema/plugin-asset"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { Frontmatter } from "@omnixa/schema/plugin-asset"
+import { FSUtil } from "@omnixa/util/fs-util"
 import { Bus } from "./bus"
 import { KeyedMutex } from "./effect/keyed-mutex"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
 import { Location } from "./location"
-import { Hash } from "@aigcfroge/util/hash"
+import { Hash } from "@omnixa/util/hash"
 import { Watcher } from "./filesystem/watcher"
 import { PLUGINS_DIR } from "./constants"
 
@@ -51,7 +51,7 @@ export interface Interface {
   readonly reload: () => Effect.Effect<void, FSUtil.Error>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/PluginAsset") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/v2/PluginAsset") {}
 
 export function parseContent(content: string) {
   if (content.length > 1_000_000) return { kind: "invalid", errorTag: "parse_error" } as const

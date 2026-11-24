@@ -1,4 +1,4 @@
-import type { Endpoint } from "@aigcfroge/client/effect/service"
+import type { Endpoint } from "@omnixa/client/effect/service"
 import { Effect } from "effect"
 import path from "node:path"
 import { Standalone } from "../services/standalone"
@@ -80,7 +80,7 @@ function explicitEndpoint(input: V1RunCommandInput): Endpoint {
   return {
     url,
     auth: input.password
-      ? { type: "basic", username: input.username ?? "aigcfroge", password: input.password }
+      ? { type: "basic", username: input.username ?? "omnixa", password: input.password }
       : undefined,
   }
 }

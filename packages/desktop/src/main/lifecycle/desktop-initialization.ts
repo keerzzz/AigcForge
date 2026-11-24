@@ -15,7 +15,7 @@ export interface Interface {
   readonly version: string
 }
 
-export class Service extends Context.Service<Service, Interface>()("aigcfroge/desktop/DesktopInitialization") {}
+export class Service extends Context.Service<Service, Interface>()("omnixa/desktop/DesktopInitialization") {}
 
 export const layer = Layer.effect(
   Service,

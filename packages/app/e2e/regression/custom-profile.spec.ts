@@ -1,9 +1,9 @@
 import { expect, test } from "@playwright/test"
-import { ConflictError, InvalidRequestError } from "@aigcfroge/protocol/errors"
-import type { CustomProfileApplyPayload } from "@aigcfroge/protocol/groups/custom-profile"
-import { Composition } from "@aigcfroge/schema/composition"
-import { Agent } from "@aigcfroge/schema/agent"
-import { CustomProfile } from "@aigcfroge/schema/custom-profile"
+import { ConflictError, InvalidRequestError } from "@omnixa/protocol/errors"
+import type { CustomProfileApplyPayload } from "@omnixa/protocol/groups/custom-profile"
+import { Composition } from "@omnixa/schema/composition"
+import { Agent } from "@omnixa/schema/agent"
+import { CustomProfile } from "@omnixa/schema/custom-profile"
 import { Schema } from "effect"
 import { expectPath, project, sessionHref } from "../utils/app"
 import { CustomCompositionFixture } from "../utils/custom-composition"
@@ -631,7 +631,7 @@ test("B06 overwrites a conflicting legal path alias with the captured Build cand
     revision: "d".repeat(64),
   })
 
-  const alias = ".aigcfroge\\custom-profiles\\team\\saved-build.yaml"
+  const alias = ".omnixa\\custom-profiles\\team\\saved-build.yaml"
   const profiles = [initial]
   const writes: (typeof CustomProfileApplyPayload.Type)[] = []
   const reads: string[] = []

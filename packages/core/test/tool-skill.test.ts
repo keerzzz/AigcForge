@@ -3,34 +3,34 @@ import path from "path"
 import { describe, expect } from "bun:test"
 import { eq } from "drizzle-orm"
 import { Effect, Layer } from "effect"
-import { Agent } from "@aigcfroge/core/agent"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { Permission } from "@aigcfroge/core/permission"
-import { AbsolutePath } from "@aigcfroge/core/schema"
-import { Session } from "@aigcfroge/core/session"
-import { Composition } from "@aigcfroge/schema/composition"
-import { CompositionDigest } from "@aigcfroge/core/composition/digest"
-import { Database } from "@aigcfroge/core/database/database"
-import { Location } from "@aigcfroge/core/location"
-import { Project } from "@aigcfroge/core/project"
-import { ProjectTable } from "@aigcfroge/core/project/sql"
-import { SessionComposition } from "@aigcfroge/core/session/composition"
-import { SessionCompositionSnapshotTable, SessionTable } from "@aigcfroge/core/session/sql"
-import { SessionStore } from "@aigcfroge/core/session/store"
-import { Skill } from "@aigcfroge/core/skill"
-import { Config } from "@aigcfroge/core/config"
-import { ManagedPolicy } from "@aigcfroge/core/managed-policy"
-import { SkillTool } from "@aigcfroge/core/tool/plugin/skill"
-import { Tool } from "@aigcfroge/core/tool"
+import { Agent } from "@omnixa/core/agent"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { Permission } from "@omnixa/core/permission"
+import { AbsolutePath } from "@omnixa/core/schema"
+import { Session } from "@omnixa/core/session"
+import { Composition } from "@omnixa/schema/composition"
+import { CompositionDigest } from "@omnixa/core/composition/digest"
+import { Database } from "@omnixa/core/database/database"
+import { Location } from "@omnixa/core/location"
+import { Project } from "@omnixa/core/project"
+import { ProjectTable } from "@omnixa/core/project/sql"
+import { SessionComposition } from "@omnixa/core/session/composition"
+import { SessionCompositionSnapshotTable, SessionTable } from "@omnixa/core/session/sql"
+import { SessionStore } from "@omnixa/core/session/store"
+import { Skill } from "@omnixa/core/skill"
+import { Config } from "@omnixa/core/config"
+import { ManagedPolicy } from "@omnixa/core/managed-policy"
+import { SkillTool } from "@omnixa/core/tool/plugin/skill"
+import { Tool } from "@omnixa/core/tool"
 import { tmpdir } from "./fixture/tmpdir"
 import { location } from "./fixture/location"
-import { Image } from "@aigcfroge/core/image"
+import { Image } from "@omnixa/core/image"
 import { it } from "./lib/effect"
 import { imagePassthrough } from "./lib/image"
 import { permissionLayer } from "./lib/permission"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
+import { FSUtil } from "@omnixa/util/fs-util"
 import { toolIdentity, executeTool, registerToolPlugin, toolDefinitions } from "./lib/tool"
 import { registerIntegrationPolicy } from "./fixture/policy"
 
@@ -243,7 +243,7 @@ describe("SkillTool", () => {
       (tmp) => Effect.promise(() => tmp[Symbol.asyncDispose]()),
     ).pipe(
       Effect.flatMap((tmp) => {
-        const directory = path.join(tmp.path, ".aigcfroge", "skills", "effect")
+        const directory = path.join(tmp.path, ".omnixa", "skills", "effect")
         const reference = path.join(directory, "reference.md")
         const assertions: Permission.AssertInput[] = []
         const authorization = { deny: false }
@@ -400,7 +400,7 @@ describe("SkillTool", () => {
                     id: Skill.ID.make("empty"),
                     name: Skill.Name.make(empty.name),
                     description: empty.description,
-                    path: AbsolutePath.make(path.join(tmp.path, ".aigcfroge", "skills", "empty.md")),
+                    path: AbsolutePath.make(path.join(tmp.path, ".omnixa", "skills", "empty.md")),
                     content: "",
                   }),
                   [],

@@ -2,7 +2,7 @@ export * as ReadToolFileSystem from "./read-filesystem.js"
 
 import path from "path"
 import { pathToFileURL } from "url"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
 import { Context, Effect, Layer, Schema } from "effect"
 import { lookup } from "mime-types"
 import { Environment } from "../environment/index.js"
@@ -109,7 +109,7 @@ export interface Interface {
   ) => Effect.Effect<FileContent | TextPage | ListPage, ReadError>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/ReadToolFileSystem") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/ReadToolFileSystem") {}
 
 const mimeType = (value: string) => lookup(value) || "application/octet-stream"
 

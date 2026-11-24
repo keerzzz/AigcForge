@@ -1,6 +1,6 @@
 import { createMemo, Show } from "solid-js"
-import { Card } from "@aigcfroge/ui/card"
-import { Icon } from "@aigcfroge/ui/icon"
+import { Card } from "@omnixa/ui/card"
+import { Icon } from "@omnixa/ui/icon"
 
 export function SessionErrorMessage(props: { message: string }) {
   const content = createMemo(() => {

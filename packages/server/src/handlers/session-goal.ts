@@ -1,8 +1,8 @@
-import { SessionGoal } from "@aigcfroge/core/session/goal"
-import { SessionExecution } from "@aigcfroge/core/session/execution"
+import { SessionGoal } from "@omnixa/core/session/goal"
+import { SessionExecution } from "@omnixa/core/session/execution"
 import { Effect } from "effect"
 import { HttpApiBuilder } from "effect/http-api"
-import { ConflictError, InvalidRequestError } from "@aigcfroge/protocol/errors"
+import { ConflictError, InvalidRequestError } from "@omnixa/protocol/errors"
 import { Api } from "../api"
 import { missingSession } from "./session-error"
 

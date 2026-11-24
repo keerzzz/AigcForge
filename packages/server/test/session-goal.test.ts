@@ -1,10 +1,10 @@
 import { expect } from "bun:test"
-import { TestLLM } from "@aigcfroge/ai/testing"
-import { Model } from "@aigcfroge/core/model"
-import { Provider } from "@aigcfroge/core/provider"
-import { Agent } from "@aigcfroge/schema/agent"
-import { Session } from "@aigcfroge/schema/session"
-import { SessionGoal } from "@aigcfroge/schema/session-goal"
+import { TestLLM } from "@omnixa/ai/testing"
+import { Model } from "@omnixa/core/model"
+import { Provider } from "@omnixa/core/provider"
+import { Agent } from "@omnixa/schema/agent"
+import { Session } from "@omnixa/schema/session"
+import { SessionGoal } from "@omnixa/schema/session-goal"
 import { Effect, Layer, Schema } from "effect"
 import { useOfflineCatalog } from "../../core/test/fixture/models"
 import { awaitWithTimeout, testEffect } from "../../core/test/lib/effect"
@@ -16,8 +16,8 @@ const goalResponse = Schema.decodeUnknownSync(Schema.Struct({ data: SessionGoal.
 const goalsResponse = Schema.decodeUnknownSync(Schema.Struct({ data: Schema.Array(SessionGoal.Info) }))
 const setup = Effect.fnUntraced(function* () {
   const fixture = yield* AssetHttpFixture.setup({
-    prefix: "aigcfroge-goal-http-",
-    assetDirectory: ".aigcfroge",
+    prefix: "omnixa-goal-http-",
+    assetDirectory: ".omnixa",
     files: [],
     model,
   })
@@ -26,7 +26,7 @@ const setup = Effect.fnUntraced(function* () {
       info: Provider.Info.make({
         ...Provider.Info.empty(model.providerID),
         activation: "enabled",
-        package: "@aigcfroge/ai/providers/openai/responses",
+        package: "@omnixa/ai/providers/openai/responses",
       }),
       models: [Model.Info.make(Model.Info.default(model.providerID, model.id))],
     },

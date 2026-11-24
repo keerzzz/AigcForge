@@ -1,6 +1,6 @@
 import { autocomplete } from "@clack/prompts"
 import { Effect } from "effect"
-import type { IntegrationInfo } from "@aigcfroge/client"
+import type { IntegrationInfo } from "@omnixa/client"
 import { prompt } from "../../../ui/prompt"
 import { resolveIntegration } from "./shared"
 

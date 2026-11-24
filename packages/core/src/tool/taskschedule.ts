@@ -1,9 +1,9 @@
 export * as TaskScheduleTool from "./taskschedule.js"
 
-import type { Context } from "@aigcfroge/plugin/effect/plugin"
-import { ToolFailure } from "@aigcfroge/ai"
+import type { Context } from "@omnixa/plugin/effect/plugin"
+import { ToolFailure } from "@omnixa/ai"
 import { DateTime, Effect, Schema } from "effect"
-import { TaskRecurrence } from "@aigcfroge/schema/session-task"
+import { TaskRecurrence } from "@omnixa/schema/session-task"
 import { Permission } from "../permission.js"
 import { nextRun } from "../session/schedule.js"
 import { SessionTask } from "../session/task.js"
@@ -47,7 +47,7 @@ export const Output = Schema.Struct({
 const toModelContent = (tasks: ReadonlyArray<SessionTask.Info>) => JSON.stringify(tasks, null, 2)
 
 export const Plugin = {
-  id: "aigcfroge.tool.task_schedule",
+  id: "omnixa.tool.task_schedule",
   effect: Effect.fn("TaskScheduleTool.Plugin")(function* (ctx: Context) {
     const tasks = yield* SessionTask.Service
     const permission = yield* Permission.Service

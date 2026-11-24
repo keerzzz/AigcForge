@@ -1,32 +1,32 @@
 import { expect, test } from "bun:test"
 import { Schema } from "effect"
-import { Agent } from "@aigcfroge/core/agent"
-import { Session } from "@aigcfroge/core/session"
-import { SessionStore } from "@aigcfroge/core/session/store"
-import { Location } from "@aigcfroge/schema/location"
-import { Model } from "@aigcfroge/schema/model"
-import { Provider } from "@aigcfroge/schema/provider"
-import { Project } from "@aigcfroge/schema/project"
-import { Worktree } from "@aigcfroge/schema/worktree"
-import { Prompt } from "@aigcfroge/schema/prompt"
-import { SessionInbox } from "@aigcfroge/schema/session-inbox"
-import { SessionMessage } from "@aigcfroge/schema/session-message"
-import { Workspace } from "@aigcfroge/schema/workspace"
-import { Command } from "@aigcfroge/schema/command"
-import { Connection } from "@aigcfroge/schema/connection"
-import { Credential } from "@aigcfroge/schema/credential"
-import { FileSystem } from "@aigcfroge/schema/filesystem"
-import { Integration } from "@aigcfroge/schema/integration"
-import { LLM } from "@aigcfroge/schema/llm"
-import { Permission } from "@aigcfroge/schema/permission"
-import { Pty } from "@aigcfroge/schema/pty"
-import { Reference } from "@aigcfroge/schema/reference"
-import { Skill } from "@aigcfroge/schema/skill"
-import { AbsolutePath, optional, statics } from "@aigcfroge/schema/schema"
+import { Agent } from "@omnixa/core/agent"
+import { Session } from "@omnixa/core/session"
+import { SessionStore } from "@omnixa/core/session/store"
+import { Location } from "@omnixa/schema/location"
+import { Model } from "@omnixa/schema/model"
+import { Provider } from "@omnixa/schema/provider"
+import { Project } from "@omnixa/schema/project"
+import { Worktree } from "@omnixa/schema/worktree"
+import { Prompt } from "@omnixa/schema/prompt"
+import { SessionInbox } from "@omnixa/schema/session-inbox"
+import { SessionMessage } from "@omnixa/schema/session-message"
+import { Workspace } from "@omnixa/schema/workspace"
+import { Command } from "@omnixa/schema/command"
+import { Connection } from "@omnixa/schema/connection"
+import { Credential } from "@omnixa/schema/credential"
+import { FileSystem } from "@omnixa/schema/filesystem"
+import { Integration } from "@omnixa/schema/integration"
+import { LLM } from "@omnixa/schema/llm"
+import { Permission } from "@omnixa/schema/permission"
+import { Pty } from "@omnixa/schema/pty"
+import { Reference } from "@omnixa/schema/reference"
+import { Skill } from "@omnixa/schema/skill"
+import { AbsolutePath, optional, statics } from "@omnixa/schema/schema"
 
 test("Core reuses the canonical shared schemas", async () => {
-  const schemaAgent = await import("@aigcfroge/schema/agent")
-  const schemaSession = await import("@aigcfroge/schema/session")
+  const schemaAgent = await import("@omnixa/schema/agent")
+  const schemaSession = await import("@omnixa/schema/session")
   const [
     coreCommand,
     coreConnection,
@@ -48,25 +48,25 @@ test("Core reuses the canonical shared schemas", async () => {
     coreSchema,
     coreWorkspace,
   ] = await Promise.all([
-    import("@aigcfroge/core/command"),
-    import("@aigcfroge/core/integration/connection"),
-    import("@aigcfroge/core/credential"),
-    import("@aigcfroge/core/filesystem"),
-    import("@aigcfroge/core/integration"),
-    import("@aigcfroge/core/location"),
-    import("@aigcfroge/ai"),
-    import("@aigcfroge/core/model"),
-    import("@aigcfroge/core/permission"),
-    import("@aigcfroge/core/worktree"),
-    import("@aigcfroge/core/pty"),
-    import("@aigcfroge/core/project/schema"),
-    import("@aigcfroge/core/provider"),
-    import("@aigcfroge/core/reference"),
-    import("@aigcfroge/core/session/inbox"),
-    import("@aigcfroge/core/session/message"),
-    import("@aigcfroge/core/skill"),
-    import("@aigcfroge/core/schema"),
-    import("@aigcfroge/core/workspace"),
+    import("@omnixa/core/command"),
+    import("@omnixa/core/integration/connection"),
+    import("@omnixa/core/credential"),
+    import("@omnixa/core/filesystem"),
+    import("@omnixa/core/integration"),
+    import("@omnixa/core/location"),
+    import("@omnixa/ai"),
+    import("@omnixa/core/model"),
+    import("@omnixa/core/permission"),
+    import("@omnixa/core/worktree"),
+    import("@omnixa/core/pty"),
+    import("@omnixa/core/project/schema"),
+    import("@omnixa/core/provider"),
+    import("@omnixa/core/reference"),
+    import("@omnixa/core/session/inbox"),
+    import("@omnixa/core/session/message"),
+    import("@omnixa/core/skill"),
+    import("@omnixa/core/schema"),
+    import("@omnixa/core/workspace"),
   ])
 
   const schemas = [

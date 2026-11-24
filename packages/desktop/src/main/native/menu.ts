@@ -8,7 +8,7 @@ import {
   type DesktopMenu,
   type DesktopMenuEntry,
   type DesktopMenuRole,
-} from "@aigcfroge/app/desktop-menu"
+} from "@omnixa/app/desktop-menu"
 import { MenuCommandTriggered } from "../../shared/ipc-rpc/events"
 import { emitIpcEvent } from "../ipc-events"
 

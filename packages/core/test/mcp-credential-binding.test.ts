@@ -1,13 +1,13 @@
 import { describe, expect } from "bun:test"
 import { Cause, Effect, Exit, Layer, Option } from "effect"
-import { Database } from "@aigcfroge/core/database/database"
-import { Bus } from "@aigcfroge/core/bus"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { McpCredentialBindingStore } from "@aigcfroge/core/mcp/binding/store"
-import { AbsolutePath } from "@aigcfroge/core/schema"
-import { Workspace } from "@aigcfroge/schema/workspace"
-import { Location } from "@aigcfroge/core/location"
+import { Database } from "@omnixa/core/database/database"
+import { Bus } from "@omnixa/core/bus"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { McpCredentialBindingStore } from "@omnixa/core/mcp/binding/store"
+import { AbsolutePath } from "@omnixa/core/schema"
+import { Workspace } from "@omnixa/schema/workspace"
+import { Location } from "@omnixa/core/location"
 import { testEffect } from "./lib/effect"
 import { sql } from "drizzle-orm"
 import { location } from "./fixture/location"
@@ -97,7 +97,7 @@ describe("McpCredentialBindingStore (ADR-21 §2.2/§2.3 v1.2)", () => {
         }).pipe(Effect.provide(makeStore({ directory: "/tmp/cross-b" })))
 
         const { db } = yield* Database.Service
-        const { McpCredentialBindingTable } = yield* Effect.promise(() => import("@aigcfroge/core/mcp/binding/sql"))
+        const { McpCredentialBindingTable } = yield* Effect.promise(() => import("@omnixa/core/mcp/binding/sql"))
         const rows = yield* db.select().from(McpCredentialBindingTable).all().pipe(Effect.orDie)
         const gitRows = rows.filter((r) => r.server_name === "git")
         expect(gitRows.length).toBe(2)
@@ -174,7 +174,7 @@ describe("McpCredentialBindingStore (ADR-21 §2.2/§2.3 v1.2)", () => {
     Effect.gen(function* () {
       const { db } = yield* Database.Service
       const filter = McpCredentialBindingStore.lookupFilter({ directory: "/tmp/x", serverName: "git" })
-      const { McpCredentialBindingTable } = yield* Effect.promise(() => import("@aigcfroge/core/mcp/binding/sql"))
+      const { McpCredentialBindingTable } = yield* Effect.promise(() => import("@omnixa/core/mcp/binding/sql"))
       const query = db.select().from(McpCredentialBindingTable).where(filter)
       const { sql: text } = query.toSQL()
       const plan = yield* db.all<{ detail: string }>(sql.raw(`EXPLAIN QUERY PLAN ${text.replaceAll("?", "'x'")}`))
@@ -226,7 +226,7 @@ describe("McpCredentialBindingStore (ADR-21 §2.2/§2.3 v1.2)", () => {
   it.effect("rebindFilter carries the revoked-state race guard into the UPDATE", () =>
     Effect.gen(function* () {
       const { db } = yield* Database.Service
-      const { McpCredentialBindingTable } = yield* Effect.promise(() => import("@aigcfroge/core/mcp/binding/sql"))
+      const { McpCredentialBindingTable } = yield* Effect.promise(() => import("@omnixa/core/mcp/binding/sql"))
       const { sql: text } = db
         .update(McpCredentialBindingTable)
         .set({ credential_ref: "cred_x" })

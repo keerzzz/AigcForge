@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { EventManifest } from "@aigcfroge/schema/event-manifest"
+import { EventManifest } from "@omnixa/schema/event-manifest"
 import { Schema } from "effect"
 import {
   assistantMessage,

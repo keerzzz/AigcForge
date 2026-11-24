@@ -49,9 +49,9 @@ export function parse(directory: string, filepath: string, content: string): Par
   const decoded = decodeFrontmatter(markdown.data)
   if (Result.isFailure(decoded)) return { _tag: "Skipped", reason: "frontmatter", issue: decoded.failure }
   const frontmatter = decoded.success
-  const aigcfrogeAutoinvoke = metadataBoolean(frontmatter.metadata, "aigcfroge/autoinvoke")
+  const omnixaAutoinvoke = metadataBoolean(frontmatter.metadata, "omnixa/autoinvoke")
   const disableModelInvocation = booleanValue(frontmatter["disable-model-invocation"])
-  const autoinvoke = aigcfrogeAutoinvoke ?? (disableModelInvocation ? false : undefined)
+  const autoinvoke = omnixaAutoinvoke ?? (disableModelInvocation ? false : undefined)
   return {
     _tag: "Parsed",
     skill: {

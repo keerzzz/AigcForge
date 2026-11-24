@@ -24,7 +24,7 @@ export function layer(
   },
 ) {
   const app = {
-    client: options.client ?? "aigcfroge",
+    client: options.client ?? "omnixa",
     version: options.version ?? "unknown",
     channel: options.channel ?? "local",
   }

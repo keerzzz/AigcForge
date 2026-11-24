@@ -208,7 +208,7 @@ test("accepts every v2-only named command ID", () => {
     "diff.first",
     "diff.last",
     "diff.mark_reviewed",
-    "aigcfroge.settings",
+    "omnixa.settings",
     "service.restart",
     "session.cd",
     "app.scrap",

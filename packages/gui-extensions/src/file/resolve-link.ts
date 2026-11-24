@@ -1,4 +1,4 @@
-import { parsePathLineSuffix } from "@aigcfroge/util/path"
+import { parsePathLineSuffix } from "@omnixa/util/path"
 import type { Files, LineRange } from "../sdk"
 
 export type ParsedFileLink = {

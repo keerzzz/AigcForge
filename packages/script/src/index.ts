@@ -18,15 +18,15 @@ if (!semver.satisfies(process.versions.bun, expectedBunVersionRange)) {
 }
 
 const env = {
-  AIGCFROGE_CHANNEL: process.env["AIGCFROGE_CHANNEL"],
-  AIGCFROGE_BUMP: process.env["AIGCFROGE_BUMP"],
-  AIGCFROGE_VERSION: process.env["AIGCFROGE_VERSION"],
-  AIGCFROGE_RELEASE: process.env["AIGCFROGE_RELEASE"],
+  OMNIXA_CHANNEL: process.env["OMNIXA_CHANNEL"],
+  OMNIXA_BUMP: process.env["OMNIXA_BUMP"],
+  OMNIXA_VERSION: process.env["OMNIXA_VERSION"],
+  OMNIXA_RELEASE: process.env["OMNIXA_RELEASE"],
 }
 const CHANNEL = await (async () => {
-  if (env.AIGCFROGE_CHANNEL) return env.AIGCFROGE_CHANNEL
-  if (env.AIGCFROGE_BUMP) return "latest"
-  if (env.AIGCFROGE_VERSION && !env.AIGCFROGE_VERSION.startsWith("0.0.0-")) return "latest"
+  if (env.OMNIXA_CHANNEL) return env.OMNIXA_CHANNEL
+  if (env.OMNIXA_BUMP) return "latest"
+  if (env.OMNIXA_VERSION && !env.OMNIXA_VERSION.startsWith("0.0.0-")) return "latest"
   const branch = await $`git branch --show-current`.text().then((x) => x.trim())
   if (!branch) return "detached"
   const channel = branch.replace(/[^a-zA-Z0-9._-]/g, "-")
@@ -36,17 +36,17 @@ const CHANNEL = await (async () => {
 const IS_PREVIEW = CHANNEL !== "latest"
 
 const VERSION = await (async () => {
-  if (env.AIGCFROGE_VERSION) return env.AIGCFROGE_VERSION
+  if (env.OMNIXA_VERSION) return env.OMNIXA_VERSION
   if (IS_PREVIEW) return `0.0.0-${CHANNEL}-${previewBuildNumber()}`
   const repo = process.env.GH_REPO || "keerzzz/AigcForge"
   const version = await fetch(`https://api.github.com/repos/${repo}/releases/latest`, {
-    headers: { "User-Agent": "aigcfroge", "X-GitHub-Api-Version": "2022-11-28" },
+    headers: { "User-Agent": "omnixa", "X-GitHub-Api-Version": "2022-11-28" },
     signal: AbortSignal.timeout(10_000),
   })
     .then((res) => (res.ok ? res.json() : null))
     .then((data: { tag_name?: string } | null) => (data?.tag_name ? data.tag_name.replace(/^v/, "") : rootPkg.version))
   const [major, minor, patch] = version.split(".").map((x: string) => Number(x) || 0)
-  const t = env.AIGCFROGE_BUMP?.toLowerCase()
+  const t = env.OMNIXA_BUMP?.toLowerCase()
   if (t === "major") return `${major + 1}.0.0`
   if (t === "minor") return `${major}.${minor + 1}.0`
   return `${major}.${minor}.${patch + 1}`
@@ -60,7 +60,7 @@ function previewBuildNumber() {
   return runNumber
 }
 
-const bot = ["actions-user", "aigcfroge", "aigcfroge-agent[bot]"]
+const bot = ["actions-user", "omnixa", "omnixa-agent[bot]"]
 const teamPath = path.resolve(import.meta.dir, "../../../.github/TEAM_MEMBERS")
 const team = [
   ...(await Bun.file(teamPath)
@@ -81,10 +81,10 @@ export const Script = {
     return IS_PREVIEW
   },
   get release(): boolean {
-    return !!env.AIGCFROGE_RELEASE
+    return !!env.OMNIXA_RELEASE
   },
   get team() {
     return team
   },
 }
-console.log(`aigcfroge script`, JSON.stringify(Script, null, 2))
+console.log(`omnixa script`, JSON.stringify(Script, null, 2))

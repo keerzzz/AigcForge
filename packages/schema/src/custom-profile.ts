@@ -96,7 +96,7 @@ export class Profile extends Schema.Class<Profile>("CustomProfile.Profile")(
   }).check(
     Schema.makeFilter((profile) => profile.root === undefined || profile.root.revision !== undefined, {
       message: "A saved builtin root must carry its captured revision",
-      representation: { id: "aigcfroge/profileRootRevision", payload: {} },
+      representation: { id: "omnixa/profileRootRevision", payload: {} },
       arbitraryConstraint: {},
       toCode: () => ({
         runtime:
@@ -105,7 +105,7 @@ export class Profile extends Schema.Class<Profile>("CustomProfile.Profile")(
     }),
     Schema.makeFilter((profile) => profile.root !== undefined || profile.agents.length > 0, {
       message: "A root-less profile must contain at least one agent",
-      representation: { id: "aigcfroge/profileAgentCardinality", payload: {} },
+      representation: { id: "omnixa/profileAgentCardinality", payload: {} },
       arbitraryConstraint: {},
       toCode: () => ({
         runtime:

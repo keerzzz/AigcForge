@@ -2,36 +2,36 @@ import path from "path"
 import fs from "fs/promises"
 import { writeFileSync } from "node:fs"
 import { describe, expect } from "bun:test"
-import { Document, Event, Info } from "@aigcfroge/schema/config"
-import { Agent } from "@aigcfroge/core/agent"
-import { Command } from "@aigcfroge/core/command"
-import { Config } from "@aigcfroge/core/config"
-import { ConfigAgentPlugin } from "@aigcfroge/core/config/plugin/agent"
-import { ConfigCommandPlugin } from "@aigcfroge/core/config/plugin/command"
-import { ConfigProviderPlugin } from "@aigcfroge/core/config/plugin/provider"
-import { ConfigReferencePlugin } from "@aigcfroge/core/config/plugin/reference"
-import { ConfigCompatibilityPlugin } from "@aigcfroge/core/config/plugin/compatibility"
-import { ConfigSkillPlugin } from "@aigcfroge/core/config/plugin/skill"
-import { Bus } from "@aigcfroge/core/bus"
-import { Integration } from "@aigcfroge/core/integration"
-import { Plugin } from "@aigcfroge/core/plugin"
-import { PluginHost } from "@aigcfroge/core/plugin/host"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { Provider } from "@aigcfroge/core/provider"
-import { Reference } from "@aigcfroge/core/reference"
-import { Skill } from "@aigcfroge/core/skill"
-import { ShellSelect } from "@aigcfroge/core/shell/select"
-import { Job } from "@aigcfroge/core/job"
-import { SubagentJob } from "@aigcfroge/core/session/subagent-job"
-import { Global } from "@aigcfroge/util/global"
-import { Location } from "@aigcfroge/core/location"
-import { Credential } from "@aigcfroge/core/credential"
-import { WellKnown } from "@aigcfroge/core/wellknown"
-import { Watcher } from "@aigcfroge/core/filesystem/watcher"
-import { AppProcess } from "@aigcfroge/util/process"
+import { Document, Event, Info } from "@omnixa/schema/config"
+import { Agent } from "@omnixa/core/agent"
+import { Command } from "@omnixa/core/command"
+import { Config } from "@omnixa/core/config"
+import { ConfigAgentPlugin } from "@omnixa/core/config/plugin/agent"
+import { ConfigCommandPlugin } from "@omnixa/core/config/plugin/command"
+import { ConfigProviderPlugin } from "@omnixa/core/config/plugin/provider"
+import { ConfigReferencePlugin } from "@omnixa/core/config/plugin/reference"
+import { ConfigCompatibilityPlugin } from "@omnixa/core/config/plugin/compatibility"
+import { ConfigSkillPlugin } from "@omnixa/core/config/plugin/skill"
+import { Bus } from "@omnixa/core/bus"
+import { Integration } from "@omnixa/core/integration"
+import { Plugin } from "@omnixa/core/plugin"
+import { PluginHost } from "@omnixa/core/plugin/host"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { Provider } from "@omnixa/core/provider"
+import { Reference } from "@omnixa/core/reference"
+import { Skill } from "@omnixa/core/skill"
+import { ShellSelect } from "@omnixa/core/shell/select"
+import { Job } from "@omnixa/core/job"
+import { SubagentJob } from "@omnixa/core/session/subagent-job"
+import { Global } from "@omnixa/util/global"
+import { Location } from "@omnixa/core/location"
+import { Credential } from "@omnixa/core/credential"
+import { WellKnown } from "@omnixa/core/wellknown"
+import { Watcher } from "@omnixa/core/filesystem/watcher"
+import { AppProcess } from "@omnixa/util/process"
 import { Deferred, Effect, Layer, Schema } from "effect"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { AbsolutePath } from "@aigcfroge/core/schema"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { AbsolutePath } from "@omnixa/core/schema"
 import { testEffect } from "../lib/effect"
 import { PluginTestLayer } from "../plugin/fixture"
 import { emptyCredentialNode, emptyWellknownNode } from "../fixture/config-nodes"
@@ -45,7 +45,7 @@ const it = testEffect(
   ),
 )
 const decode = Schema.decodeUnknownSync(Info)
-const document = path.join(import.meta.dir, "aigcfroge.json")
+const document = path.join(import.meta.dir, "omnixa.json")
 
 describe("config plugin reloads", () => {
   for (const input of [
@@ -60,7 +60,7 @@ describe("config plugin reloads", () => {
           Effect.gen(function* () {
             const project = path.join(tmp.path, "project")
             const root = path.resolve(project, input.root)
-            const file = path.join(project, "aigcfroge.json")
+            const file = path.join(project, "omnixa.json")
             yield* Effect.promise(async () => {
               await fs.mkdir(path.join(project, "home"), { recursive: true })
               await fs.mkdir(path.join(project, "global"))
@@ -104,7 +104,7 @@ describe("config plugin reloads", () => {
             Effect.sync(() => {
               if (input.type === "entries" && input.target === tmp.path) {
                 // No event is emitted: only synchronous readiness can trigger the reload.
-                writeFileSync(path.join(tmp.path, "aigcfroge.json"), JSON.stringify({ references: { docs: "./docs" } }))
+                writeFileSync(path.join(tmp.path, "omnixa.json"), JSON.stringify({ references: { docs: "./docs" } }))
               }
               return { unsubscribe: () => Promise.resolve() }
             }),
@@ -125,7 +125,7 @@ describe("config plugin reloads", () => {
     Effect.acquireDisposable(Effect.promise(() => tmpdir())).pipe(
       Effect.flatMap((tmp) =>
         Effect.gen(function* () {
-          const root = path.join(tmp.path, ".aigcfroge")
+          const root = path.join(tmp.path, ".omnixa")
           const parent = yield* Deferred.make<(update: Watcher.Update) => void>()
           const starting = yield* Deferred.make<void>()
           const release = yield* Deferred.make<void>()
@@ -153,7 +153,7 @@ describe("config plugin reloads", () => {
             yield* Deferred.await(starting).pipe(Effect.timeout("2 seconds"))
             // No file event: the recursive native watch has not been acquired yet.
             yield* Effect.promise(() =>
-              fs.writeFile(path.join(root, "aigcfroge.json"), JSON.stringify({ references: { docs: "./docs" } })),
+              fs.writeFile(path.join(root, "omnixa.json"), JSON.stringify({ references: { docs: "./docs" } })),
             )
             yield* Deferred.succeed(release, undefined)
             yield* waitUntil(references.list().pipe(Effect.map((items) => items.some((item) => item.name === "docs"))))
@@ -165,10 +165,10 @@ describe("config plugin reloads", () => {
   )
 
   for (const input of [
-    { file: "aigcfroge.json", empty: false },
-    { file: "../aigcfroge.jsonc", empty: false },
-    { file: ".aigcfroge/aigcfroge.json", empty: false },
-    { file: "../.aigcfroge/aigcfroge.jsonc", empty: true },
+    { file: "omnixa.json", empty: false },
+    { file: "../omnixa.jsonc", empty: false },
+    { file: ".omnixa/omnixa.json", empty: false },
+    { file: "../.omnixa/omnixa.jsonc", empty: true },
   ]) {
     it.live(`loads references when ${input.file} is first created and keeps watching it`, () =>
       Effect.acquireDisposable(Effect.promise(() => tmpdir())).pipe(
@@ -213,7 +213,7 @@ describe("config plugin reloads", () => {
               )
 
               yield* Effect.promise(() =>
-                fs.rm(input.file.includes(".aigcfroge/") ? path.dirname(target) : target, { recursive: true }),
+                fs.rm(input.file.includes(".omnixa/") ? path.dirname(target) : target, { recursive: true }),
               )
               yield* waitUntil(references.list().pipe(Effect.map((items) => items.length === 0)))
               yield* Effect.promise(async () => {
@@ -255,11 +255,11 @@ describe("config plugin reloads", () => {
     }).pipe(
       Effect.provide(
         Config.testLayer([
-          referenceConfig("/config/first/aigcfroge.json", {
+          referenceConfig("/config/first/omnixa.json", {
             shared: "./shared",
             first: "./first",
           }),
-          referenceConfig("/config/second/aigcfroge.json", {
+          referenceConfig("/config/second/omnixa.json", {
             shared: "./shared",
             second: "./second",
           }),

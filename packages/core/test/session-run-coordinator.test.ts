@@ -1,7 +1,7 @@
 import { describe, expect } from "bun:test"
 import { Cause, Deferred, Effect, Exit, Fiber, Layer } from "effect"
-import { SessionInbox } from "@aigcfroge/core/session/inbox"
-import { SessionRunCoordinator } from "@aigcfroge/core/session/run-coordinator"
+import { SessionInbox } from "@omnixa/core/session/inbox"
+import { SessionRunCoordinator } from "@omnixa/core/session/run-coordinator"
 import { testEffect } from "./lib/effect"
 
 const it = testEffect(Layer.empty)

@@ -2,7 +2,7 @@ export * as DoomLoop from "./doom-loop"
 
 import { Context, Effect, Layer, Option, Ref, Schema } from "effect"
 import { Config } from "../config"
-import { Document, type Entry } from "@aigcfroge/schema/config"
+import { Document, type Entry } from "@omnixa/schema/config"
 import { Permission } from "../permission"
 import { Session } from "../session"
 import { SessionSchema } from "./schema"
@@ -36,7 +36,7 @@ export interface Interface {
   readonly check: (input: CheckInput) => Effect.Effect<void, Permission.Error | Session.NotFoundError>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/DoomLoop") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/v2/DoomLoop") {}
 
 const fingerprintOf = (toolName: string, toolInput: unknown) => {
   const input = Schema.decodeUnknownOption(Schema.Json)(toolInput)

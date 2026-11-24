@@ -1,6 +1,6 @@
 import { app, BrowserWindow } from "electron"
-import { builtins } from "@aigcfroge/gui-extensions/main"
-import type { BridgeLayout, BridgeMenubarItem } from "@aigcfroge/gui-extensions/sdk/bridge"
+import { builtins } from "@omnixa/gui-extensions/main"
+import type { BridgeLayout, BridgeMenubarItem } from "@omnixa/gui-extensions/sdk/bridge"
 import {
   MenubarItem,
   type BaseContext,
@@ -26,7 +26,7 @@ import {
   type ServerEndpoint,
   type ServerEndpoints,
   type Windows,
-} from "@aigcfroge/gui-extensions/sdk/main"
+} from "@omnixa/gui-extensions/sdk/main"
 import { Exit, Match, Predicate, Schema } from "effect"
 import type { ExtensionEndpoint, ExtensionInstalled } from "../../shared/ipc-rpc/extensions"
 import {
@@ -127,7 +127,7 @@ export function createHost(input: {
 
   const manager = createManager(
     input.db,
-    (id) => id.startsWith("aigcfroge") || definitions.some((definition) => definition.id === id),
+    (id) => id.startsWith("omnixa") || definitions.some((definition) => definition.id === id),
     definitions,
   )
 
@@ -244,7 +244,7 @@ export function createHost(input: {
     if (!endpoint) return undefined
 
     const authorization = endpoint.password
-      ? `Basic ${Buffer.from(`${endpoint.username ?? "aigcfroge"}:${endpoint.password}`).toString("base64")}`
+      ? `Basic ${Buffer.from(`${endpoint.username ?? "omnixa"}:${endpoint.password}`).toString("base64")}`
       : SidecarCredentials.authorization(sidecar, endpoint.url)
 
     return {

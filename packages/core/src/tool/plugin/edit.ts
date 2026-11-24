@@ -6,10 +6,10 @@
  */
 export * as EditTool from "./edit.js"
 
-import type { Context } from "@aigcfroge/plugin/effect/plugin"
-import { ToolFailure } from "@aigcfroge/ai"
-import { FileDiff } from "@aigcfroge/schema/file-diff"
-import { Bom } from "@aigcfroge/util/bom"
+import type { Context } from "@omnixa/plugin/effect/plugin"
+import { ToolFailure } from "@omnixa/ai"
+import { FileDiff } from "@omnixa/schema/file-diff"
+import { Bom } from "@omnixa/util/bom"
 import { Effect, Schema } from "effect"
 import { Environment } from "../../environment/index.js"
 import { FileMutation } from "../../file-mutation.js"
@@ -107,7 +107,7 @@ const findLineOccurrences = (content: string, search: string) => {
 // TODO: Add LSP notification and diagnostics after LSP runtime exists.
 
 export const Plugin = {
-  id: "aigcfroge.tool.edit",
+  id: "omnixa.tool.edit",
   effect: Effect.fn("EditTool.Plugin")(function* (ctx: Context) {
     const access = yield* FileAccess.Service
     const fileMutation = yield* FileMutation.Service

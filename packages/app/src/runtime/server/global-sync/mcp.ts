@@ -1,4 +1,4 @@
-import type { McpServer } from "@aigcfroge/client/promise"
+import type { McpServer } from "@omnixa/client/promise"
 
 export async function toggleMcp(input: {
   status: McpServer["status"]["status"]

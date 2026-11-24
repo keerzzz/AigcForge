@@ -1,7 +1,7 @@
-import { migrateV1, parseThemeDocument, type ThemeDocument, type ModeDefinition } from "@aigcfroge/theme/tui"
+import { migrateV1, parseThemeDocument, type ThemeDocument, type ModeDefinition } from "@omnixa/theme/tui"
 import { resolveThemeColors } from "./resolve"
 import { DEFAULT_THEMES, type Theme, type ThemeV1Json } from "./v1"
-import aigcfroge from "./assets/v2/aigcfroge.json" with { type: "json" }
+import omnixa from "./assets/v2/omnixa.json" with { type: "json" }
 
 export { DEFAULT_THEMES, type Theme, type ThemeV1Json } from "./v1"
 
@@ -11,30 +11,32 @@ let customThemes: Record<string, ThemeDocumentSource> = {}
 let systemTheme: ThemeDocumentSource | undefined
 const listeners = new Set<(themes: Record<string, ThemeDocumentSource>) => void>()
 const parsed = new WeakMap<object, ThemeDocument>()
-let aigcfrogeTheme:
+let omnixaTheme:
   | (ThemeDocument & {
       readonly light: ModeDefinition
       readonly dark: ModeDefinition
     })
   | undefined
 
-export function getAigcForgeTheme() {
-  if (aigcfrogeTheme) return aigcfrogeTheme
-  const document = parseThemeDocument(aigcfroge, "aigcfroge") as NonNullable<typeof aigcfrogeTheme>
-  aigcfrogeTheme = document
-  return document
+export function getOmnixaTheme() {
+  if (omnixaTheme) return omnixaTheme
+  const document = parseThemeDocument(omnixa, "omnixa")
+  // The built-in fallback supplies both modes; custom documents may supply only one.
+  if (!document.light || !document.dark) throw new Error("Omnixa theme must provide light and dark modes")
+  omnixaTheme = { ...document, light: document.light, dark: document.dark }
+  return omnixaTheme
 }
 
 function listThemes(): Record<string, ThemeDocumentSource> {
   // Priority: defaults < custom files < generated system.
   const themes: Record<string, ThemeDocumentSource> = {
     ...DEFAULT_THEMES,
-    aigcfroge: getAigcForgeTheme(),
+    omnixa: getOmnixaTheme(),
     ...customThemes,
   }
   return {
     ...themes,
-    system: systemTheme ?? themes.system ?? themes.aigcfroge,
+    system: systemTheme ?? themes.system ?? themes.omnixa,
   }
 }
 

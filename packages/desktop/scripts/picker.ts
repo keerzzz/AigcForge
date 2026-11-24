@@ -9,7 +9,7 @@ const attribute = "data-opencode-picker-source"
 
 export function pickerPlugin() {
   const plugin = picker()
-  const client = "/__vite_aigcfroge_picker_client.js"
+  const client = "/__vite_omnixa_picker_client.js"
   const moduleID = plugin.resolveId("virtual:vite-opencode-picker/client")
 
   if (!moduleID) throw new Error("Picker client module is unavailable")

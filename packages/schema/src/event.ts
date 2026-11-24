@@ -74,7 +74,7 @@ type PayloadBase<D extends Definition> = {
 }
 
 export type Payload<D extends Definition = Definition> = D extends DurableDefinition
-  ? PayloadBase<D> & { readonly durable: DurableEnvelope }
+  ? PayloadBase<D> & { readonly durable: DurableEnvelope & { readonly version: D["durable"]["version"] } }
   : PayloadBase<D> & { readonly durable?: never }
 
 type Input<Type extends string, Fields extends Readonly<Record<PropertyKey, Schema.Codec<unknown, unknown>>>> = {
@@ -90,16 +90,20 @@ type Input<Type extends string, Fields extends Readonly<Record<PropertyKey, Sche
 export function durable<
   const Type extends string,
   const Fields extends Readonly<Record<PropertyKey, Schema.Codec<unknown, unknown>>>,
->(input: Input<Type, Fields> & { readonly durable: NonNullable<Input<Type, Fields>["durable"]> }) {
+  const VersionNumber extends number,
+>(input: Input<Type, Fields> & { readonly durable: { readonly version: VersionNumber; readonly aggregate: string } }) {
   const data = Schema.Struct(input.schema)
+  const version = Schema.Literal(input.durable.version)
+    .check(Schema.isInt(), Schema.isGreaterThanOrEqualTo(1))
+    .pipe(Schema.brand("Event.Version"))
   const durable = Schema.Struct({
     aggregateID: DurableEnvelope.fields.aggregateID,
     seq: DurableEnvelope.fields.seq,
     version: Schema.Literal(input.durable.version).pipe(
       Schema.decodeTo(
-        Schema.toType(Version),
+        Schema.toType(version),
         SchemaTransformation.transform({
-          decode: () => Version.make(input.durable.version),
+          decode: () => version.make(input.durable.version),
           encode: () => input.durable.version,
         }),
       ),

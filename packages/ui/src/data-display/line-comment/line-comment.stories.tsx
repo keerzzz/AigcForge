@@ -4,7 +4,7 @@ import { LineCommentEditor, LineComment, LineCommentOverflowIcon } from "./line-
 import { Menu } from "../../navigation/menu/menu"
 
 const docs = `### Overview
-Line comment **display** and **editor** cards aligned with AigcForge line-comment specs (raised \`#FAFAFA\` surface, footer line context, \`Button\` ghost + contrast actions).
+Line comment **display** and **editor** cards aligned with Omnixa line-comment specs (raised \`#FAFAFA\` surface, footer line context, \`Button\` ghost + contrast actions).
 
 ### Display
 - \`LineComment\`: column stack (body + meta) beside optional \`actions\` (overflow).

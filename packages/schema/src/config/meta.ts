@@ -1,7 +1,7 @@
 export * as ConfigMeta from "./meta.js"
 
 import { Schema } from "effect"
-import { PositiveInt } from "@aigcfroge/schema/schema"
+import { PositiveInt } from "@omnixa/schema/schema"
 
 export class Memory extends Schema.Class<Memory>("ConfigV2.Meta.Memory")({
   enabled: Schema.Boolean.pipe(Schema.optional),

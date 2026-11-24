@@ -1,13 +1,13 @@
 import { expect } from "bun:test"
-import { AigcForge } from "@aigcfroge/client"
-import { Database } from "@aigcfroge/core/database/database"
-import { Bus } from "@aigcfroge/core/bus"
-import { Model } from "@aigcfroge/core/model"
-import { PersonalMemory } from "@aigcfroge/core/session/personal-memory"
-import { PersonalMemoryTable } from "@aigcfroge/core/session/personal-memory.sql"
-import { Provider } from "@aigcfroge/core/provider"
+import { Omnixa } from "@omnixa/client"
+import { Database } from "@omnixa/core/database/database"
+import { Bus } from "@omnixa/core/bus"
+import { Model } from "@omnixa/core/model"
+import { PersonalMemory } from "@omnixa/core/session/personal-memory"
+import { PersonalMemoryTable } from "@omnixa/core/session/personal-memory.sql"
+import { Provider } from "@omnixa/core/provider"
 // Core service and public schema share the PersonalMemory name.
-import { PersonalMemory as PersonalMemorySchema } from "@aigcfroge/schema/personal-memory"
+import { PersonalMemory as PersonalMemorySchema } from "@omnixa/schema/personal-memory"
 import { Context, Effect, Layer, Schema } from "effect"
 import { testEffect } from "../../core/test/lib/effect"
 import { AssetHttpFixture } from "./fixture/asset-http"
@@ -17,8 +17,8 @@ const it = testEffect(Layer.empty)
 it.live("serves authenticated personal memory lifecycle using the existing generated client", () =>
   Effect.gen(function* () {
     const fixture = yield* AssetHttpFixture.setup({
-      prefix: "aigcfroge-personal-memory-http-",
-      assetDirectory: ".aigcfroge",
+      prefix: "omnixa-personal-memory-http-",
+      assetDirectory: ".omnixa",
       files: [],
       model: Model.Ref.make({ id: Model.ID.make("memory-fixture"), providerID: Provider.ID.make("test") }),
     })
@@ -43,9 +43,9 @@ it.live("serves authenticated personal memory lifecycle using the existing gener
       sensitivityLevel: "medium",
     })
     const statuses: number[] = []
-    const api = AigcForge.make({
-      baseUrl: "http://aigcfroge.local",
-      headers: { authorization: `Basic ${btoa("aigcfroge:secret")}`, "x-aigcfroge-directory": fixture.directory },
+    const api = Omnixa.make({
+      baseUrl: "http://omnixa.local",
+      headers: { authorization: `Basic ${btoa("omnixa:secret")}`, "x-omnixa-directory": fixture.directory },
       fetch: Object.assign(
         async (input: string | URL | Request, init?: RequestInit) => {
           const response = await fixture.handler(new Request(input, init))

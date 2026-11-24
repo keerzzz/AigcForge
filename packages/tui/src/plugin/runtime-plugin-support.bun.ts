@@ -1,11 +1,11 @@
-import { ensurePluginRuntime, provides } from "@aigcfroge/plugin/runtime"
-import { Plugin, PluginContextProvider, usePlugin } from "@aigcfroge/plugin/tui"
+import { ensurePluginRuntime, provides } from "@omnixa/plugin/runtime"
+import { Plugin, PluginContextProvider, usePlugin } from "@omnixa/plugin/tui"
 import { ensureRuntimePluginSupport } from "@opentui/solid/runtime-plugin-support/configure"
 
 ensurePluginRuntime()
 ensureRuntimePluginSupport({
   additional: {
-    "@aigcfroge/plugin/tui": { Plugin, PluginContextProvider, usePlugin },
+    "@omnixa/plugin/tui": { Plugin, PluginContextProvider, usePlugin },
   },
   preserve: provides,
 })

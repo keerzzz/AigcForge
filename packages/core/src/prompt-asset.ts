@@ -2,20 +2,20 @@ export * as PromptAsset from "./prompt-asset"
 
 import { Context, Effect, Layer, Option, Schema, Scope, Stream } from "effect"
 import path from "path"
-import { PromptAsset } from "@aigcfroge/schema/prompt-asset"
+import { PromptAsset } from "@omnixa/schema/prompt-asset"
 import { ConfigMarkdown } from "./config/markdown"
 import { Bus } from "./bus"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { FSUtil } from "@omnixa/util/fs-util"
 import { KeyedMutex } from "./effect/keyed-mutex"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
 import { Location } from "./location"
-import { Hash } from "@aigcfroge/util/hash"
+import { Hash } from "@omnixa/util/hash"
 import { Watcher } from "./filesystem/watcher"
 import { PROMPTS_DIR } from "./constants"
 import { AssetPlacement } from "./asset-placement"
 import { LocationMutation } from "./location-mutation"
 import { PromptAssetPath } from "./prompt-asset/path"
-import { Global } from "@aigcfroge/util/global"
+import { Global } from "@omnixa/util/global"
 
 // Re-export so PromptAsset.PROMPTS_DIR still works for existing consumers.
 export { PROMPTS_DIR }
@@ -62,7 +62,7 @@ export interface Selected {
   readonly reload: () => Effect.Effect<void, SelectError>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/PromptAsset") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/v2/PromptAsset") {}
 
 export function loadDir<E = never>(
   fs: FSUtil.Interface,

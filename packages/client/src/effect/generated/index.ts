@@ -1,2 +1,2 @@
 export { ClientError } from "./client-error.js"
-export * as AigcForge from "./client.js"
+export * as Omnixa from "./client.js"

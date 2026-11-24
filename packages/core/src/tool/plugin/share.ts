@@ -1,11 +1,11 @@
 export * as SessionShareTool from "./share.js"
 
-import { ToolFailure } from "@aigcfroge/ai"
-import type { Context } from "@aigcfroge/plugin/effect/plugin"
-import type { SessionHooks } from "@aigcfroge/plugin/effect/session"
+import { ToolFailure } from "@omnixa/ai"
+import type { Context } from "@omnixa/plugin/effect/plugin"
+import type { SessionHooks } from "@omnixa/plugin/effect/session"
 import { Effect, Option, Schema } from "effect"
-import { FSUtil } from "@aigcfroge/util/fs-util"
-import { Hash } from "@aigcfroge/util/hash"
+import { FSUtil } from "@omnixa/util/fs-util"
+import { Hash } from "@omnixa/util/hash"
 import { MetaAgentService } from "../../meta-agent/service.js"
 import { Permission } from "../../permission.js"
 import { Session } from "../../session.js"
@@ -13,7 +13,7 @@ import { SessionShareV2 } from "../../session/share-v2.js"
 import { SessionMessage } from "../../session/message.js"
 import { serializedSelection } from "../../session/session.js"
 import { TaskTool } from "./task.js"
-import { SessionCommunication } from "@aigcfroge/schema/session-communication"
+import { SessionCommunication } from "@omnixa/schema/session-communication"
 
 export const name = "share"
 
@@ -54,7 +54,7 @@ export const ResultOutput = SessionShareV2.ResultOutput
 export const Output = Schema.Union([Schema.String, ResultOutput])
 
 export const Plugin = {
-  id: "aigcfroge.tool.share",
+  id: "omnixa.tool.share",
   effect: Effect.fn("SessionShareTool.Plugin")(function* (ctx: Context) {
     const sessions = yield* Session.Service
     const share = yield* SessionShareV2.Service

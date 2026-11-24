@@ -1,17 +1,17 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
   "version": "0.0.9",
-  "name": "@aigcfroge/http-recorder",
+  "name": "@omnixa/http-recorder",
   "description": "Record and replay Effect HTTP and WebSocket traffic with deterministic cassettes",
   "type": "module",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/anomalyco/aigcfroge.git",
+    "url": "git+https://github.com/keerzzz/AigcForge.git",
     "directory": "packages/http-recorder"
   },
-  "homepage": "https://github.com/anomalyco/aigcfroge/tree/dev/packages/http-recorder",
-  "bugs": "https://github.com/anomalyco/aigcfroge/issues",
+  "homepage": "https://github.com/keerzzz/AigcForge/tree/dev/packages/http-recorder",
+  "bugs": "https://github.com/keerzzz/AigcForge/issues",
   "keywords": [
     "effect",
     "http",

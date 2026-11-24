@@ -1,13 +1,13 @@
 export * as SessionTitle from "./title.js"
 
 import { isDeepStrictEqual } from "node:util"
-import { LLMClient, LLMEvent, Message, SystemPart } from "@aigcfroge/ai"
-import type { Agent } from "@aigcfroge/schema/agent"
+import { LLMClient, LLMEvent, Message, SystemPart } from "@omnixa/ai"
+import type { Agent } from "@omnixa/schema/agent"
 import { Context, DateTime, Effect, Layer, Stream } from "effect"
 import { Database } from "../database/database.js"
 import { Bus } from "../bus.js"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
-import { isExactRootFallback } from "@aigcfroge/util/session-title-fallback"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
+import { isExactRootFallback } from "@omnixa/util/session-title-fallback"
 import { llmClient } from "../effect/app-node-platform.js"
 import { SessionContext } from "./context.js"
 import { SessionEvent } from "./event.js"
@@ -28,7 +28,7 @@ export interface Interface {
   readonly generate: (sessionID: SessionSchema.ID) => Effect.Effect<void>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/SessionTitle") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/SessionTitle") {}
 
 const truncate = (value: string) => (value.length <= MAX_LENGTH ? value : `${value.slice(0, MAX_LENGTH - 3)}...`)
 export const isUntitled = (session: SessionSchema.Info) =>

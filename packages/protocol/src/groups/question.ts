@@ -1,4 +1,4 @@
-import { Question } from "@aigcfroge/schema/question"
+import { Question } from "@omnixa/schema/question"
 import { Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/http-api"
 import { InvalidRequestError, QuestionNotFoundError } from "../errors.js"

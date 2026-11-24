@@ -1,4 +1,4 @@
-import type { FileDiffInfo } from "@aigcfroge/client/promise"
+import type { FileDiffInfo } from "@omnixa/client/promise"
 import { completePatchContents, normalize, type ViewDiff } from "./session-diff"
 
 type Kind = "add" | "update" | "delete"

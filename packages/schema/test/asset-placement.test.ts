@@ -6,7 +6,7 @@ import { PromptAsset } from "../src/prompt-asset.js"
 import { AbsolutePath } from "../src/schema.js"
 import { SkillAsset } from "../src/skill-asset.js"
 
-const target = { scope: "project" as const, root: "/workspace/.aigcfroge/skills" }
+const target = { scope: "project" as const, root: "/workspace/.omnixa/skills" }
 const summary = {
   kind: "skill" as const,
   name: "review",
@@ -57,7 +57,7 @@ describe("AssetPlacement", () => {
 
   test("preserves the existing AbsolutePath brand contract", () => {
     expect(AssetPlacement.Target.fields.root).toBe(AbsolutePath)
-    ;["", "relative/skills", "/workspace/.aigcfroge/skills", "C:\\workspace\\.aigcfroge\\skills"].forEach((root) => {
+    ;["", "relative/skills", "/workspace/.omnixa/skills", "C:\\workspace\\.omnixa\\skills"].forEach((root) => {
       const decoded = Schema.decodeUnknownSync(AssetPlacement.Target)({ ...target, root })
       expect(decoded.root).toBe(Schema.decodeUnknownSync(AbsolutePath)(root))
       expect(Schema.encodeSync(AssetPlacement.Target)(decoded)).toEqual({ ...target, root })
@@ -140,7 +140,7 @@ describe("SkillAsset placement contracts", () => {
 })
 
 describe("CommandAsset placement contracts", () => {
-  const target = { scope: "project" as const, root: "/workspace/.aigcfroge/commands" }
+  const target = { scope: "project" as const, root: "/workspace/.omnixa/commands" }
   const summary = {
     kind: "command" as const,
     name: "review-command",
@@ -253,7 +253,7 @@ describe("CommandAsset placement contracts", () => {
 })
 
 describe("PromptAsset placement contracts", () => {
-  const target = { scope: "project" as const, root: "/workspace/.aigcfroge/prompts" }
+  const target = { scope: "project" as const, root: "/workspace/.omnixa/prompts" }
   const summary = {
     kind: "prompt" as const,
     name: "review-prompt",

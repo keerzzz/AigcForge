@@ -4,41 +4,41 @@ import type { SQLiteTransactionConfig } from "drizzle-orm/sqlite-core/session"
 import { Cause, Context, DateTime, Deferred, Effect, Exit, Fiber, Layer, Result, Schema } from "effect"
 import { TestClock } from "effect/testing"
 import type { SqlError } from "effect/sql/SqlError"
-import { Database } from "@aigcfroge/core/database/database"
-import { Bus } from "@aigcfroge/core/bus"
-import { Project } from "@aigcfroge/core/project"
-import { ProjectTable } from "@aigcfroge/core/project/sql"
-import { AbsolutePath } from "@aigcfroge/core/schema"
-import { Session } from "@aigcfroge/core/session"
+import { Database } from "@omnixa/core/database/database"
+import { Bus } from "@omnixa/core/bus"
+import { Project } from "@omnixa/core/project"
+import { ProjectTable } from "@omnixa/core/project/sql"
+import { AbsolutePath } from "@omnixa/core/schema"
+import { Session } from "@omnixa/core/session"
 import {
   SessionInboxTable,
   SessionMessageTable,
   SessionTable,
   TaskOperationTable,
   TaskTable,
-} from "@aigcfroge/core/session/sql"
-import { SessionTask } from "@aigcfroge/core/session/task"
-import { ScheduleService } from "@aigcfroge/core/session/schedule-service"
-import { ScheduleTask } from "@aigcfroge/core/session/schedule-task"
-import { ScheduleTable } from "@aigcfroge/core/session/schedule.sql"
-import { KVTable } from "@aigcfroge/core/kv/sql"
-import { SessionTodo } from "@aigcfroge/core/session/todo"
-import { Event } from "@aigcfroge/schema/event"
-import { SessionMessage } from "@aigcfroge/schema/session-message"
-import { Agent } from "@aigcfroge/schema/agent"
-import { Location } from "@aigcfroge/schema/location"
-import { ProductMode } from "@aigcfroge/schema/product-mode"
+} from "@omnixa/core/session/sql"
+import { SessionTask } from "@omnixa/core/session/task"
+import { ScheduleService } from "@omnixa/core/session/schedule-service"
+import { ScheduleTask } from "@omnixa/core/session/schedule-task"
+import { ScheduleTable } from "@omnixa/core/session/schedule.sql"
+import { KVTable } from "@omnixa/core/kv/sql"
+import { SessionTodo } from "@omnixa/core/session/todo"
+import { Event } from "@omnixa/schema/event"
+import { SessionMessage } from "@omnixa/schema/session-message"
+import { Agent } from "@omnixa/schema/agent"
+import { Location } from "@omnixa/schema/location"
+import { ProductMode } from "@omnixa/schema/product-mode"
 import { testEffect, awaitWithTimeout } from "./lib/effect"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { Global } from "@aigcfroge/util/global"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { Global } from "@omnixa/util/global"
 
 /** The drizzle-effect transaction handle, derived from the database client's own signature. */
 type SQLiteTx = Parameters<Parameters<Database.Interface["db"]["transaction"]>[0]>[0]
 
 const globalLayer = Layer.succeed(
   Global.Service,
-  Global.Service.of(Global.make({ data: "/data", config: "/config", tmp: "/tmp/aigcfroge" })),
+  Global.Service.of(Global.make({ data: "/data", config: "/config", tmp: "/tmp/omnixa" })),
 )
 const databaseLayer = Database.layer().pipe(Layer.provide(globalLayer))
 const busNodeLayer = AppNodeBuilder.build(LayerNode.group([Database.node, Bus.node]), [

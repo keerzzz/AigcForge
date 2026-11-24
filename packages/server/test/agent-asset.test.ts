@@ -1,16 +1,16 @@
 import path from "node:path"
 import { expect } from "bun:test"
-import { TestLLM } from "@aigcfroge/ai/testing"
-import { Agent } from "@aigcfroge/core/agent"
-import { Model } from "@aigcfroge/core/model"
-import { Provider } from "@aigcfroge/core/provider"
-import { Session } from "@aigcfroge/core/session"
-import { SessionInputResult } from "@aigcfroge/core/session/input-result"
-import { SessionMessage } from "@aigcfroge/core/session/message"
-import { AgentAsset } from "@aigcfroge/core/agent-asset"
-import { AgentAssetService } from "@aigcfroge/core/agent-asset-service"
-import { ProposeAgentAssetTool } from "@aigcfroge/core/tool/propose-agent-asset"
-import { InvalidRequestError } from "@aigcfroge/protocol/errors"
+import { TestLLM } from "@omnixa/ai/testing"
+import { Agent } from "@omnixa/core/agent"
+import { Model } from "@omnixa/core/model"
+import { Provider } from "@omnixa/core/provider"
+import { Session } from "@omnixa/core/session"
+import { SessionInputResult } from "@omnixa/core/session/input-result"
+import { SessionMessage } from "@omnixa/core/session/message"
+import { AgentAsset } from "@omnixa/core/agent-asset"
+import { AgentAssetService } from "@omnixa/core/agent-asset-service"
+import { ProposeAgentAssetTool } from "@omnixa/core/tool/propose-agent-asset"
+import { InvalidRequestError } from "@omnixa/protocol/errors"
 import {
   ApplyResult,
   BaseRevision,
@@ -21,10 +21,10 @@ import {
   Revision,
   Summary,
   Warning,
-} from "@aigcfroge/schema/agent-asset"
-import { Composition } from "@aigcfroge/schema/composition"
-import { SessionCompositionSnapshotTable } from "@aigcfroge/core/session/sql"
-import { Hash } from "@aigcfroge/util/hash"
+} from "@omnixa/schema/agent-asset"
+import { Composition } from "@omnixa/schema/composition"
+import { SessionCompositionSnapshotTable } from "@omnixa/core/session/sql"
+import { Hash } from "@omnixa/util/hash"
 import { Context, Effect, Layer, Option, Schema } from "effect"
 import { withEnv } from "../../core/test/fixture/env"
 import { useOfflineCatalog } from "../../core/test/fixture/models"
@@ -65,8 +65,8 @@ const warnings = [
 
 const setup = (files: readonly { relativePath: string; content: string }[] = []) =>
   AssetHttpFixture.setup({
-    prefix: "aigcfroge-agent-http-",
-    assetDirectory: ".aigcfroge/agents",
+    prefix: "omnixa-agent-http-",
+    assetDirectory: ".omnixa/agents",
     model,
     files,
   }).pipe(
@@ -78,7 +78,7 @@ const setup = (files: readonly { relativePath: string; content: string }[] = [])
   )
 
 it.live("persists Agent proposal facts and preserves HTTP warnings before freezing the saved configuration", () =>
-  withEnv({ AIGCFROGE_EXPERIMENTAL_CHAT_ASSET: "true", AIGCFROGE_CUSTOM_MODE: "true" }, () =>
+  withEnv({ OMNIXA_EXPERIMENTAL_CHAT_ASSET: "true", OMNIXA_CUSTOM_MODE: "true" }, () =>
     Effect.gen(function* () {
       const fixture = yield* setup()
       yield* useOfflineCatalog([
@@ -86,12 +86,12 @@ it.live("persists Agent proposal facts and preserves HTTP warnings before freezi
           info: Provider.Info.make({
             ...Provider.Info.empty(model.providerID),
             activation: "enabled",
-            package: "@aigcfroge/ai/providers/openai/responses",
+            package: "@omnixa/ai/providers/openai/responses",
           }),
           models: [Model.Info.make(Model.Info.default(model.providerID, model.id))],
         },
       ]).pipe(Effect.provideContext(fixture.local))
-      const target = path.join(fixture.directory, ".aigcfroge/agents/review-agent.md")
+      const target = path.join(fixture.directory, ".omnixa/agents/review-agent.md")
       const session = yield* fixture.sessions.create({
         title: "Agent review",
         mode: "chat",
@@ -273,7 +273,7 @@ it.live("persists Agent proposal facts and preserves HTTP warnings before freezi
 )
 
 it.live("keeps Agent HTTP creation disabled under the existing asset flag", () =>
-  withEnv({ AIGCFROGE_EXPERIMENTAL_CHAT_ASSET: "false" }, () =>
+  withEnv({ OMNIXA_EXPERIMENTAL_CHAT_ASSET: "false" }, () =>
     Effect.gen(function* () {
       const fixture = yield* setup()
       const session = yield* fixture.sessions.create({
@@ -288,16 +288,14 @@ it.live("keeps Agent HTTP creation disabled under the existing asset flag", () =
         Schema.decodeUnknownSync(InvalidRequestError)(yield* Effect.promise<unknown>(() => response.json())),
       ).toMatchObject({ kind: "disabled", message: "Agent asset creation is not enabled" })
       expect(
-        yield* Effect.promise(() =>
-          Bun.file(path.join(fixture.directory, ".aigcfroge/agents/review-agent.md")).exists(),
-        ),
+        yield* Effect.promise(() => Bun.file(path.join(fixture.directory, ".omnixa/agents/review-agent.md")).exists()),
       ).toBe(false)
     }),
   ),
 )
 
 it.live("reports Agent name conflicts and rolls the attempted HTTP write back", () =>
-  withEnv({ AIGCFROGE_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
+  withEnv({ OMNIXA_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
     Effect.gen(function* () {
       const content = "---\nkind: agent\nname: review-agent\ndescription: Existing agent\n---\nExisting instructions."
       const fixture = yield* setup([{ relativePath: "other.md", content }])
@@ -313,19 +311,17 @@ it.live("reports Agent name conflicts and rolls the attempted HTTP write back", 
           .status,
       ).toBe(409)
       expect(
-        yield* Effect.promise(() =>
-          Bun.file(path.join(fixture.directory, ".aigcfroge/agents/review-agent.md")).exists(),
-        ),
+        yield* Effect.promise(() => Bun.file(path.join(fixture.directory, ".omnixa/agents/review-agent.md")).exists()),
       ).toBe(false)
       expect(
-        yield* Effect.promise(() => Bun.file(path.join(fixture.directory, ".aigcfroge/agents/other.md")).text()),
+        yield* Effect.promise(() => Bun.file(path.join(fixture.directory, ".omnixa/agents/other.md")).text()),
       ).toBe(content)
     }),
   ),
 )
 
 it.live("reports invalid Agent files and rejects unsafe HTTP mutation targets", () =>
-  withEnv({ AIGCFROGE_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
+  withEnv({ OMNIXA_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
     Effect.gen(function* () {
       const fixture = yield* setup([
         { relativePath: "invalid.md", content: "No frontmatter" },

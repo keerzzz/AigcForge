@@ -2,7 +2,7 @@ import { expect, test } from "bun:test"
 import { BoxRenderable, EmbeddedTerminalRenderable, type Renderable, ScrollBoxRenderable } from "@opentui/core"
 import { createTestRenderer } from "@opentui/core/testing"
 import { Effect, FileSystem } from "effect"
-import { Global } from "@aigcfroge/util/global"
+import { Global } from "@omnixa/util/global"
 import { createEventStream, createFetch, directory, json } from "./fixture/tui-client"
 import { tmpdir } from "./fixture/fixture"
 

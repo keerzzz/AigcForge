@@ -1,12 +1,8 @@
 import { batch, createRoot, onCleanup } from "solid-js"
 import { createStore } from "solid-js/store"
-import { errorMessage } from "@aigcfroge/util/error"
-import { showToast } from "@aigcfroge/ui/toast"
-import type {
-  SessionForkBoundary,
-  SessionGetConsultationOutput,
-  SessionMessageAssistant,
-} from "@aigcfroge/client/promise"
+import { errorMessage } from "@omnixa/util/error"
+import { showToast } from "@omnixa/ui/toast"
+import type { SessionForkBoundary, SessionGetConsultationOutput, SessionMessageAssistant } from "@omnixa/client/promise"
 import {
   createKeyed,
   type MountedSession,
@@ -140,7 +136,7 @@ export function createBtw(ctx: SetupContext<typeof Btw>) {
     const client = server.client
     const data = server.data
     const attempt = server.attempt
-    const { createTimelineProjection } = await import("@aigcfroge/session-ui/timeline/projection")
+    const { createTimelineProjection } = await import("@omnixa/session-ui/timeline/projection")
 
     if (!live(server, client, data, attempt)) return
     await data.session.message.sync(source.id)
@@ -185,8 +181,8 @@ export function createBtw(ctx: SetupContext<typeof Btw>) {
     }
 
     const [{ SessionID }, { SessionMessage }] = await Promise.all([
-      import("@aigcfroge/schema/session-id"),
-      import("@aigcfroge/schema/session-message"),
+      import("@omnixa/schema/session-id"),
+      import("@omnixa/schema/session-message"),
     ])
 
     if (!live(captured.server, client, data, attempt)) return

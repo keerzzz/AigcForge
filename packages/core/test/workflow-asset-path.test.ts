@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test"
 import { Effect, Layer } from "effect"
-import { FSUtil } from "@aigcfroge/util/fs-util"
-import { LocationMutation } from "@aigcfroge/core/location-mutation"
-import { Location } from "@aigcfroge/core/location"
-import { AbsolutePath } from "@aigcfroge/core/schema"
+import { FSUtil } from "@omnixa/util/fs-util"
+import { LocationMutation } from "@omnixa/core/location-mutation"
+import { Location } from "@omnixa/core/location"
+import { AbsolutePath } from "@omnixa/core/schema"
 import { location } from "./fixture/location"
 import { tmpdir } from "./fixture/tmpdir"
 import fs from "fs/promises"
@@ -109,20 +109,20 @@ describe("WorkflowAssetPath.validateRelativePath", () => {
 })
 
 describe("WorkflowAssetPath.nameToRelativePath", () => {
-  test("uses .aigcfroge/workflows/ prefix with .yaml extension", () => {
-    expect(WorkflowAssetPath.nameToRelativePath("code-review")).toBe(".aigcfroge/workflows/code-review.yaml")
+  test("uses .omnixa/workflows/ prefix with .yaml extension", () => {
+    expect(WorkflowAssetPath.nameToRelativePath("code-review")).toBe(".omnixa/workflows/code-review.yaml")
   })
 
   test("handles Chinese name", () => {
-    expect(WorkflowAssetPath.nameToRelativePath("工作流")).toBe(".aigcfroge/workflows/工作流.yaml")
+    expect(WorkflowAssetPath.nameToRelativePath("工作流")).toBe(".omnixa/workflows/工作流.yaml")
   })
 
   test("NFKC normalizes unicode", () => {
-    expect(WorkflowAssetPath.nameToRelativePath("ｈello")).toBe(".aigcfroge/workflows/hello.yaml")
+    expect(WorkflowAssetPath.nameToRelativePath("ｈello")).toBe(".omnixa/workflows/hello.yaml")
   })
 
   test("trims whitespace", () => {
-    expect(WorkflowAssetPath.nameToRelativePath("  hi  ")).toBe(".aigcfroge/workflows/hi.yaml")
+    expect(WorkflowAssetPath.nameToRelativePath("  hi  ")).toBe(".omnixa/workflows/hi.yaml")
   })
 
   test("rejects invalid name", () => {
@@ -134,7 +134,7 @@ describe("WorkflowAssetPath.nameToRelativePath", () => {
 
 describe("WorkflowAssetPath.resolveOwnerRoot", () => {
   nonWindowsTest("computes owner root from directory", () => {
-    expect(WorkflowAssetPath.resolveOwnerRoot("/home/user/project")).toBe("/home/user/project/.aigcfroge/workflows")
+    expect(WorkflowAssetPath.resolveOwnerRoot("/home/user/project")).toBe("/home/user/project/.omnixa/workflows")
   })
 })
 
@@ -152,7 +152,7 @@ describe("WorkflowAssetPath.resolveSafeTarget", () => {
     Effect.gen(function* () {
       const mutation = yield* LocationMutation.Service
       const result = yield* WorkflowAssetPath.resolveSafeTarget("test.yaml", mutation)
-      expect(result.absolute).toBe(AbsolutePath.make("/tmp/.aigcfroge/workflows/test.yaml"))
+      expect(result.absolute).toBe(AbsolutePath.make("/tmp/.omnixa/workflows/test.yaml"))
     }).pipe(Effect.provide(mutationLayer("/tmp"))),
   )
 
@@ -167,9 +167,9 @@ describe("WorkflowAssetPath.resolveSafeTarget", () => {
   nonWindowsTest("rejects a workflow root symlink redirected elsewhere in the Location", async () => {
     const tmp = await tmpdir()
     try {
-      await fs.mkdir(path.join(tmp.path, ".aigcfroge"), { recursive: true })
+      await fs.mkdir(path.join(tmp.path, ".omnixa"), { recursive: true })
       await fs.mkdir(path.join(tmp.path, "elsewhere"), { recursive: true })
-      await fs.symlink(path.join(tmp.path, "elsewhere"), path.join(tmp.path, ".aigcfroge", "workflows"))
+      await fs.symlink(path.join(tmp.path, "elsewhere"), path.join(tmp.path, ".omnixa", "workflows"))
 
       const result = await Effect.runPromise(
         Effect.gen(function* () {

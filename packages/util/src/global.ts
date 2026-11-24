@@ -9,12 +9,12 @@ import { roots } from "#global-roots"
 import { Flock } from "./flock.js"
 import { makeGlobalNode } from "./effect/app-node.js"
 
-const app = "aigcfroge"
+const app = "omnixa"
 const { data, cache, config, state, tmp } = roots(app)
 
 const paths = {
   get home() {
-    return process.env.AIGCFROGE_TEST_HOME ?? os.homedir()
+    return process.env.OMNIXA_TEST_HOME ?? os.homedir()
   },
   data,
   bin: path.join(cache, "bin"),
@@ -30,7 +30,7 @@ export const Path = paths
 
 Flock.setGlobal({ state })
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/Global") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/Global") {}
 
 export interface Interface {
   readonly home: string
@@ -76,7 +76,7 @@ const acquire = (input: Partial<Interface>) =>
 
 const layer = Layer.effect(
   Service,
-  Effect.suspend(() => acquire({ config: process.env.AIGCFROGE_CONFIG_DIR ?? Path.config })),
+  Effect.suspend(() => acquire({ config: process.env.OMNIXA_CONFIG_DIR ?? Path.config })),
 )
 
 export const node = makeGlobalNode({ service: Service, layer: layer, deps: [] })

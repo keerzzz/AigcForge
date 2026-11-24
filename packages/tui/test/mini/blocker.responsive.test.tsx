@@ -257,7 +257,7 @@ test("roomy rejection keeps the editor and confirmation hints inline", async () 
     expect(confirm.y).toBe(editor.y)
     expect(confirm.x).toBeGreaterThanOrEqual(editor.x + editor.width)
     expect(app.captureCharFrame()).toContain("esc cancel")
-    expect(app.captureCharFrame()).toContain("Tell AigcForge what to do differently")
+    expect(app.captureCharFrame()).toContain("Tell Omnixa what to do differently")
   } finally {
     app.renderer.destroy()
   }
@@ -630,7 +630,7 @@ test.each([16, 24, 80])("text form keeps its editor, error and controls at %s x 
 
 test("external form exposes its complete URL and state-specific actions", async () => {
   const opened: string[] = []
-  const url = "https://identity.example.test/oauth/authorize?client_id=aigcfroge&redirect_uri=URL_SENTINEL"
+  const url = "https://identity.example.test/oauth/authorize?client_id=omnixa&redirect_uri=URL_SENTINEL"
   const app = await testRender(
     () => (
       <RunFormBody

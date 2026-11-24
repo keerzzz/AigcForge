@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { Permission } from "@aigcfroge/schema/permission"
+import { Permission } from "@omnixa/schema/permission"
 import { PermissionEffective } from "../src/permission/effective"
 
 function input(overrides: Partial<PermissionEffective.Input> = {}): PermissionEffective.Input {

@@ -5,7 +5,7 @@ import { SqlClient } from "effect/sql"
 import { classifySqliteError, SqlError } from "effect/sql/SqlError"
 import { Sqlite } from "./sqlite.js"
 
-const TypeId = "~@aigcfroge/core/database/SqliteNode" as const
+const TypeId = "~@omnixa/core/database/SqliteNode" as const
 
 export const supportsTuningPragmas = true
 

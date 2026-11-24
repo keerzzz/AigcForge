@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# aigcfroge Korean IME Fix Installer
-# https://github.com/anomalyco/aigcfroge/issues/14371
+# omnixa Korean IME Fix Installer
+# https://github.com/anomalyco/omnixa/issues/14371
 #
-# Patches aigcfroge to prevent Korean (and other CJK) IME last character
+# Patches omnixa to prevent Korean (and other CJK) IME last character
 # truncation when pressing Enter in Kitty and other terminals.
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/claudianus/aigcfroge/fix-zhipuai-coding-plan-thinking/patches/install-korean-ime-fix.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/claudianus/omnixa/fix-zhipuai-coding-plan-thinking/patches/install-korean-ime-fix.sh | bash
 #   # or from a cloned repo:
 #   ./patches/install-korean-ime-fix.sh
 
@@ -18,9 +18,9 @@ ORANGE='\033[38;5;214m'
 MUTED='\033[0;2m'
 NC='\033[0m'
 
-AIGCFROGE_DIR="${AIGCFROGE_DIR:-$HOME/.aigcfroge}"
-AIGCFROGE_SRC="${AIGCFROGE_SRC:-$HOME/.aigcfroge-src}"
-FORK_REPO="${FORK_REPO:-https://github.com/claudianus/aigcfroge.git}"
+OMNIXA_DIR="${OMNIXA_DIR:-$HOME/.omnixa}"
+OMNIXA_SRC="${OMNIXA_SRC:-$HOME/.omnixa-src}"
+FORK_REPO="${FORK_REPO:-https://github.com/claudianus/omnixa.git}"
 FORK_BRANCH="${FORK_BRANCH:-fix-zhipuai-coding-plan-thinking}"
 
 info()  { echo -e "${MUTED}$*${NC}"; }
@@ -39,18 +39,18 @@ need git
 need bun
 
 # ── 1. Clone or update fork ────────────────────────────────────────────
-if [ -d "$AIGCFROGE_SRC/.git" ]; then
-  info "Updating existing source at $AIGCFROGE_SRC ..."
-  git -C "$AIGCFROGE_SRC" fetch origin "$FORK_BRANCH"
-  git -C "$AIGCFROGE_SRC" checkout "$FORK_BRANCH"
-  git -C "$AIGCFROGE_SRC" reset --hard "origin/$FORK_BRANCH"
+if [ -d "$OMNIXA_SRC/.git" ]; then
+  info "Updating existing source at $OMNIXA_SRC ..."
+  git -C "$OMNIXA_SRC" fetch origin "$FORK_BRANCH"
+  git -C "$OMNIXA_SRC" checkout "$FORK_BRANCH"
+  git -C "$OMNIXA_SRC" reset --hard "origin/$FORK_BRANCH"
 else
-  info "Cloning fork (shallow) to $AIGCFROGE_SRC ..."
-  git clone --depth 1 --branch "$FORK_BRANCH" "$FORK_REPO" "$AIGCFROGE_SRC"
+  info "Cloning fork (shallow) to $OMNIXA_SRC ..."
+  git clone --depth 1 --branch "$FORK_BRANCH" "$FORK_REPO" "$OMNIXA_SRC"
 fi
 
 # ── 2. Verify the IME fix is present in source ────────────────────────
-PROMPT_FILE="$AIGCFROGE_SRC/packages/aigcfroge/src/cli/cmd/tui/component/prompt/index.tsx"
+PROMPT_FILE="$OMNIXA_SRC/packages/omnixa/src/cli/cmd/tui/component/prompt/index.tsx"
 if [ ! -f "$PROMPT_FILE" ]; then
   err "Prompt file not found: $PROMPT_FILE"
   exit 1
@@ -72,16 +72,16 @@ fi
 
 # ── 3. Install dependencies ────────────────────────────────────────────
 info "Installing dependencies (this may take a minute) ..."
-cd "$AIGCFROGE_SRC"
+cd "$OMNIXA_SRC"
 bun install --frozen-lockfile 2>/dev/null || bun install
 
 # ── 4. Build (current platform only) ──────────────────────────────────
-info "Building aigcfroge for current platform ..."
-cd "$AIGCFROGE_SRC/packages/aigcfroge"
+info "Building omnixa for current platform ..."
+cd "$OMNIXA_SRC/packages/omnixa"
 bun run build --single
 
 # ── 5. Install binary ──────────────────────────────────────────────────
-mkdir -p "$AIGCFROGE_DIR/bin"
+mkdir -p "$OMNIXA_DIR/bin"
 
 PLATFORM=$(uname -s | tr '[:upper:]' '[:lower:]')
 ARCH=$(uname -m)
@@ -90,23 +90,23 @@ ARCH=$(uname -m)
 [ "$PLATFORM" = "darwin" ] && true
 [ "$PLATFORM" = "linux" ] && true
 
-BUILT_BINARY="$AIGCFROGE_SRC/packages/aigcfroge/dist/aigcfroge-${PLATFORM}-${ARCH}/bin/aigcfroge"
+BUILT_BINARY="$OMNIXA_SRC/packages/omnixa/dist/omnixa-${PLATFORM}-${ARCH}/bin/omnixa"
 
 if [ ! -f "$BUILT_BINARY" ]; then
-  BUILT_BINARY=$(find "$AIGCFROGE_SRC/packages/aigcfroge/dist" -name "aigcfroge" -type f -executable 2>/dev/null | head -1)
+  BUILT_BINARY=$(find "$OMNIXA_SRC/packages/omnixa/dist" -name "omnixa" -type f -executable 2>/dev/null | head -1)
 fi
 
 if [ -f "$BUILT_BINARY" ]; then
-  if [ -f "$AIGCFROGE_DIR/bin/aigcfroge" ]; then
-    cp "$AIGCFROGE_DIR/bin/aigcfroge" "$AIGCFROGE_DIR/bin/aigcfroge.bak.$(date +%Y%m%d%H%M%S)"
+  if [ -f "$OMNIXA_DIR/bin/omnixa" ]; then
+    cp "$OMNIXA_DIR/bin/omnixa" "$OMNIXA_DIR/bin/omnixa.bak.$(date +%Y%m%d%H%M%S)"
   fi
-  cp "$BUILT_BINARY" "$AIGCFROGE_DIR/bin/aigcfroge"
-  chmod +x "$AIGCFROGE_DIR/bin/aigcfroge"
-  ok "Installed to $AIGCFROGE_DIR/bin/aigcfroge"
+  cp "$BUILT_BINARY" "$OMNIXA_DIR/bin/omnixa"
+  chmod +x "$OMNIXA_DIR/bin/omnixa"
+  ok "Installed to $OMNIXA_DIR/bin/omnixa"
 else
   err "Build failed - binary not found in dist/"
   info "Try running manually:"
-  echo "  cd $AIGCFROGE_SRC/packages/aigcfroge && bun run build --single"
+  echo "  cd $OMNIXA_SRC/packages/omnixa && bun run build --single"
   exit 1
 fi
 
@@ -114,7 +114,7 @@ echo ""
 ok "Done! Korean IME fix is now active."
 echo ""
 info "To uninstall and revert to the official release:"
-echo "  curl -fsSL https://aigcfroge.ai/install | bash"
+echo "  curl -fsSL https://omnixa.ai/install | bash"
 echo ""
 info "To update (re-pull and rebuild):"
 echo "  $0"
