@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test"
-import { DateTime, Effect, Layer, Schema } from "effect"
+import { DateTime, Effect, Layer, Schema, Stream } from "effect"
 import { Config } from "@omnixa/core/config"
 import { SessionMessage } from "@omnixa/core/session/message"
 import { VerificationRouter } from "@omnixa/core/session/verification-router"
@@ -170,9 +170,11 @@ describe("VerificationRouter META-CLAIM-EVIDENCE", () => {
   })
 
   it("summarizes claimStatus across VerificationRouter.route settlements", async () => {
-    const configLayer = Layer.succeed(Config.Service, {
+    const config: Config.Interface = {
       entries: () => Effect.succeed([]),
-    } as unknown as Config.Interface)
+      changes: () => Stream.empty,
+    }
+    const configLayer = Layer.succeed(Config.Service, config)
     const routerLayer = VerificationRouter.layer.pipe(Layer.provide(configLayer))
 
     const passedClaim = new VerificationRouter.ClaimEvidence({
