@@ -592,24 +592,3 @@
     padding-block: 0;
   }
 }
-
-[data-component="session-working"] .session-working-gear {
-  animation: session-working-gear 4s linear infinite;
-  color: var(--v2-icon-icon-muted);
-}
-
-[data-visible="false"] [data-component="session-working"] .session-working-gear {
-  animation-play-state: paused;
-}
-
-@keyframes session-working-gear {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  [data-component="session-working"] .session-working-gear {
-    animation: none;
-  }
-}

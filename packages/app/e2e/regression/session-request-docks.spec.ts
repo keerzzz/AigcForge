@@ -389,7 +389,8 @@ test("background Subagent feedback follows the child request owner", async ({ pa
     },
   })
   await expect(page.locator('[data-component="dock-prompt"][data-kind="question"]')).toBeVisible()
-  await expect(progress.locator("[data-progress-arc]")).toHaveCSS("animation-name", "session-progress-orbit")
+  await expect(progress).toHaveAttribute("data-variant", "agent")
+  await expect(progress.locator('[data-wing="1"]')).toHaveCSS("animation-name", "session-agent-wing-chase")
 })
 
 test("shows a pending permission dock", async ({ page }) => {

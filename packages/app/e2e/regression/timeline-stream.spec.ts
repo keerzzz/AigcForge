@@ -566,7 +566,10 @@ test.describe("Working", () => {
     await expect(working).toBeInViewport()
     await expect(shimmer).toHaveAttribute("data-active", "false")
     await expect(shimmer).toHaveCSS("line-height", "16px")
-    await expect(working.locator("svg use")).toHaveAttribute("href", "#omnixa-v2-icon-settings-gear")
+    await expect(working.locator('[data-component="session-progress-indicator-v2"]')).toHaveAttribute(
+      "data-variant",
+      "agent",
+    )
     const centers = await working.evaluate((element) => {
       const row = element.parentElement!.getBoundingClientRect()
       const content = element.getBoundingClientRect()
