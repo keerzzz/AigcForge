@@ -281,7 +281,7 @@ test.each(["timer", "output", "close", "panel"] as const)(
       await app.renderOnce()
       expect(app.renderer.root.findDescendantById("mini-startup")).toBeUndefined()
       const rows = app.externalOutput.take().flatMap((event) => event.rows)
-      expect(rows.filter((row) => row.includes("omnixa mini"))).toEqual(["\u25aa omnixa mini vtest \u00b7 /project"])
+      expect(rows.filter((row) => row.includes("omnixa mini"))).toEqual(["\u25c6 omnixa mini vtest \u00b7 /project"])
       if (finish === "output")
         expect(rows.findIndex((row) => row.includes("first output"))).toBeGreaterThan(
           rows.findIndex((row) => row.includes("omnixa mini")),

@@ -200,9 +200,9 @@ export function Titlebar() {
                 if (route.type !== "session") return undefined
 
                 if (preparing()) return undefined
-                const conn = global.servers.list().find((item) => ServerConnection.key(item) === route.server)
+                const ctx = global.serverCtx(route.server)
 
-                return conn ? { route, ctx: global.ensureServerCtx(conn) } : undefined
+                return ctx ? { route, ctx } : undefined
               },
               async ({ route, ctx }) => {
                 const info = await ctx.sdk.api.session
@@ -234,8 +234,7 @@ export function Titlebar() {
               if (route.type !== "session") return
 
               if (preparing()) return
-              const conn = global.servers.list().find((item) => ServerConnection.key(item) === route.server)
-              const cached = conn ? global.ensureServerCtx(conn).data.session.get(route.sessionId) : undefined
+              const cached = global.serverCtx(route.server)?.data.session.get(route.sessionId)
 
               if (cached) return cached
               const resolved = resolvedSession()
@@ -538,10 +537,9 @@ export function Titlebar() {
               const tab = currentTab()
               const value = session()
 
-              if (!tab || !value) return
-              const conn = global.servers.list().find((item) => ServerConnection.key(item) === tab.server)
+              if (!tab || !value) return undefined
 
-              return conn ? global.ensureServerCtx(conn).projects.forSession(value) : undefined
+              return global.serverCtx(tab.server)?.projects.forSession(value)
             })
 
             const currentTitle = () => {

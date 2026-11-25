@@ -10,9 +10,11 @@ import { Collapsible } from "@omnixa/ui/collapsible"
 import { Checkbox } from "@omnixa/ui/checkbox"
 import { Dialog, DialogBody, DialogHeader, DialogTitleGroup } from "@omnixa/ui/dialog"
 import { Icon } from "@omnixa/ui/icon"
+import { resolveAgentColor } from "@omnixa/ui/theme"
 import { IconButton } from "@omnixa/ui/icon-button"
 import { List } from "@omnixa/ui/list"
 import { Markdown } from "@omnixa/session-ui/markdown"
+import { SessionProgressIndicatorV2 } from "@omnixa/session-ui/v2/session-progress-indicator-v2"
 import { errorMessage } from "@omnixa/util/error"
 import { Match, Option, Schema } from "effect"
 import { For, Show, createMemo, onCleanup } from "solid-js"
@@ -1436,6 +1438,7 @@ function DelegationContent(props: Props & { server: ServerRef }) {
                   attempt: props.server.attempt,
                   read: state().read,
                   childID: id,
+                  location: child()?.location,
                 }
               })
 
@@ -1446,14 +1449,29 @@ function DelegationContent(props: Props & { server: ServerRef }) {
                   if (signal.aborted) return
                 }
 
-                if (value.data.session.get(value.childID)?.parentID !== targetID()) return
+                const session = value.data.session.get(value.childID)
 
-                await value.data.session.message.sync(value.childID)
+                if (session?.parentID !== targetID()) return
+
+                await Promise.all([
+                  value.data.session.message.sync(value.childID),
+                  value.data.location.agent.sync(session.location).catch(() => undefined),
+                ])
 
                 if (signal.aborted) return
               })
 
               const status = () => sessionStatus(owned() ? childID() : undefined)
+              const agentCoreColor = () => {
+                const session = owned() ? child() : undefined
+                const agent = session?.agent
+                  ? props.server.data.location.agent
+                      .list(session.location)
+                      ?.find((agent) => agent.id === session.agent || agent.name === session.agent)
+                  : undefined
+
+                return agent ? resolveAgentColor(agent.name, agent.color).v2Color : "currentColor"
+              }
 
               const preview = () => {
                 const text = response(owned() ? childID() : undefined)
@@ -1522,7 +1540,23 @@ function DelegationContent(props: Props & { server: ServerRef }) {
                         })
                     }}
                   >
-                    <Icon name="subagent" size="normal" class="subagent-row-icon" />
+                    <Show
+                      when={status() === "running"}
+                      fallback={
+                        <Icon
+                          name="subagent"
+                          size="normal"
+                          class="subagent-row-icon"
+                          style={{ "--omnxa-core-color": agentCoreColor() }}
+                        />
+                      }
+                    >
+                      <SessionProgressIndicatorV2
+                        variant="agent"
+                        coreColor={agentCoreColor()}
+                        class="subagent-row-icon"
+                      />
+                    </Show>
                     <span data-slot="subagent-row-copy">
                       <span data-slot="subagent-row-title">
                         <h4>{child()?.title ?? ctx.t("session.collaboration.status.starting")}</h4>
@@ -1702,17 +1736,30 @@ function DelegationContent(props: Props & { server: ServerRef }) {
                       attempt: props.server.attempt,
                       read: state().read,
                       childID: child.id,
+                      location: child.location,
                     }
                   : undefined,
               )
 
               createLatest(source, async (value, signal) => {
-                await value.data.session.message.sync(value.childID)
+                await Promise.all([
+                  value.data.session.message.sync(value.childID),
+                  value.data.location.agent.sync(value.location).catch(() => undefined),
+                ])
 
                 if (signal.aborted) return
               })
 
               const status = () => sessionStatus(child.id)
+              const agentCoreColor = () => {
+                const agent = child.agent
+                  ? props.server.data.location.agent
+                      .list(child.location)
+                      ?.find((agent) => agent.id === child.agent || agent.name === child.agent)
+                  : undefined
+
+                return agent ? resolveAgentColor(agent.name, agent.color).v2Color : "currentColor"
+              }
 
               return (
                 <article data-slot="collaboration-related-session" data-state={status()}>
@@ -1731,7 +1778,23 @@ function DelegationContent(props: Props & { server: ServerRef }) {
                       })
                     }
                   >
-                    <Icon name="subagent" size="normal" class="subagent-row-icon" />
+                    <Show
+                      when={status() === "running"}
+                      fallback={
+                        <Icon
+                          name="subagent"
+                          size="normal"
+                          class="subagent-row-icon"
+                          style={{ "--omnxa-core-color": agentCoreColor() }}
+                        />
+                      }
+                    >
+                      <SessionProgressIndicatorV2
+                        variant="agent"
+                        coreColor={agentCoreColor()}
+                        class="subagent-row-icon"
+                      />
+                    </Show>
                     <span data-slot="subagent-row-copy">
                       <span data-slot="subagent-row-title">
                         <h4>{child.title}</h4>

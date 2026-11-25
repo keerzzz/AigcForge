@@ -431,6 +431,7 @@ export interface ParserState {
   readonly outputItems: Readonly<Record<number, string>>
   readonly message: { readonly id: string; readonly phase: MessagePhase | null | undefined } | undefined
   readonly reasoningItems: Readonly<Record<string, ReasoningStreamItem>>
+  readonly responseModel?: string
 }
 
 type ReasoningSummaryStatus = "active" | "can-conclude" | "concluded"
@@ -1343,6 +1344,10 @@ const onResponseFinish = Effect.fnUntraced(function* (state: ParserState, event:
       raw: event.response?.incomplete_details?.reason,
     },
     usage: mapUsage(event.response?.usage, current.providerMetadataKey),
+    model:
+      typeof event.response?.model === "string" && event.response.model.length > 0
+        ? event.response.model
+        : current.responseModel,
     providerMetadata:
       event.response?.id || event.response?.service_tier
         ? providerMetadata(current, {
@@ -1449,6 +1454,13 @@ export const step = (state: ParserState, event: NormalizedEvent) => {
       ? onFunctionCallArgumentsDelta(state, event)
       : ProviderShared.eventError(state.id, `${event.type} is missing item_id`)
   if (event.type === "response.output_item.done") return onOutputItemDone(state, event.item)
+  if (event.type === "response.created") {
+    const model = event.response?.model
+    return Effect.succeed<StepResult>([
+      typeof model === "string" && model.length > 0 ? { ...state, responseModel: model } : state,
+      NO_EVENTS,
+    ])
+  }
   if (event.type === "response.completed" || event.type === "response.incomplete") return onResponseFinish(state, event)
   if (event.type === "response.failed") return providerFailure(event, `${state.name} response failed`)
   if (event.type === "error") return providerFailure(event, `${state.name} stream error`)

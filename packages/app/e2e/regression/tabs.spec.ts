@@ -265,12 +265,15 @@ test("a remote tab stays busy while a child session runs", async ({ page }) => {
   await expect(tabA.locator('[data-component="session-progress-indicator-v2"]')).toHaveCount(0)
 })
 
-test("inactive tabs stay busy while work waits in their inbox, and pulse on a new prompt, as in the TUI", async ({
+test("inactive tabs keep queued work static, pulse on admission, and animate only connected execution", async ({
   page,
 }) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" })
+  const execution = { started: false }
   const workspace = await openSession(page, {
     name: "TabInbox",
     sessions: [a, b, c],
+    sessionStatus: () => (execution.started ? { [b.id]: { type: "busy" } } : {}),
     inbox: [
       {
         id: "msg_tab_b",
@@ -292,10 +295,14 @@ test("inactive tabs stay busy while work waits in their inbox, and pulse on a ne
     ],
   })
 
+  await page.getByRole("button", { name: "Home", exact: true }).click()
   const tab = (id: string) => page.locator(`[data-titlebar-tab-slot]:has(a[href="${sessionHref(id)}"])`)
   const progress = '[data-component="session-progress-indicator-v2"]'
+  const sidebar = page.locator(`[data-component="home-session-row-container"][data-session-id="${b.id}"]`)
 
   await expect(tab(b.id).locator(progress)).toBeVisible()
+  await expect(tab(b.id).locator(progress).locator('[data-wing="1"]')).toHaveCSS("animation-name", "none")
+  await expect(sidebar.locator(progress).locator('[data-wing="1"]')).toHaveCSS("animation-name", "none")
   await expect(tab(c.id).locator("[data-titlebar-tab-title]")).toHaveText(c.title)
   await expect(tab(c.id).locator(progress)).toHaveCount(0)
   await expect(tab(c.id).locator('[data-slot="tab-prompt-pulse"]')).toHaveCount(0)
@@ -327,7 +334,31 @@ test("inactive tabs stay busy while work waits in their inbox, and pulse on a ne
   await expect(tab(c.id)).toHaveAttribute("data-test-pulsed", "")
   await expect(tab(c.id).locator('[data-slot="tab-prompt-pulse"]')).toHaveCount(0)
   await expect(tab(c.id).locator(progress)).toBeVisible()
+  await expect(tab(c.id).locator(progress).locator('[data-wing="1"]')).toHaveCSS("animation-name", "none")
   await expect(tab(a.id).locator('[data-slot="tab-prompt-pulse"]')).toHaveCount(0)
+
+  execution.started = true
+  await workspace.push([
+    {
+      id: "evt_tab_b_execution",
+      created: 3,
+      type: "session.execution.started",
+      durable: { aggregateID: b.id, seq: 1, version: 1 },
+      data: { sessionID: b.id },
+    } satisfies Extract<OmnixaEvent, { type: "session.execution.started" }>,
+  ])
+  await expect(tab(b.id).locator(progress).locator('[data-wing="1"]')).toHaveCSS(
+    "animation-name",
+    "session-agent-wing-chase",
+  )
+  await expect(sidebar.locator(progress).locator('[data-wing="1"]')).toHaveCSS(
+    "animation-name",
+    "session-agent-wing-chase",
+  )
+
+  await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent("pagehide")))
+  await expect(tab(b.id).locator(progress).locator('[data-wing="1"]')).toHaveCSS("animation-name", "none")
+  await expect(sidebar.locator(progress).locator('[data-wing="1"]')).toHaveCSS("animation-name", "none")
 })
 
 test("selecting a tab with waiting work waits for its transcript instead of showing only the inbox", async ({

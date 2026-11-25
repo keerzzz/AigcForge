@@ -7,7 +7,6 @@ import { Button } from "@omnixa/ui/button"
 import { Tooltip } from "@omnixa/ui/tooltip"
 import { useLanguage } from "@/runtime/i18n/language"
 import { useGlobal } from "@/runtime/server/runtime"
-import { ServerConnection } from "@/runtime/server/registry"
 import { useLayout } from "@/shell/state/layout"
 import { useTabs } from "@/shell/tabs/tabs"
 import { ModeRoute } from "./routes/mode"
@@ -41,12 +40,11 @@ export function ModeNavigation() {
     }
 
     if (route.type !== "session") return
-    const conn = global.servers.list().find((item) => ServerConnection.key(item) === route.server)
 
     return ModeRoute.sourceMode(
       route,
       tabs.pendingSession(route.server, route.sessionId)?.draft,
-      conn ? global.ensureServerCtx(conn).data.session.get(route.sessionId) : undefined,
+      global.serverCtx(route.server)?.data.session.get(route.sessionId),
     )
   })
 

@@ -821,13 +821,13 @@ export function AssistantReasoningContent(props: {
             <div data-slot="basic-tool-tool-info-main">
               <span data-slot="tool-summary-icon" data-working={props.streaming ? "" : undefined} aria-hidden="true">
                 <Show when={props.streaming} fallback={<Icon name="brain" size="small" />}>
-                  <SessionProgressIndicatorV2 />
+                  <SessionProgressIndicatorV2 variant="agent" />
                 </Show>
               </span>
               <span data-slot="basic-tool-tool-title">
                 <TextShimmer
                   text={i18n.t(props.streaming ? "ui.sessionTurn.status.thinking" : "ui.message.thought")}
-                  active={props.streaming}
+                  active={false}
                 />
               </span>
               <Show

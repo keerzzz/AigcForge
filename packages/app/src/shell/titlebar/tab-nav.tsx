@@ -7,7 +7,7 @@ import { createMutation } from "@tanstack/solid-query"
 import { IconButton } from "@omnixa/ui/icon-button"
 import { Icon } from "@omnixa/ui/icon"
 import { Menu } from "@omnixa/ui/menu"
-import { useServerCtx } from "@/runtime/server/runtime"
+import { useGlobal } from "@/runtime/server/runtime"
 import { useLanguage } from "@/runtime/i18n/language"
 import { ServerConnection, serverName, useServers } from "@/runtime/server/registry"
 import { displayName } from "@omnixa/ui/project-avatar"
@@ -53,8 +53,9 @@ export function TabNavItem(props: {
     props.onClose()
   }
 
+  const global = useGlobal()
   const servers = useServers()
-  const serverCtx = useServerCtx(() => servers.list.find((item) => ServerConnection.key(item) === props.server))
+  const serverCtx = () => global.serverCtx(props.server)
 
   const project = createMemo(() => {
     const session = props.session

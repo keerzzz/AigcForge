@@ -1,6 +1,7 @@
 import type { BackgroundTask } from "@omnixa/gui-extensions/sdk"
 import { SessionProgressIndicatorV2 } from "@omnixa/session-ui/v2/session-progress-indicator-v2"
 import { Icon } from "@omnixa/ui/icon"
+import { resolveAgentColor } from "@omnixa/ui/theme"
 import { IconButton } from "@omnixa/ui/icon-button"
 import { Menu } from "@omnixa/ui/menu"
 import { TextShimmer } from "@omnixa/ui/text-shimmer"
@@ -15,7 +16,7 @@ import { errorMessage } from "@/shell/layout/helpers"
 import { showToast } from "@/shell/notifications/toast"
 import { SessionWorkingIndicator } from "./session-working-indicator"
 
-const neutral = "light-dark(var(--v2-text-text-base), #ffffff)"
+const neutral = "var(--v2-icon-icon-base)"
 
 type RunningItem = {
   key: string
@@ -48,6 +49,17 @@ export function SessionRunningMenu(props: {
   }>({ entered: false })
 
   const sessionAgent = (id: string | undefined) => (id ? server.ctx.data.session.get(id)?.agent : undefined)
+
+  const agentCoreColor = (id: string | undefined) => {
+    const child = id ? server.ctx.data.session.get(id) : undefined
+    const agent = child?.agent
+      ? server.ctx.data.location.agent
+          .list(child.location)
+          ?.find((agent) => agent.id === child.agent || agent.name === child.agent)
+      : undefined
+
+    return agent ? resolveAgentColor(agent.name, agent.color).v2Color : "currentColor"
+  }
 
   // Foreground shells stay out: the timeline already shows them at the bottom.
   const items = createMemo<RunningItem[]>(() => [
@@ -174,7 +186,19 @@ export function SessionRunningMenu(props: {
           gutter={6}
           placement="bottom-start"
           open={menu.open && presence.show()}
-          onOpenChange={(open) => setMenu("open", open)}
+          onOpenChange={(open) => {
+            setMenu("open", open)
+
+            if (!open || sdk.connection.status() !== "connected") return
+
+            void Promise.allSettled(
+              items().flatMap((item) => {
+                const child = item.sessionID ? server.ctx.data.session.get(item.sessionID) : undefined
+
+                return child ? [server.ctx.data.location.agent.sync(child.location)] : []
+              }),
+            )
+          }}
         >
           <Show
             when={props.title}
@@ -249,13 +273,26 @@ export function SessionRunningMenu(props: {
                       when={item.type === "subagent"}
                       fallback={<Icon name="console" class="shrink-0 text-v2-icon-icon-muted" />}
                     >
-                      {/* Built-in agents have theme tokens; any other agent keeps the neutral color. */}
-                      <SessionProgressIndicatorV2
-                        class="shrink-0"
-                        style={{
-                          color: item.agent ? `var(--v2-agent-${item.agent.toLowerCase()}-solid, ${neutral})` : neutral,
-                        }}
-                      />
+                      <span
+                        class="shrink-0 flex items-center"
+                        data-tool-motion={
+                          sdk.connection.status() === "connected" &&
+                          item.sessionID &&
+                          server.ctx.data.session.get(item.sessionID) &&
+                          server.ctx.data.session.status(item.sessionID) === "running" &&
+                          !server.ctx.data.session.permission.list(item.sessionID)?.length &&
+                          !server.ctx.data.session.form.list(item.sessionID)?.length
+                            ? undefined
+                            : "false"
+                        }
+                      >
+                        <SessionProgressIndicatorV2
+                          variant="agent"
+                          class="shrink-0"
+                          coreColor={agentCoreColor(item.sessionID)}
+                          style={{ color: neutral }}
+                        />
+                      </span>
                     </Show>
                     <span class="shrink-0 font-[530]">
                       {item.type === "shell"

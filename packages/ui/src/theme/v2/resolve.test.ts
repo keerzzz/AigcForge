@@ -13,6 +13,16 @@ describe("icon emphasis", () => {
   test.each([false, true])("custom theme fallbacks preserve icon emphasis (dark: %s)", (dark) => {
     expectIconEmphasis(resolveThemeVariantV2({ ...theme[dark ? "dark" : "light"], v2Overrides: undefined }, dark))
   })
+
+  test.each(["light", "dark"] as const)("OC-2 %s resolves v2-icon-brand-core", (mode) => {
+    const tokens = resolveThemeV2(theme)[mode]
+    expect(tokens["v2-icon-brand-core"]).toBe(mode === "dark" ? "var(--v2-cyan-400)" : "var(--v2-cyan-600)")
+  })
+
+  test.each([false, true])("custom theme fallbacks provide v2-icon-brand-core (dark: %s)", (dark) => {
+    const tokens = resolveThemeVariantV2({ ...theme[dark ? "dark" : "light"], v2Overrides: undefined }, dark)
+    expect(tokens["v2-icon-brand-core"]).toBe(dark ? "var(--v2-cyan-400)" : "var(--v2-cyan-600)")
+  })
 })
 
 describe("contrast icon-button tokens", () => {

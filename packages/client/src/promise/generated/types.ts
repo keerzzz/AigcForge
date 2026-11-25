@@ -3140,19 +3140,6 @@ export type SessionGoalAttempt1 = {
   usage?: TokenUsageInfo
 }
 
-export type SessionAttemptTerminal = {
-  status: "completed" | "failed" | "cancelled" | "interrupted"
-  ended: number
-  providerEndedAt?: number
-  outputStarted: boolean
-  finish?: "stop" | "length" | "tool-calls" | "content-filter" | "error" | "unknown"
-  rawFinish?: string
-  usage?: TokenUsageInfo
-  cost?: MoneyUSD
-  failure?: SessionAttemptFailure
-  delivery?: SessionAttemptDelivery
-}
-
 export type SessionMessageToolStateCompleted = {
   status: "completed"
   input: { [x: string]: JsonValue }
@@ -3335,53 +3322,6 @@ export type SessionShellEnded = {
     sessionID: SessionID
     shell: ShellInfo
     output: { output: string; cursor: number; size: number; truncated: boolean }
-  }
-}
-
-export type SessionAttemptEnded = {
-  id: EventID
-  created: number
-  metadata?: { [x: string]: any }
-  type: "session.attempt.ended"
-  durable: { aggregateID: string; seq: EventSeq; version: 1 }
-  location?: LocationRef
-  data: {
-    sessionID: SessionID
-    assistantMessageID: SessionMessageID
-    ordinal: number
-    terminal: {
-      status: "completed" | "failed" | "cancelled" | "interrupted"
-      ended: number
-      providerEndedAt?: number
-      outputStarted: boolean
-      finish?: "stop" | "length" | "tool-calls" | "content-filter" | "error" | "unknown"
-      rawFinish?: string
-      usage?: TokenUsageInfo
-      cost?: MoneyUSD
-      failure?: {
-        reason:
-          | "InvalidRequest"
-          | "UnsupportedOperation"
-          | "NoRoute"
-          | "Authentication"
-          | "RateLimit"
-          | "QuotaExceeded"
-          | "ContentPolicy"
-          | "ProviderInternal"
-          | "Transport"
-          | "InvalidProviderOutput"
-          | "UnknownProvider"
-          | "Timeout"
-        classification?: "context-overflow" | "payload-too-large" | "model-not-found" | "incomplete-stream"
-        status?: number
-        transport?: "http" | "websocket"
-        operation?: "request" | "read" | "write"
-        phase?: "prepare" | "queue" | "connect" | "send" | "receive" | "decode" | "complete" | "fallback" | "close"
-        delivery?: SessionAttemptDelivery
-        recovery?: "retry-connect" | "retry-full" | "rotate-and-retry-full" | "fallback-http" | "fail"
-      }
-      delivery?: SessionAttemptDelivery
-    }
   }
 }
 
@@ -5364,7 +5304,14 @@ export type SessionAttemptRecordedObservation = {
   outputStarted?: true
   firstOutputAt?: number
   firstTokenAt?: number
-  gatewayReport?: { source: "response-headers"; provider?: string; model?: string }
+  gatewayReport?: {
+    source: "response-headers" | "response-stream" | "route-trace"
+    provider?: string
+    model?: string
+    session?: string
+    attempt?: string
+    routeID?: string
+  }
   event: { id: EventID; seq: EventSeq }
 }
 
@@ -5387,7 +5334,14 @@ export type SessionAttemptObserved = {
       outputStarted?: true
       firstOutputAt?: number
       firstTokenAt?: number
-      gatewayReport?: { source: "response-headers"; provider?: string; model?: string }
+      gatewayReport?: {
+        source: "response-headers" | "response-stream" | "route-trace"
+        provider?: string
+        model?: string
+        session?: string
+        attempt?: string
+        routeID?: string
+      }
     }
   }
 }
@@ -5639,6 +5593,82 @@ export type SessionAttemptStarted = {
       recovery?: "retry-connect" | "retry-full" | "rotate-and-retry-full" | "fallback-http" | "fail"
     }
     started: number
+  }
+}
+
+export type SessionAttemptGatewayAttempt = {
+  ordinal: number
+  correlationID?: string
+  provider?: string
+  model?: string
+  account?: string
+  endpoint?: string
+  status?: number
+  durationMs?: number
+  usage?: TokenUsageInfo
+  quote?: ModelSourceQuote
+  cost?: MoneyUSD
+  error?: string
+}
+
+export type SessionAttemptEnded = {
+  id: EventID
+  created: number
+  metadata?: { [x: string]: any }
+  type: "session.attempt.ended"
+  durable: { aggregateID: string; seq: EventSeq; version: 1 }
+  location?: LocationRef
+  data: {
+    sessionID: SessionID
+    assistantMessageID: SessionMessageID
+    ordinal: number
+    terminal: {
+      status: "completed" | "failed" | "cancelled" | "interrupted"
+      ended: number
+      providerEndedAt?: number
+      outputStarted: boolean
+      finish?: "stop" | "length" | "tool-calls" | "content-filter" | "error" | "unknown"
+      rawFinish?: string
+      usage?: TokenUsageInfo
+      cost?: MoneyUSD
+      gatewayAttempts?: Array<{
+        ordinal: number
+        correlationID?: string
+        provider?: string
+        model?: string
+        account?: string
+        endpoint?: string
+        status?: number
+        durationMs?: number
+        usage?: TokenUsageInfo
+        quote?: ModelSourceQuote
+        cost?: MoneyUSD
+        error?: string
+      }>
+      failure?: {
+        reason:
+          | "InvalidRequest"
+          | "UnsupportedOperation"
+          | "NoRoute"
+          | "Authentication"
+          | "RateLimit"
+          | "QuotaExceeded"
+          | "ContentPolicy"
+          | "ProviderInternal"
+          | "Transport"
+          | "InvalidProviderOutput"
+          | "UnknownProvider"
+          | "Timeout"
+        classification?: "context-overflow" | "payload-too-large" | "model-not-found" | "incomplete-stream"
+        status?: number
+        transport?: "http" | "websocket"
+        operation?: "request" | "read" | "write"
+        phase?: "prepare" | "queue" | "connect" | "send" | "receive" | "decode" | "complete" | "fallback" | "close"
+        delivery?: SessionAttemptDelivery
+        recovery?: "retry-connect" | "retry-full" | "rotate-and-retry-full" | "fallback-http" | "fail"
+      }
+      delivery?: SessionAttemptDelivery
+    }
   }
 }
 
@@ -6644,28 +6674,6 @@ export type DelegationParticipantAdded = {
   }
 }
 
-export type SessionAttemptInfo = {
-  ordinal: number
-  attemptID: string
-  agent: AgentID
-  selection: ModelSelection
-  behaviorDigest?: string
-  groupMemberIndex?: number
-  model: ModelRef
-  apiModelID: string
-  connection?: ModelSourceConnectionRef
-  preparedDeployment?: SessionProviderContextProvenance
-  quote: ModelSourceQuote
-  quoteOrigin?: ModelSourceOrigin
-  quota?: ModelSourceQuota
-  goalRefs: Array<SessionGoalAttemptRef>
-  transition: "initial" | "retry" | "fallback" | "continuation"
-  reason?: SessionAttemptFailure
-  started: number
-  observations: Array<SessionAttemptRecordedObservation>
-  terminal?: SessionAttemptTerminal
-}
-
 export type SessionMessageCompactionCompleted = {
   type: "compaction"
   id: SessionMessageID
@@ -6738,6 +6746,20 @@ export type SessionGoalInfo1 = {
   accounting: SessionGoalAccounting
   createdAt: number
   updatedAt: number
+}
+
+export type SessionAttemptTerminal = {
+  status: "completed" | "failed" | "cancelled" | "interrupted"
+  ended: number
+  providerEndedAt?: number
+  outputStarted: boolean
+  finish?: "stop" | "length" | "tool-calls" | "content-filter" | "error" | "unknown"
+  rawFinish?: string
+  usage?: TokenUsageInfo
+  cost?: MoneyUSD
+  gatewayAttempts?: Array<SessionAttemptGatewayAttempt>
+  failure?: SessionAttemptFailure
+  delivery?: SessionAttemptDelivery
 }
 
 export type ModelInfo = {
@@ -7328,30 +7350,6 @@ export type ModelGroupRead = {
   defaultSelection?: ModelSelection
 }
 
-export type SessionMessageAssistant = {
-  id: SessionMessageID
-  origin?: SessionMessageOrigin
-  metadata?: { [x: string]: JsonValue }
-  time: { created: number; streamed?: number; completed?: number }
-  type: "assistant"
-  agent: AgentID
-  model: ModelRef
-  attempts?: Array<SessionAttemptInfo>
-  unknownPriceAttempts?: number
-  missingUsageAttempts?: number
-  content: Array<SessionMessageAssistantText | SessionMessageAssistantReasoning | SessionMessageAssistantTool>
-  snapshot?: { start?: SnapshotID; end?: SnapshotID; files?: Array<RelativePath> }
-  finish?: "stop" | "length" | "tool-calls" | "content-filter" | "error" | "unknown"
-  needsContinuation?: boolean
-  completion?: { id: EventID; seq: EventSeq }
-  rawFinish?: string
-  providerState?: SessionMessageProviderState
-  cost?: MoneyUSD
-  tokens?: TokenUsageInfo
-  error?: SessionStructuredError
-  retry?: SessionMessageAssistantRetry
-}
-
 export type SessionMessageCompaction =
   | SessionMessageCompactionRunning
   | SessionMessageCompactionCompleted
@@ -7369,6 +7367,28 @@ export type SessionGoalUpdated = {
   type: "session.goal.updated"
   location?: LocationRef
   data: { sessionID: SessionID; goal: SessionGoalInfo1 }
+}
+
+export type SessionAttemptInfo = {
+  ordinal: number
+  attemptID: string
+  agent: AgentID
+  selection: ModelSelection
+  behaviorDigest?: string
+  groupMemberIndex?: number
+  model: ModelRef
+  apiModelID: string
+  connection?: ModelSourceConnectionRef
+  preparedDeployment?: SessionProviderContextProvenance
+  quote: ModelSourceQuote
+  quoteOrigin?: ModelSourceOrigin
+  quota?: ModelSourceQuota
+  goalRefs: Array<SessionGoalAttemptRef>
+  transition: "initial" | "retry" | "fallback" | "continuation"
+  reason?: SessionAttemptFailure
+  started: number
+  observations: Array<SessionAttemptRecordedObservation>
+  terminal?: SessionAttemptTerminal
 }
 
 export type ProviderDiscoveryManaged = {
@@ -7608,18 +7628,29 @@ export type ModelGroupRemoveResult = {
   readback?: ModelGroupRead
 }
 
-export type SessionMessageInfo =
-  | SessionMessageAgentSelected
-  | SessionMessageModelSelected
-  | SessionMessageLocationSwitched
-  | SessionMessageUser
-  | SessionMessageSynthetic
-  | SessionMessageSystem
-  | SessionMessageSkill
-  | SessionMessageShell
-  | SessionMessageAssistant
-  | SessionMessageCompaction
-  | SessionMessageIdle
+export type SessionMessageAssistant = {
+  id: SessionMessageID
+  origin?: SessionMessageOrigin
+  metadata?: { [x: string]: JsonValue }
+  time: { created: number; streamed?: number; completed?: number }
+  type: "assistant"
+  agent: AgentID
+  model: ModelRef
+  attempts?: Array<SessionAttemptInfo>
+  unknownPriceAttempts?: number
+  missingUsageAttempts?: number
+  content: Array<SessionMessageAssistantText | SessionMessageAssistantReasoning | SessionMessageAssistantTool>
+  snapshot?: { start?: SnapshotID; end?: SnapshotID; files?: Array<RelativePath> }
+  finish?: "stop" | "length" | "tool-calls" | "content-filter" | "error" | "unknown"
+  needsContinuation?: boolean
+  completion?: { id: EventID; seq: EventSeq }
+  rawFinish?: string
+  providerState?: SessionMessageProviderState
+  cost?: MoneyUSD
+  tokens?: TokenUsageInfo
+  error?: SessionStructuredError
+  retry?: SessionMessageAssistantRetry
+}
 
 export type ProviderDiscoveryRead = {
   status: ProviderDiscoveryStatus
@@ -7979,10 +8010,18 @@ export type V2Event =
   | V2EventRpc
   | V2EventServerConnected
 
-export type SessionMessagesResponse = {
-  data: Array<SessionMessageInfo>
-  cursor: { previous?: string | null; next?: string | null }
-}
+export type SessionMessageInfo =
+  | SessionMessageAgentSelected
+  | SessionMessageModelSelected
+  | SessionMessageLocationSwitched
+  | SessionMessageUser
+  | SessionMessageSynthetic
+  | SessionMessageSystem
+  | SessionMessageSkill
+  | SessionMessageShell
+  | SessionMessageAssistant
+  | SessionMessageCompaction
+  | SessionMessageIdle
 
 export type ProviderDefinitionInfo = {
   providerID: ProviderID
@@ -8106,14 +8145,19 @@ export type SessionConsultationData = {
   admission: SessionConsultationAdmission
 }
 
-export type SessionTransferData = { info: SessionInfo; messages: Array<SessionMessageInfo> }
-
 export type CompositionStartResponse = {
   session: SessionInfo1
   snapshot: CompositionSnapshotV1 | CompositionSnapshotV2
 }
 
 export type SessionLogItem = SessionEventDurable | TaskOperationReserved | TaskOperationChanged | EventLogSynced
+
+export type SessionTransferData = { info: SessionInfo; messages: Array<SessionMessageInfo> }
+
+export type SessionMessagesResponse = {
+  data: Array<SessionMessageInfo>
+  cursor: { previous?: string | null; next?: string | null }
+}
 
 export type ProviderDefinitionList = {
   targets: Array<ProviderDefinitionTargetRevision>
@@ -9859,9 +9903,12 @@ export type SessionImportInput = {
               readonly firstOutputAt?: number
               readonly firstTokenAt?: number
               readonly gatewayReport?: {
-                readonly source: "response-headers"
+                readonly source: "response-headers" | "response-stream" | "route-trace"
                 readonly provider?: string
                 readonly model?: string
+                readonly session?: string
+                readonly attempt?: string
+                readonly routeID?: string
               }
               readonly event: { readonly id: string; readonly seq: number }
             }>
@@ -9879,6 +9926,39 @@ export type SessionImportInput = {
                 readonly cache: { readonly read: number; readonly write: number }
               }
               readonly cost?: number
+              readonly gatewayAttempts?: ReadonlyArray<{
+                readonly ordinal: number
+                readonly correlationID?: string
+                readonly provider?: string
+                readonly model?: string
+                readonly account?: string
+                readonly endpoint?: string
+                readonly status?: number
+                readonly durationMs?: number
+                readonly usage?: {
+                  readonly input: number
+                  readonly output: number
+                  readonly reasoning: number
+                  readonly cache: { readonly read: number; readonly write: number }
+                }
+                readonly quote?:
+                  | { readonly status: "unknown" }
+                  | {
+                      readonly status: "known" | "free"
+                      readonly prices: ReadonlyArray<{
+                        readonly tier?: { readonly type: "context"; readonly size: number }
+                        readonly input: number
+                        readonly output: number
+                        readonly cache: { readonly read: number; readonly write: number }
+                      }>
+                      readonly observedAt?: number
+                      readonly source?: string
+                      readonly validFrom?: number
+                      readonly validUntil?: number
+                    }
+                readonly cost?: number
+                readonly error?: string
+              }>
               readonly failure?: {
                 readonly reason:
                   | "InvalidRequest"
@@ -10619,9 +10699,12 @@ export type SessionImportInput = {
               readonly firstOutputAt?: number
               readonly firstTokenAt?: number
               readonly gatewayReport?: {
-                readonly source: "response-headers"
+                readonly source: "response-headers" | "response-stream" | "route-trace"
                 readonly provider?: string
                 readonly model?: string
+                readonly session?: string
+                readonly attempt?: string
+                readonly routeID?: string
               }
               readonly event: { readonly id: string; readonly seq: number }
             }>
@@ -10639,6 +10722,39 @@ export type SessionImportInput = {
                 readonly cache: { readonly read: number; readonly write: number }
               }
               readonly cost?: number
+              readonly gatewayAttempts?: ReadonlyArray<{
+                readonly ordinal: number
+                readonly correlationID?: string
+                readonly provider?: string
+                readonly model?: string
+                readonly account?: string
+                readonly endpoint?: string
+                readonly status?: number
+                readonly durationMs?: number
+                readonly usage?: {
+                  readonly input: number
+                  readonly output: number
+                  readonly reasoning: number
+                  readonly cache: { readonly read: number; readonly write: number }
+                }
+                readonly quote?:
+                  | { readonly status: "unknown" }
+                  | {
+                      readonly status: "known" | "free"
+                      readonly prices: ReadonlyArray<{
+                        readonly tier?: { readonly type: "context"; readonly size: number }
+                        readonly input: number
+                        readonly output: number
+                        readonly cache: { readonly read: number; readonly write: number }
+                      }>
+                      readonly observedAt?: number
+                      readonly source?: string
+                      readonly validFrom?: number
+                      readonly validUntil?: number
+                    }
+                readonly cost?: number
+                readonly error?: string
+              }>
               readonly failure?: {
                 readonly reason:
                   | "InvalidRequest"
@@ -11379,9 +11495,12 @@ export type SessionImportInput = {
               readonly firstOutputAt?: number
               readonly firstTokenAt?: number
               readonly gatewayReport?: {
-                readonly source: "response-headers"
+                readonly source: "response-headers" | "response-stream" | "route-trace"
                 readonly provider?: string
                 readonly model?: string
+                readonly session?: string
+                readonly attempt?: string
+                readonly routeID?: string
               }
               readonly event: { readonly id: string; readonly seq: number }
             }>
@@ -11399,6 +11518,39 @@ export type SessionImportInput = {
                 readonly cache: { readonly read: number; readonly write: number }
               }
               readonly cost?: number
+              readonly gatewayAttempts?: ReadonlyArray<{
+                readonly ordinal: number
+                readonly correlationID?: string
+                readonly provider?: string
+                readonly model?: string
+                readonly account?: string
+                readonly endpoint?: string
+                readonly status?: number
+                readonly durationMs?: number
+                readonly usage?: {
+                  readonly input: number
+                  readonly output: number
+                  readonly reasoning: number
+                  readonly cache: { readonly read: number; readonly write: number }
+                }
+                readonly quote?:
+                  | { readonly status: "unknown" }
+                  | {
+                      readonly status: "known" | "free"
+                      readonly prices: ReadonlyArray<{
+                        readonly tier?: { readonly type: "context"; readonly size: number }
+                        readonly input: number
+                        readonly output: number
+                        readonly cache: { readonly read: number; readonly write: number }
+                      }>
+                      readonly observedAt?: number
+                      readonly source?: string
+                      readonly validFrom?: number
+                      readonly validUntil?: number
+                    }
+                readonly cost?: number
+                readonly error?: string
+              }>
               readonly failure?: {
                 readonly reason:
                   | "InvalidRequest"

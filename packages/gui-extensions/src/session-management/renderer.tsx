@@ -612,7 +612,11 @@ const setup: Setup<typeof definition> = (ctx) => {
                   title={ctx.plural("session.dispatchMonitor.executions", count())}
                 >
                   <span data-visible={state.active}>
-                    <SessionProgressIndicatorV2 width={12} height={12} />
+                    <SessionProgressIndicatorV2
+                      variant={module.id === "subagents" ? "agent" : "ring"}
+                      width={12}
+                      height={12}
+                    />
                   </span>
                   <span>{count()}</span>
                 </span>

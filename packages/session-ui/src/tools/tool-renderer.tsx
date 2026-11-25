@@ -29,6 +29,7 @@ import { type UiI18n, useI18n } from "@omnixa/ui/context/i18n"
 import { BasicTool, GenericTool } from "../components/basic-tool"
 import { FileIcon } from "@omnixa/ui/file-icon"
 import { Icon, type IconProps } from "@omnixa/ui/icon"
+import { resolveAgentColor } from "@omnixa/ui/theme"
 import { ToolErrorCard } from "../components/tool-error-card"
 import { DiffChanges } from "@omnixa/ui/diff-changes"
 import { Markdown } from "../components/markdown"
@@ -190,83 +191,17 @@ function agentTitle(i18n: UiI18n, type?: string) {
   return i18n.t("ui.tool.agent", { type })
 }
 
-const agentTones = new Map([
-  ["ask", "var(--icon-agent-ask-base)"],
-  ["build", "var(--icon-agent-build-base)"],
-  ["docs", "var(--icon-agent-docs-base)"],
-  ["plan", "var(--icon-agent-plan-base)"],
-])
-
-const v2AgentTones = new Map([
-  ["build", "var(--v2-agent-build-solid)"],
-  ["explore", "var(--v2-agent-explore-solid)"],
-  ["plan", "var(--v2-agent-plan-solid)"],
-  ["review", "var(--v2-agent-review-solid)"],
-  ["writer", "var(--v2-agent-writer-solid)"],
-])
-
-const agentThemeColors = new Map([
-  ["primary", "var(--text-interactive-base)"],
-  ["secondary", "var(--text-base)"],
-  ["accent", "var(--icon-info-base)"],
-  ["success", "var(--icon-success-base)"],
-  ["warning", "var(--icon-warning-base)"],
-  ["error", "var(--icon-critical-base)"],
-  ["info", "var(--icon-info-base)"],
-])
-
-const v2AgentThemeColors = new Map([
-  ["primary", "var(--v2-text-text-accent)"],
-  ["secondary", "var(--v2-text-text-muted)"],
-  ["accent", "var(--v2-icon-icon-accent)"],
-  ["success", "var(--v2-state-fg-success)"],
-  ["warning", "var(--v2-state-fg-warning)"],
-  ["error", "var(--v2-state-fg-danger)"],
-  ["info", "var(--v2-state-fg-info)"],
-])
-
-const agentPalette = [
-  "var(--icon-agent-ask-base)",
-  "var(--icon-agent-build-base)",
-  "var(--icon-agent-docs-base)",
-  "var(--icon-agent-plan-base)",
-  "var(--syntax-info)",
-  "var(--syntax-success)",
-  "var(--syntax-warning)",
-  "var(--syntax-property)",
-  "var(--syntax-constant)",
-  "var(--text-diff-add-base)",
-  "var(--text-diff-delete-base)",
-  "var(--icon-warning-base)",
-]
-
-function tone(name: string) {
-  let hash = 0
-
-  for (const char of name) hash = (hash * 31 + char.charCodeAt(0)) >>> 0
-
-  return agentPalette[hash % agentPalette.length]
-}
-
 function taskAgent(raw: JsonValue | undefined, list?: readonly { name: string; color?: string }[]) {
   if (!Predicate.isString(raw) || !raw) return {}
   const key = raw.toLowerCase()
   const item = list?.find((entry) => entry.name === raw || entry.name.toLowerCase() === key)
-  const v2Tone = item?.color ? undefined : v2AgentTones.get(key)
-  const color = agentColor(item?.color, agentThemeColors) ?? agentTones.get(key) ?? tone(key)
-  const v2Color = agentColor(item?.color, v2AgentThemeColors) ?? v2Tone ?? color
+  const resolved = resolveAgentColor(item?.name ?? raw, item?.color)
 
   return {
     name: item?.name ?? `${raw[0].toUpperCase()}${raw.slice(1)}`,
-    color,
-    v2Color,
+    color: resolved.color,
+    v2Color: resolved.v2Color,
   }
-}
-
-function agentColor(value: string | undefined, themeColors: ReadonlyMap<string, string>) {
-  if (!value) return undefined
-
-  return themeColors.get(value) ?? value
 }
 
 function webSearchProviderLabel(provider: JsonValue | undefined, i18n: ReturnType<typeof useI18n>) {
@@ -1969,12 +1904,11 @@ ToolRegistry.register({
     })
 
     const running = createMemo(() => {
-      if (props.status === "streaming" || props.status === "running") return true
       const id = childSessionId()
 
-      if (!id) return false
+      if (id) return (data.store.session_status[id]?.type ?? "idle") !== "idle"
 
-      return (data.store.session_status[id]?.type ?? "idle") !== "idle"
+      return props.status === "streaming" || props.status === "running"
     })
 
     const href = createMemo(() => sessionLink(childSessionId(), data.sessionHref))
@@ -2022,8 +1956,12 @@ ToolRegistry.register({
                   </span>
                 }
               >
-                <span data-component="task-tool-spinner" style={{ color: tone() ?? "var(--icon-interactive-base)" }}>
-                  <SessionProgressIndicatorV2 style={{ color: v2Tone() ?? "var(--v2-icon-icon-base)" }} />
+                <span data-component="task-tool-spinner" style={{ color: "var(--v2-icon-icon-base)" }}>
+                  <SessionProgressIndicatorV2
+                    variant="agent"
+                    coreColor={v2Tone()}
+                    style={{ color: "var(--v2-icon-icon-base)" }}
+                  />
                 </span>
               </Show>
               <span data-component="task-tool-title">{title()}</span>

@@ -1,20 +1,39 @@
 import { SessionProgressIndicatorV2 } from "@omnixa/session-ui/v2/session-progress-indicator-v2"
-import { Show } from "solid-js"
+import { resolveAgentColor } from "@omnixa/ui/theme"
+import { createMemo, Show } from "solid-js"
 import { createStore } from "solid-js/store"
 import { createAnimatedPresence } from "@/runtime/animated-presence"
 import { useLanguage } from "@/runtime/i18n/language"
+import { useServerSDK } from "@/runtime/server/client"
 import { useServer } from "@/runtime/server/current"
 
 export function SessionWorkingIndicator(props: { sessionID?: string }) {
   const language = useLanguage()
   const server = useServer()
+  const sdk = useServerSDK()
   const [elements, setElements] = createStore<{ indicator?: HTMLSpanElement }>({})
+
+  const coreColor = createMemo(() => {
+    const child = props.sessionID ? server.ctx.data.session.get(props.sessionID) : undefined
+    const agent = child?.agent
+      ? server.ctx.data.location.agent
+          .list(child.location)
+          ?.find((agent) => agent.id === child.agent || agent.name === child.agent)
+      : undefined
+
+    return agent ? resolveAgentColor(agent.name, agent.color).v2Color : "currentColor"
+  })
 
   const presence = createAnimatedPresence(
     () => {
       const id = props.sessionID
 
-      return id && server.ctx.data.session.get(id)?.parentID && server.ctx.data.session.status(id) === "running"
+      return id &&
+        sdk.connection.status() === "connected" &&
+        server.ctx.data.session.get(id)?.parentID &&
+        server.ctx.data.session.status(id) === "running" &&
+        !server.ctx.data.session.permission.list(id)?.length &&
+        !server.ctx.data.session.form.list(id)?.length
         ? true
         : undefined
     },
@@ -37,7 +56,7 @@ export function SessionWorkingIndicator(props: { sessionID?: string }) {
           "animate-out fade-out fill-mode-forwards": presence.animate() && !presence.show(),
         }}
       >
-        <SessionProgressIndicatorV2 class="shrink-0" />
+        <SessionProgressIndicatorV2 variant="agent" coreColor={coreColor()} class="shrink-0" />
       </span>
     </Show>
   )

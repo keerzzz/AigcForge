@@ -1,6 +1,7 @@
 export * as VerificationRouter from "./verification-router"
 
-import { Context, Effect, Layer, Schema } from "effect"
+import { Context, Effect, Layer, Option, Schema } from "effect"
+import { Shell } from "@omnixa/schema/shell"
 import { Config } from "../config"
 import { SessionSchema } from "./schema"
 import { SessionMessage } from "./message"
@@ -66,6 +67,21 @@ export class State extends Schema.Class<State>("VerificationRouter.State")({
   failures: Schema.Int,
 }) {}
 
+export const ClaimStatus = Schema.Literals(["passed", "failed", "missing_evidence"])
+export type ClaimStatus = typeof ClaimStatus.Type
+
+export class ClaimEvidence extends Schema.Class<ClaimEvidence>("VerificationRouter.ClaimEvidence")({
+  claim: Schema.String,
+  source: Schema.optionalKey(Source),
+  kind: Schema.optionalKey(Schema.Literals(["command", "verifier"])),
+  status: ClaimStatus,
+  command: Schema.optionalKey(Schema.String),
+  exit: Schema.optionalKey(Schema.Int),
+  outputDigest: Schema.optionalKey(Schema.String),
+  verifierStatus: Schema.optionalKey(Verifier.Status),
+  reason: Schema.optionalKey(Schema.String),
+}) {}
+
 export class Settlement extends Schema.Class<Settlement>("VerificationRouter.Settlement")({
   source: Source,
   mechanicalSource: Schema.optionalKey(Source),
@@ -77,10 +93,124 @@ export class Settlement extends Schema.Class<Settlement>("VerificationRouter.Set
   status: Schema.Literals(["not_dispatched", "running", "completed", "failed", "cancelled", "unavailable"]),
   reason: Schema.optionalKey(Schema.String),
   observations: Schema.Array(JudgeResult),
+  claims: Schema.optionalKey(Schema.Array(ClaimEvidence)),
+  claimStatus: Schema.optionalKey(ClaimStatus),
   completion: Schema.optionalKey(Completion),
   reset: Schema.Literals(["none", "l0_passed", "completion_barrier"]),
   state: State,
 }) {}
+
+export function evaluateClaim(input: {
+  readonly claim: string
+  readonly source?: Source
+  readonly tool?: SessionMessage.AssistantTool
+  readonly verifierCurrent?: boolean
+  readonly reason?: string
+}): ClaimEvidence {
+  if (!input.source)
+    return new ClaimEvidence({
+      claim: input.claim,
+      status: "missing_evidence",
+      reason: input.reason ?? "Claim has no bound CommandResult or Verifier source",
+    })
+  if (!input.tool || input.tool.state.status !== "completed")
+    return new ClaimEvidence({
+      claim: input.claim,
+      source: input.source,
+      status: "missing_evidence",
+      reason: input.reason ?? "Bound verification source is missing or not completed",
+    })
+  if (input.tool.name === "shell") {
+    const decoded = Schema.decodeUnknownOption(Shell.CommandResult)(input.tool.state.metadata?.commandResult)
+    if (Option.isNone(decoded))
+      return new ClaimEvidence({
+        claim: input.claim,
+        source: input.source,
+        kind: "command",
+        status: "missing_evidence",
+        reason: "Shell tool has no saved CommandResult",
+      })
+    const command = decoded.value
+    const passed = !command.timeout && command.signal === undefined && command.exit === 0
+    return new ClaimEvidence({
+      claim: input.claim,
+      source: input.source,
+      kind: "command",
+      status: passed ? "passed" : "failed",
+      command: command.command,
+      ...(command.exit !== undefined ? { exit: command.exit } : {}),
+      outputDigest: command.outputDigest,
+      ...(passed
+        ? {}
+        : {
+            reason: command.timeout
+              ? "Shell command timed out"
+              : command.signal !== undefined
+                ? `Shell command killed by ${command.signal}`
+                : `Shell command exited with code ${command.exit ?? "unknown"}`,
+          }),
+    })
+  }
+  if (input.tool.name === "write" || input.tool.name === "edit" || input.tool.name === "patch") {
+    const decoded = Schema.decodeUnknownOption(Verifier.Result)(input.tool.state.metadata?.verification)
+    if (
+      Option.isNone(decoded) ||
+      decoded.value.sessionID !== input.source.sessionID ||
+      decoded.value.toolName !== input.tool.name ||
+      decoded.value.source?.type !== "tool" ||
+      decoded.value.source.messageID !== input.source.messageID ||
+      decoded.value.source.id !== input.source.id
+    )
+      return new ClaimEvidence({
+        claim: input.claim,
+        source: input.source,
+        kind: "verifier",
+        status: "missing_evidence",
+        reason: "Verifier result is missing or does not belong to the selected source",
+      })
+    const mechanical = decoded.value
+    if (input.verifierCurrent !== true)
+      return new ClaimEvidence({
+        claim: input.claim,
+        source: input.source,
+        kind: "verifier",
+        status: "missing_evidence",
+        verifierStatus: mechanical.status,
+        reason: "Verifier result is stale for the current file change",
+      })
+    if (mechanical.status === "passed")
+      return new ClaimEvidence({
+        claim: input.claim,
+        source: input.source,
+        kind: "verifier",
+        status: "passed",
+        verifierStatus: mechanical.status,
+      })
+    return new ClaimEvidence({
+      claim: input.claim,
+      source: input.source,
+      kind: "verifier",
+      status: mechanical.status === "failed" ? "failed" : "missing_evidence",
+      verifierStatus: mechanical.status,
+      reason:
+        mechanical.status === "failed"
+          ? "Verifier check failed"
+          : `Verifier status ${mechanical.status} cannot grant passed`,
+    })
+  }
+  return new ClaimEvidence({
+    claim: input.claim,
+    source: input.source,
+    status: "missing_evidence",
+    reason: `Tool "${input.tool.name}" is not a Shell CommandResult or Verifier source`,
+  })
+}
+
+export function summarizeClaims(claims: readonly ClaimEvidence[]): ClaimStatus {
+  if (claims.some((item) => item.status === "failed")) return "failed"
+  if (claims.length === 0 || claims.some((item) => item.status === "missing_evidence")) return "missing_evidence"
+  return "passed"
+}
 
 type Input = {
   readonly history: readonly Settlement[]
@@ -92,6 +222,7 @@ type Input = {
   readonly status: typeof Settlement.Type.status
   readonly reason?: string
   readonly observations?: readonly JudgeResult[]
+  readonly claims?: readonly ClaimEvidence[]
   readonly completion?: Completion
 }
 
@@ -187,6 +318,7 @@ export const layer = Layer.effect(
         status: input.status,
         ...(input.reason ? { reason: input.reason } : {}),
         observations: [...(input.observations ?? [])],
+        ...(input.claims ? { claims: [...input.claims], claimStatus: summarizeClaims(input.claims) } : {}),
         ...(input.completion ? { completion: input.completion } : {}),
         reset: input.completion?.canComplete
           ? "completion_barrier"

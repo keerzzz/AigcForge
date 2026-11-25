@@ -668,6 +668,63 @@ test("Surface 2: Compose Workspace wires real role bindings, workflow diagnostic
   await expect.poll(() => removals).toEqual(["team/review.yaml"])
 })
 
+test("agent asset identity colors match both origin path and revision in Compose and Assets", async ({ page }) => {
+  const cases = [
+    { relativePath: "team/defined.md", revision: revA, expected: "#123456" },
+    { relativePath: "team/stale.md", revision: revC, expected: "currentColor" },
+    { relativePath: "team/unbound.md", revision: revA, expected: "currentColor" },
+  ]
+  await mockWorkspace(page, {
+    name: "Agent identity colors",
+    directory: "/custom/agent-identity-colors",
+    sessions: [],
+    agents: [
+      { ...Agent.Info.default(Agent.ID.make("build")), color: "error", originKind: "builtin" },
+      {
+        ...Agent.Info.default(Agent.ID.make("defined")),
+        color: "#123456",
+        originKind: "user",
+        originRelativePath: "team/defined.md",
+        originRevision: revA,
+      },
+      {
+        ...Agent.Info.default(Agent.ID.make("stale")),
+        color: "success",
+        originKind: "user",
+        originRelativePath: "team/stale.md",
+        originRevision: revB,
+      },
+    ],
+    agentAssets: cases.map((item) => ({
+      ...reviewerAgent(),
+      name: "build",
+      relativePath: item.relativePath,
+      revision: item.revision,
+    })),
+    seed: { tabs: [] },
+  })
+  await page.goto("/mode/custom")
+  await page.locator('[data-component="home-project-row"]').filter({ hasText: "Agent identity colors" }).click()
+  await page.getByRole("tab", { name: /^Compose(?: Unsaved edits)?$/ }).click()
+  const definitions = page.getByRole("region", { name: "Agent definitions", exact: true })
+  for (const item of cases) {
+    const icon = definitions
+      .getByRole("listitem")
+      .filter({ hasText: item.relativePath })
+      .locator('[data-slot="icon-svg"]')
+    await expect(icon).toHaveCSS("--omnxa-core-color", item.expected)
+    expect(await icon.evaluate((element) => element.getAnimations({ subtree: true }).length)).toBe(0)
+  }
+  await page.getByRole("tab", { name: "Assets", exact: true }).click()
+  const assets = page.getByRole("region", { name: "Asset library", exact: true })
+  for (const item of cases) {
+    await assets.getByRole("button").filter({ hasText: item.relativePath }).click()
+    const icon = assets.getByRole("heading", { name: "build", exact: true }).locator('[data-slot="icon-svg"]')
+    await expect(icon).toHaveCSS("--omnxa-core-color", item.expected)
+    expect(await icon.evaluate((element) => element.getAnimations({ subtree: true }).length)).toBe(0)
+  }
+})
+
 test("Surface 3: Asset Library covers 7 kinds, paired scopes, snapshotsComplete=false warning, and Plugin 4-way separation", async ({
   page,
 }, testInfo) => {

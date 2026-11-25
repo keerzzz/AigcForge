@@ -65,5 +65,6 @@ export function mapV2Foreground(
     "v2-icon-icon-contrast": greyRef(pickGrey(primitives, bgContrast, 7, 100)),
     "v2-icon-icon-accent": isDark ? "var(--v2-blue-400)" : "var(--v2-blue-600)",
     "v2-icon-icon-accent-hover": isDark ? "var(--v2-blue-300)" : "var(--v2-blue-700)",
+    "v2-icon-brand-core": isDark ? "var(--v2-cyan-400)" : "var(--v2-cyan-600)",
   }
 }

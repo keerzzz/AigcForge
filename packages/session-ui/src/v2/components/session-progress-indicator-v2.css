@@ -9,19 +9,93 @@
   animation: session-progress-orbit 1.2s linear infinite;
 }
 
+[data-component="session-progress-indicator-v2"][data-variant="agent"] [data-wing] {
+  animation: session-agent-wing-chase 1.6s ease-in-out infinite;
+}
+
+[data-component="session-progress-indicator-v2"][data-variant="agent"] [data-wing="1"] {
+  animation-delay: 0s;
+}
+
+[data-component="session-progress-indicator-v2"][data-variant="agent"] [data-wing="2"] {
+  animation-delay: 0.4s;
+}
+
+[data-component="session-progress-indicator-v2"][data-variant="agent"] [data-wing="3"] {
+  animation-delay: 0.8s;
+}
+
+[data-component="session-progress-indicator-v2"][data-variant="agent"] [data-wing="4"] {
+  animation-delay: 1.2s;
+}
+
+[data-component="session-progress-indicator-v2"][data-variant="agent"] [data-core] {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: session-agent-core-breath 1.6s ease-in-out infinite;
+}
+
 [data-visible="false"] [data-component="session-progress-indicator-v2"] [data-progress-arc],
-[hidden] [data-component="session-progress-indicator-v2"] [data-progress-arc] {
+[data-window-visible="false"] [data-component="session-progress-indicator-v2"] [data-progress-arc],
+[hidden] [data-component="session-progress-indicator-v2"] [data-progress-arc],
+[data-tool-motion="false"] [data-component="session-progress-indicator-v2"] [data-progress-arc],
+[data-visible="false"] [data-component="session-progress-indicator-v2"][data-variant="agent"] [data-wing],
+[data-window-visible="false"] [data-component="session-progress-indicator-v2"][data-variant="agent"] [data-wing],
+[hidden] [data-component="session-progress-indicator-v2"][data-variant="agent"] [data-wing],
+[data-tool-motion="false"] [data-component="session-progress-indicator-v2"][data-variant="agent"] [data-wing],
+[data-visible="false"] [data-component="session-progress-indicator-v2"][data-variant="agent"] [data-core],
+[data-window-visible="false"] [data-component="session-progress-indicator-v2"][data-variant="agent"] [data-core],
+[hidden] [data-component="session-progress-indicator-v2"][data-variant="agent"] [data-core],
+[data-tool-motion="false"] [data-component="session-progress-indicator-v2"][data-variant="agent"] [data-core] {
   animation: none;
 }
 
+[data-visible="false"] [data-component="session-progress-indicator-v2"][data-variant="agent"] [data-core],
+[data-window-visible="false"] [data-component="session-progress-indicator-v2"][data-variant="agent"] [data-core],
+[hidden] [data-component="session-progress-indicator-v2"][data-variant="agent"] [data-core],
+[data-tool-motion="false"] [data-component="session-progress-indicator-v2"][data-variant="agent"] [data-core] {
+  transform: rotate(45deg);
+}
+
 @media (prefers-reduced-motion: reduce) {
-  [data-component="session-progress-indicator-v2"] [data-progress-arc] {
+  [data-component="session-progress-indicator-v2"] [data-progress-arc],
+  [data-component="session-progress-indicator-v2"][data-variant="agent"] [data-wing],
+  [data-component="session-progress-indicator-v2"][data-variant="agent"] [data-core] {
     animation: none;
+  }
+
+  [data-component="session-progress-indicator-v2"][data-variant="agent"] [data-core] {
+    transform: rotate(45deg);
   }
 }
 
 @keyframes session-progress-orbit {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@keyframes session-agent-wing-chase {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  35% {
+    opacity: 1;
+  }
+  70% {
+    opacity: 0.38;
+  }
+}
+
+@keyframes session-agent-core-breath {
+  0%,
+  100% {
+    transform: scale(0.86) rotate(45deg);
+    opacity: 0.72;
+  }
+  50% {
+    transform: scale(1.12) rotate(45deg);
+    opacity: 1;
   }
 }
