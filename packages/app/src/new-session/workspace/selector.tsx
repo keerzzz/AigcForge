@@ -8,6 +8,7 @@ import { IconButton } from "@omnixa/ui/icon-button"
 import { TextInput } from "@omnixa/ui/text-input"
 import { getFilename, sameDirectory } from "@omnixa/util/path"
 import { useLanguage } from "@/runtime/i18n/language"
+import { createMenuDismissController } from "@/shell/commands/menu-dismiss"
 
 export function PromptWorkspaceSelector(props: {
   value: string
@@ -33,8 +34,12 @@ export function PromptWorkspaceSelector(props: {
   const [search, setSearch] = createStore({ workspaces: "", branches: "" })
   let searchInput: HTMLInputElement | undefined
   let branchSearchInput: HTMLInputElement | undefined
+  let workspaceMenuRef: HTMLDivElement | undefined
+  let branchMenuRef: HTMLDivElement | undefined
   let focusSearch = false
   const branchTruncation = createTruncatedText()
+  const workspaceDismiss = createMenuDismissController(() => workspaceMenuRef)
+  const branchDismiss = createMenuDismissController(() => branchMenuRef)
 
   const focusWorktreeSearch = () =>
     requestAnimationFrame(() => requestAnimationFrame(() => searchInput?.focus({ preventScroll: true })))
@@ -62,8 +67,9 @@ export function PromptWorkspaceSelector(props: {
     pending = { type: "select", value }
   }
 
-  const onOpenChange = (open: boolean) => {
+  const handleOpenChange = (dismiss: ReturnType<typeof createMenuDismissController>) => (open: boolean) => {
     if (open) {
+      dismiss.allowTriggerRestore()
       setSearch({ workspaces: "", branches: "" })
       props.onSearch("")
 
@@ -78,12 +84,16 @@ export function PromptWorkspaceSelector(props: {
     if (action?.type === "create") props.onCreate(action.branch)
 
     if (action?.type === "viewAll") {
-      props.onViewAll()
+      dismiss.preventTriggerRestore()
+      dismiss.afterClose(() => props.onViewAll())
 
       return
     }
 
-    props.onDone?.()
+    if (action !== undefined && props.onDone) {
+      dismiss.preventTriggerRestore()
+      dismiss.afterClose(() => props.onDone?.())
+    }
   }
 
   const label = () => {
@@ -125,7 +135,7 @@ export function PromptWorkspaceSelector(props: {
           gutter={4}
           overflowPadding={24}
           modal={summary() ? false : undefined}
-          onOpenChange={onOpenChange}
+          onOpenChange={handleOpenChange(workspaceDismiss)}
         >
           <Menu.Trigger
             aria-description={language.t("session.new.workspace.trigger.tooltip")}
@@ -154,7 +164,13 @@ export function PromptWorkspaceSelector(props: {
             />
           </Menu.Trigger>
           <Menu.Portal>
-            <Menu.Content class="w-[200px]">
+            <Menu.Content
+              ref={workspaceMenuRef}
+              class="w-[200px]"
+              onPointerDownOutside={workspaceDismiss.preventTriggerRestore}
+              onFocusOutside={workspaceDismiss.preventTriggerRestore}
+              onCloseAutoFocus={workspaceDismiss.onCloseAutoFocus}
+            >
               <Menu.Group>
                 <Menu.GroupLabel>{language.t("session.new.workspace.runIn")}</Menu.GroupLabel>
                 <Menu.Item onSelect={() => select("main")}>
@@ -300,7 +316,12 @@ export function PromptWorkspaceSelector(props: {
           class={summary() ? "min-w-0 w-full" : "ms-1 min-w-0 max-w-[220px]"}
           contentClass="max-w-[calc(100vw-32px)] break-all"
         >
-          <Menu placement={placement()} gutter={4} modal={summary() ? false : undefined} onOpenChange={onOpenChange}>
+          <Menu
+            placement={placement()}
+            gutter={4}
+            modal={summary() ? false : undefined}
+            onOpenChange={handleOpenChange(branchDismiss)}
+          >
             <Menu.Trigger
               class={
                 summary()
@@ -322,7 +343,11 @@ export function PromptWorkspaceSelector(props: {
             </Menu.Trigger>
             <Menu.Portal>
               <Menu.Content
+                ref={branchMenuRef}
                 class="w-[243px] overflow-hidden rounded-md border-0 bg-v2-background-bg-layer-01 shadow-[var(--v2-elevation-floating)] focus:outline-none"
+                onPointerDownOutside={branchDismiss.preventTriggerRestore}
+                onFocusOutside={branchDismiss.preventTriggerRestore}
+                onCloseAutoFocus={branchDismiss.onCloseAutoFocus}
                 onOpenAutoFocus={(event) => {
                   event.preventDefault()
                   // Kobalte defers its list autofocus until after the focus scope opens.
