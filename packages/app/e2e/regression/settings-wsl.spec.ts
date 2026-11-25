@@ -2,7 +2,7 @@ import { base64Encode } from "@omnixa/util/encode"
 import { expect, test } from "@playwright/test"
 import { NO_PROVIDER, REMOTE_SERVER, SERVER, project, provider, session } from "../utils/app"
 import { mockOmnixaServer, mockServers } from "../utils/mock-server"
-import { expectSessionTitle } from "../utils/waits"
+import { APP_READY_TIMEOUT, expectSessionTitle } from "../utils/waits"
 
 test.use({ viewport: { width: 1280, height: 900 } })
 
@@ -280,6 +280,7 @@ test("an open session moves to the controller a new SSH sign-in creates", async 
   await expectSessionTitle(page, box.title)
   const editor = page.locator('[data-component="composer-editor"]')
   await editor.fill("after sign-in")
+  await expect(page.locator('[data-action="composer-submit"]')).toBeEnabled({ timeout: APP_READY_TIMEOUT })
   await editor.press("Enter")
   await expect.poll(() => prompts).toEqual(["after sign-in"])
 })
