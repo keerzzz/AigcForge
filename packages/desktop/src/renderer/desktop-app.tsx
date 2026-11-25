@@ -17,7 +17,7 @@ import {
 } from "@omnixa/app/desktop"
 import { useTheme } from "@omnixa/ui/theme/context"
 import type { BaseRouterProps } from "@solidjs/router"
-import { createEffect, createMemo, createResource, lazy, Show, Suspense } from "solid-js"
+import { createEffect, createMemo, createResource, lazy, onCleanup, Show, Suspense } from "solid-js"
 import { createStore } from "solid-js/store"
 import type { ElectronAPI } from "./api-types"
 import { DesktopFirstLaunchOnboarding } from "./onboarding"
@@ -45,6 +45,7 @@ export function DesktopApp(props: { api: ElectronAPI; version: string }) {
     drawingReady: false,
     route,
   })
+  const [elements, setElements] = createStore<{ overlay?: HTMLDivElement }>({})
 
   // The window was created with the answers the shell gate needs; only a fresh install, which has no
   // onboarding decision yet, asks over IPC and waits for the port.
@@ -80,6 +81,27 @@ export function DesktopApp(props: { api: ElectronAPI; version: string }) {
   createEffect(() => {
     if (!startup.themeReady || firstLaunch.loading) return
     void props.api.themeReady()
+  })
+
+  // The wordmark starts after the covering element has finished leaving the work surface.
+  createEffect(() => {
+    document.documentElement.dataset.startupCovering = startup.visible ? "true" : "false"
+  })
+  onCleanup(() => {
+    delete document.documentElement.dataset.startupCovering
+  })
+
+  // The browser owns transition completion. No transition (including reduced motion) settles immediately;
+  // cancelling a transition also releases the overlay instead of waiting for a transitionend that cannot fire.
+  createEffect(() => {
+    if (!readyToReveal() || !startup.visible || !elements.overlay) return
+    const controller = new AbortController()
+    const overlay = elements.overlay
+    onCleanup(() => controller.abort())
+    void Promise.allSettled(overlay.getAnimations().map((animation) => animation.finished)).then(() => {
+      if (controller.signal.aborted) return
+      setStartup("visible", false)
+    })
   })
 
   function ReadyApp() {
@@ -145,13 +167,10 @@ export function DesktopApp(props: { api: ElectronAPI; version: string }) {
         <Show when={true}>{(_) => <ReadyApp />}</Show>
         <Show when={!firstLaunch.loading && startup.visible}>
           <div
+            ref={(element) => setElements("overlay", element)}
             data-component="startup-overlay"
-            class="fixed inset-0 z-[100] transition-opacity duration-300 ease-out"
+            class="fixed inset-0 z-[100] transition-opacity duration-300 ease-out motion-reduce:transition-none"
             classList={{ "pointer-events-none opacity-0": readyToReveal() }}
-            onTransitionEnd={(event) => {
-              if (event.target !== event.currentTarget || !readyToReveal()) return
-              setStartup("visible", false)
-            }}
           >
             <LoadingSplash
               firstLaunch={!!firstLaunch() && initialUrl === "/"}

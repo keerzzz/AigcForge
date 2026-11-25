@@ -1,4 +1,5 @@
 import type { OmnixaEvent, PermissionRequest, SessionMessageInfo } from "@omnixa/client/promise"
+import { Agent } from "@omnixa/schema/agent"
 import { timelinePresets } from "@omnixa/session-ui/timeline/detail"
 import { expect, test, type Locator, type Page } from "@playwright/test"
 import { expectPath, SERVER, sessionHref } from "../utils/app"
@@ -500,6 +501,10 @@ test("views running subagent cards and nested children beside the parent", async
 
   await setupTimeline(page, {
     settings: { timelineDetail: { ...timelinePresets[2].value, subagents: { placement: "separate" } } },
+    agents: [
+      Agent.Info.default(Agent.ID.make("build")),
+      { ...Agent.Info.default(Agent.ID.make("reviewer")), mode: "subagent", color: "#123456" },
+    ],
     sessionMessages: parentMessages,
     pageMessages: (id) => ({
       items:
@@ -519,8 +524,8 @@ test("views running subagent cards and nested children beside the parent", async
     }),
     sessions: [
       session(),
-      session({ id: runningChildID, parentID: sessionID, title: "Sleep for 5 minutes" }),
-      session({ id: unopenedChildID, parentID: sessionID, title: unopenedTitle }),
+      session({ id: runningChildID, parentID: sessionID, title: "Sleep for 5 minutes", agent: "reviewer" }),
+      session({ id: unopenedChildID, parentID: sessionID, title: unopenedTitle, agent: "reviewer" }),
       session({ id: nestedChildID, parentID: runningChildID, title: "Inspect nested code" }),
     ],
     sessionStatus: { [sessionID]: { type: "busy" }, [runningChildID]: { type: "busy" } },
@@ -551,7 +556,21 @@ test("views running subagent cards and nested children beside the parent", async
   await expect(unopenedRow.locator('[data-slot="subagent-row-preview"]')).toHaveText(unopenedResponse)
   await expect(runningRow.locator('[data-slot="subagent-row-preview"]')).toHaveText(childResponse)
   await expect(runningRow.locator('[data-slot="subagent-session-status"]')).toHaveText("Running")
-  await expect(runningRow.locator('[data-slot="icon-svg"]')).toHaveCount(2)
+  const runningIcon = runningRow.locator('[data-component="session-progress-indicator-v2"][data-variant="agent"]')
+  await expect(runningIcon).toHaveCSS("--omnxa-core-color", "#123456")
+  await expect(unopenedRow.locator(".subagent-row-icon")).toHaveCSS("--omnxa-core-color", "#123456")
+  await expect(runningRow.locator(".subagent-row-chevron")).toBeVisible()
+  const neutral = await runningRow.evaluate((element) => {
+    const probe = document.createElement("span")
+    probe.style.color = "var(--v2-icon-icon-base)"
+    element.appendChild(probe)
+    const color = getComputedStyle(probe).color
+    probe.remove()
+
+    return color
+  })
+  await expect(runningIcon).toHaveCSS("color", neutral)
+  await expect(unopenedRow.locator(".subagent-row-icon")).toHaveCSS("color", neutral)
   await expect(list.getByRole("heading", { name: /^(Active|Done)$/ })).toHaveCount(0)
   await expect(related.getByRole("button")).toHaveCount(1)
   await page.screenshot({ path: testInfo.outputPath("subagent-list-unopened-children.png"), fullPage: true })
@@ -604,6 +623,9 @@ test("views running subagent cards and nested children beside the parent", async
   await view.getByRole("button", { name: "Open as main session", exact: true }).click()
   await expect(page).toHaveURL(sessionHref(nestedChildID))
   await expect(page.getByRole("button", { name: /move running work to the background/i })).toHaveCount(0)
+
+  await page.goto(sessionHref(runningChildID))
+  await expect(page.locator('[data-session-title] [role="status"] [data-core]')).toHaveCSS("fill", "rgb(18, 52, 86)")
 })
 
 test("shows readable subagent summaries and keeps protocol output in execution details", async ({ page }, testInfo) => {

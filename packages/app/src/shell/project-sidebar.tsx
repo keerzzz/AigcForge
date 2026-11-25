@@ -11,7 +11,7 @@ import { Tooltip } from "@omnixa/ui/tooltip"
 import { useQuery } from "@tanstack/solid-query"
 import { useExtensionHost } from "@/runtime/extension/host"
 import { ExtensionSlot } from "@/runtime/extension/render"
-import { ServerConnection, useServers } from "@/runtime/server/registry"
+import { ServerConnection } from "@/runtime/server/registry"
 import { useGlobal } from "@/runtime/server/runtime"
 import { formatServerError, sessionNotFoundError } from "@/runtime/server/errors"
 import type { Notification } from "@/shell/notifications/notification"
@@ -42,19 +42,13 @@ export function ProjectSidebar(props: { onNavigate?: () => void } = {}) {
 function BuiltinProjectSidebar(props: { onNavigate?: () => void }) {
   const layout = useLayout()
   const global = useGlobal()
-  const servers = useServers()
 
   const mode = createMemo(() => {
     const route = layout.route()
 
-    if (route.type !== "session") return
-    const conn = servers.visible.find((conn) => ServerConnection.key(conn) === route.server)
+    if (route.type !== "session") return undefined
 
-    return ModeRoute.sourceMode(
-      route,
-      undefined,
-      conn ? global.ensureServerCtx(conn).data.session.get(route.sessionId) : undefined,
-    )
+    return ModeRoute.sourceMode(route, undefined, global.serverCtx(route.server)?.data.session.get(route.sessionId))
   })
 
   const home = createHomeController({ mode })

@@ -11,9 +11,15 @@ import type { Configuration } from "electron-builder"
 const { FileMatcher } = createRequire(import.meta.resolve("electron-builder"))("app-builder-lib/out/fileMatcher")
 
 const channels = [
-  { channel: "dev", appId: "ai.omnixa.desktop.dev" },
-  { channel: "beta", appId: "ai.omnixa.desktop.beta" },
-  { channel: "prod", appId: "ai.omnixa.desktop" },
+  { channel: "dev", appId: "ai.omnixa.desktop.dev", productName: "Omnixa Dev", protocolName: "Omnixa" },
+  { channel: "beta", appId: "ai.omnixa.desktop.beta", productName: "Omnixa Beta", protocolName: "Omnixa Beta" },
+  {
+    channel: "prod",
+    appId: "ai.omnixa.desktop",
+    productName: "Omnixa",
+    protocolName: "Omnixa",
+    repository: "AigcForge",
+  },
 ] as const
 
 async function load(channel: string) {
@@ -38,15 +44,23 @@ function trimFilter(dir: string, config: Configuration) {
   ]).createFilter()
 }
 
-test.each(channels)("channel identity for $channel", async ({ channel, appId }) => {
-  const config = await load(channel)
-  expect(config.appId).toBe(appId)
-  expect(config.extraMetadata?.desktopName).toBe(`${appId}.desktop`)
-  expect(config.linux?.executableName).toBe(appId)
-  expect(config.linux?.desktop?.entry?.StartupWMClass).toBe(appId)
+test.each(channels)("channel identity for $channel", async (identity) => {
+  const config = await load(identity.channel)
+  expect(config.appId).toBe(identity.appId)
+  expect(config.productName).toBe(identity.productName)
+  expect(config.protocols).toEqual({ name: identity.protocolName, schemes: ["omnixa"] })
+  expect(config.publish).toEqual(
+    identity.channel === "prod"
+      ? { provider: "github", owner: "keerzzz", repo: identity.repository, channel: "latest" }
+      : undefined,
+  )
+  expect(config.extraMetadata?.desktopName).toBe(`${identity.appId}.desktop`)
+  expect(config.linux?.executableName).toBe(identity.appId)
+  expect(config.linux?.desktop?.entry?.StartupWMClass).toBe(identity.appId)
 
   for (const fpm of [config.deb?.fpm, config.rpm?.fpm]) {
-    expect(fpm).toContainEqual(expect.stringContaining(`/usr/share/metainfo/${appId}.metainfo.xml`))
+    expect(fpm).toContainEqual(expect.stringContaining(`/usr/share/metainfo/${identity.appId}.metainfo.xml`))
+    expect(fpm?.some((entry) => entry.includes("aigcfroge-desktop.desktop"))).toBe(false)
   }
 })
 

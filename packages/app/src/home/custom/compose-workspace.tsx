@@ -21,8 +21,10 @@ import { CustomProfile } from "@omnixa/schema/custom-profile"
 import { Session } from "@omnixa/schema/session"
 import { Badge } from "@omnixa/ui/badge"
 import { Button } from "@omnixa/ui/button"
+import { Icon } from "@omnixa/ui/icon"
 import { Select } from "@omnixa/ui/select"
 import { TextField } from "@omnixa/ui/text-field"
+import { resolveAgentColor } from "@omnixa/ui/theme"
 import { Option, Schema } from "effect"
 import { createEffect, createMemo, For, onCleanup, Show, untrack } from "solid-js"
 import { createStore } from "solid-js/store"
@@ -248,11 +250,21 @@ export function ComposeWorkspace(props: {
   const conflictState = () => (state.profileProgress.type === "conflict" ? state.profileProgress : undefined)
   const recoveryState = () => (state.profileProgress.type === "read-failed" ? state.profileProgress : undefined)
 
-  const configuredAgents = createMemo(() =>
-    normalizeAgentList(
-      props.owner.context?.data.location.agent.list({ directory: props.owner.directory ?? "" }) ?? [],
-    ).filter((agent) => agent.originKind === "user" && !agent.originRelativePath),
+  const agentCatalog = createMemo(() =>
+    normalizeAgentList(props.owner.context?.data.location.agent.list({ directory: props.owner.directory ?? "" }) ?? []),
   )
+
+  const configuredAgents = createMemo(() =>
+    agentCatalog().filter((agent) => agent.originKind === "user" && !agent.originRelativePath),
+  )
+
+  const agentAssetColor = (asset: AgentAssetSummary) => {
+    const agent = agentCatalog().find(
+      (agent) => agent.originRelativePath === asset.relativePath && agent.originRevision === asset.revision,
+    )
+
+    return agent ? resolveAgentColor(agent.name, agent.color).v2Color : "currentColor"
+  }
 
   const liveMcpServers = createMemo(
     () => props.owner.context?.data.location.mcp.server.list({ directory: props.owner.directory ?? "" }) ?? [],
@@ -1473,6 +1485,12 @@ export function ComposeWorkspace(props: {
                   {(asset) => (
                     <li class="flex min-w-0 flex-col gap-1 rounded-[4px] border border-v2-border-border-base p-2">
                       <div class="flex flex-wrap items-center gap-x-2">
+                        <Icon
+                          name="subagent"
+                          size="small"
+                          class="shrink-0 text-v2-icon-icon-base"
+                          style={{ "--omnxa-core-color": agentAssetColor(asset) }}
+                        />
                         <bdi class="break-all font-medium">{asset.name}</bdi>
                         <span class="text-[12px] text-v2-text-text-muted">
                           {asset.disabled

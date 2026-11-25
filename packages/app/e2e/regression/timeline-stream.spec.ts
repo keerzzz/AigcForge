@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test"
 import type { SessionMessageAssistant, SessionMessageInfo, ShellInfo } from "@omnixa/client/promise"
+import { Agent } from "@omnixa/schema/agent"
 import { timelinePresets } from "@omnixa/session-ui/timeline/detail"
 import { createTwoFilesPatch } from "diff"
 import {
@@ -565,7 +566,10 @@ test.describe("Working", () => {
     await expect(working).toBeInViewport()
     await expect(shimmer).toHaveAttribute("data-active", "false")
     await expect(shimmer).toHaveCSS("line-height", "16px")
-    await expect(working.locator("svg use")).toHaveAttribute("href", "#omnixa-v2-icon-settings-gear")
+    await expect(working.locator('[data-component="session-progress-indicator-v2"]')).toHaveAttribute(
+      "data-variant",
+      "agent",
+    )
     const centers = await working.evaluate((element) => {
       const row = element.parentElement!.getBoundingClientRect()
       const content = element.getBoundingClientRect()
@@ -1110,6 +1114,51 @@ test.describe("background shortcut", () => {
       await aligned()
     })
   }
+
+  test("running menu animates only executing children and preserves explicit agent color", async ({ page }) => {
+    const childID = "ses_menu_motion_child"
+    await page.emulateMedia({ reducedMotion: "no-preference" })
+    const timeline = await setupTimeline(page, {
+      agents: [
+        Agent.Info.default(Agent.ID.make("build")),
+        { ...Agent.Info.default(Agent.ID.make("explore")), mode: "subagent", color: "#123456" },
+      ],
+      messages: [
+        userMessage(),
+        assistantMessage(
+          [
+            toolPart(
+              "call_menu_motion_child",
+              "subagent",
+              "running",
+              { agent: "explore", description: "Executing child" },
+              { metadata: { sessionID: childID } },
+            ),
+            toolPart("call_menu_motion_starting", "subagent", "running", { description: "Starting child" }),
+          ],
+          { completed: false },
+        ),
+      ],
+      sessions: [session(), session({ id: childID, parentID: sessionID, title: "Executing child", agent: "explore" })],
+      sessionStatus: { [sessionID]: { type: "busy" }, [childID]: { type: "busy" } },
+    })
+    await page.locator("[data-session-title]").getByRole("button", { name: "2 working", exact: true }).click()
+    const menu = page.getByRole("menu", { name: "2 working", exact: true })
+    const executing = menu
+      .getByRole("menuitem", { name: /Executing child/ })
+      .locator('[data-component="session-progress-indicator-v2"]')
+    const starting = menu
+      .getByRole("menuitem", { name: /Starting child/ })
+      .locator('[data-component="session-progress-indicator-v2"]')
+    await expect(executing.locator("[data-core]")).toHaveCSS("fill", "rgb(18, 52, 86)")
+    await expect(executing.locator('[data-wing="1"]')).toHaveCSS("animation-name", "session-agent-wing-chase")
+    await expect(starting.locator('[data-wing="1"]')).toHaveCSS("animation-name", "none")
+
+    await timeline.transport.send(status("idle", 1, childID))
+    await expect(executing.locator('[data-wing="1"]')).toHaveCSS("animation-name", "none")
+    await expect(executing.locator("[data-core]")).toHaveCSS("animation-name", "none")
+    await expect(executing.locator("[data-core]")).toHaveCSS("fill", "rgb(18, 52, 86)")
+  })
 
   test("hides the running switcher when viewing the only running subagent", async ({ page }) => {
     const childID = "ses_only_running_child"

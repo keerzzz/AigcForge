@@ -35,6 +35,7 @@
     --v2-icon-icon-contrast: var(--v2-grey-100);
     --v2-icon-icon-accent: var(--v2-blue-600);
     --v2-icon-icon-accent-hover: var(--v2-blue-700);
+    --v2-icon-brand-core: var(--v2-cyan-600);
 
     /* ── Border ── */
     --v2-border-border-muted: var(--v2-alpha-dark-8);
@@ -173,6 +174,7 @@
       --v2-icon-icon-contrast: var(--v2-grey-200);
       --v2-icon-icon-accent: var(--v2-blue-400);
       --v2-icon-icon-accent-hover: var(--v2-blue-300);
+      --v2-icon-brand-core: var(--v2-cyan-400);
 
       --v2-border-border-muted: var(--v2-alpha-light-8);
       --v2-border-border-base: var(--v2-alpha-light-10);
@@ -290,6 +292,7 @@
     --v2-icon-icon-contrast: var(--v2-grey-100);
     --v2-icon-icon-accent: var(--v2-blue-600);
     --v2-icon-icon-accent-hover: var(--v2-blue-700);
+    --v2-icon-brand-core: var(--v2-cyan-600);
 
     --v2-border-border-muted: var(--v2-alpha-dark-8);
     --v2-border-border-base: var(--v2-alpha-dark-10);
@@ -416,6 +419,7 @@
     --v2-icon-icon-contrast: var(--v2-grey-100);
     --v2-icon-icon-accent: var(--v2-blue-400);
     --v2-icon-icon-accent-hover: var(--v2-blue-300);
+    --v2-icon-brand-core: var(--v2-cyan-400);
 
     --v2-border-border-muted: var(--v2-alpha-light-8);
     --v2-border-border-base: var(--v2-alpha-light-10);

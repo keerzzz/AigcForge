@@ -1,0 +1,296 @@
+{
+  "command": "python3 packages/desktop/scripts/generate-brand-icons.py",
+  "files": {
+    "packages/desktop/icons/beta/128x128.png": {
+      "dimensions": [128, 128],
+      "profile": "linux-web",
+      "sha256": "e3559b804b57cb22bcc00fbe6a688c6880f75f52f0f3fbd25f7690dda14b121e"
+    },
+    "packages/desktop/icons/beta/128x128@2x.png": {
+      "dimensions": [256, 256],
+      "profile": "macos",
+      "sha256": "33e7c5cf7b54c294bc4c41fb097e310287370f7d3ad606a0592c8baf75acd824"
+    },
+    "packages/desktop/icons/beta/256x256.png": {
+      "dimensions": [256, 256],
+      "profile": "linux-web",
+      "sha256": "a3d4bd17ee808e1c02157701160385fe2dae35501cefd4574fe3a43641e2b3d5"
+    },
+    "packages/desktop/icons/beta/32x32.png": {
+      "dimensions": [32, 32],
+      "profile": "linux-web",
+      "sha256": "4d86fde4d467f0aa1ec2e763a3a5adb9bcf2e309e7510dc3135ae4084afc6422"
+    },
+    "packages/desktop/icons/beta/512x512.png": {
+      "dimensions": [512, 512],
+      "profile": "linux-web",
+      "sha256": "45c3aa1843bfc6d8806721fec50435f3dde7c63375b46cf5a541d11cb1c2f466"
+    },
+    "packages/desktop/icons/beta/64x64.png": {
+      "dimensions": [64, 64],
+      "profile": "linux-web",
+      "sha256": "18a6e4bd02301938b101b35879f137556cd05f34a5da17e1fdd6e81899c64ffb"
+    },
+    "packages/desktop/icons/beta/android/mipmap-xxxhdpi/ic_launcher.png": {
+      "dimensions": [192, 192],
+      "profile": "pwa",
+      "sha256": "3a09f4551cc997ea00e7dd4d853c66a4b4cd8e15b4e999cb4bf90a70c3f64a3f"
+    },
+    "packages/desktop/icons/beta/dock.png": {
+      "dimensions": [256, 256],
+      "profile": "macos",
+      "sha256": "33e7c5cf7b54c294bc4c41fb097e310287370f7d3ad606a0592c8baf75acd824"
+    },
+    "packages/desktop/icons/beta/icon.icns": {
+      "profile": "macos",
+      "sha256": "9aa9fbbdb883243f63d9858ac01c5cf112537cca0d4aeb06f622f701661c8e77"
+    },
+    "packages/desktop/icons/beta/icon.ico": {
+      "profile": "windows-web",
+      "sha256": "2cbf19a5acec81c10daba44072e51062106b3b0634fcf5e202325036f8dd01cf"
+    },
+    "packages/desktop/icons/beta/icon.png": {
+      "dimensions": [512, 512],
+      "profile": "linux-web",
+      "sha256": "45c3aa1843bfc6d8806721fec50435f3dde7c63375b46cf5a541d11cb1c2f466"
+    },
+    "packages/desktop/icons/beta/ios/AppIcon-60x60@3x.png": {
+      "dimensions": [180, 180],
+      "profile": "apple-touch",
+      "sha256": "a3d5a464f33f4af760342ad75e2a818642ab142683e48819d146d346f7ab8ec1"
+    },
+    "packages/desktop/icons/beta/source-macos.svg": {
+      "profile": "macos",
+      "sha256": "ce9de6b0be38445d4cfb2f7b36d1359365b08c5fe4b7fcab94b37c12db42e43a"
+    },
+    "packages/desktop/icons/beta/source-web.svg": {
+      "profile": "web",
+      "sha256": "685e339ff71ebdbc7b92504e2958c7ec6a7a8e9d81cb91c2a48d71b66651a200"
+    },
+    "packages/desktop/icons/dev/128x128.png": {
+      "dimensions": [128, 128],
+      "profile": "linux-web",
+      "sha256": "bad7ac2414b7061950b4ff8af21364bd1242041e53d162daaf483a4137197c88"
+    },
+    "packages/desktop/icons/dev/128x128@2x.png": {
+      "dimensions": [256, 256],
+      "profile": "macos",
+      "sha256": "9ea5126f4e951c658ad40694cf863408a2804084965f0b640e2cb8127b6938f2"
+    },
+    "packages/desktop/icons/dev/256x256.png": {
+      "dimensions": [256, 256],
+      "profile": "linux-web",
+      "sha256": "efe366e5afe49888665bf964c19295125e328a9afac104309e491f60632718a7"
+    },
+    "packages/desktop/icons/dev/32x32.png": {
+      "dimensions": [32, 32],
+      "profile": "linux-web",
+      "sha256": "43de005dd1873474af18e9e31a74ba640f9877e036e31eedc2c7b445f44ccb7a"
+    },
+    "packages/desktop/icons/dev/512x512.png": {
+      "dimensions": [512, 512],
+      "profile": "linux-web",
+      "sha256": "40ac6f9f84a356f35dc7d7048f5a0789d116c43f6df449c2322d0fc4ebac458b"
+    },
+    "packages/desktop/icons/dev/64x64.png": {
+      "dimensions": [64, 64],
+      "profile": "linux-web",
+      "sha256": "0ab9850245c80b075ea194410860ca670363f38b7633c34ecc26e979cce05d06"
+    },
+    "packages/desktop/icons/dev/android/mipmap-xxxhdpi/ic_launcher.png": {
+      "dimensions": [192, 192],
+      "profile": "pwa",
+      "sha256": "de1b3326a27ab85c249e6f58696f37a9438a8e50cffa1a95a4a7f6780ad7f9ea"
+    },
+    "packages/desktop/icons/dev/dock.png": {
+      "dimensions": [256, 256],
+      "profile": "macos",
+      "sha256": "9ea5126f4e951c658ad40694cf863408a2804084965f0b640e2cb8127b6938f2"
+    },
+    "packages/desktop/icons/dev/icon.icns": {
+      "profile": "macos",
+      "sha256": "d8158428e962b7c07894c6d57be300d0a4529fdad964633e63b7754f74ce4eec"
+    },
+    "packages/desktop/icons/dev/icon.ico": {
+      "profile": "windows-web",
+      "sha256": "e6dcf969093d911d5d3f6e59122b641e8f63e7d1c3c8bd3cebd52fbce25dff34"
+    },
+    "packages/desktop/icons/dev/icon.png": {
+      "dimensions": [512, 512],
+      "profile": "linux-web",
+      "sha256": "40ac6f9f84a356f35dc7d7048f5a0789d116c43f6df449c2322d0fc4ebac458b"
+    },
+    "packages/desktop/icons/dev/ios/AppIcon-60x60@3x.png": {
+      "dimensions": [180, 180],
+      "profile": "apple-touch",
+      "sha256": "e083617468110a76f9b10d54ad4fded78f6d2d63d830b4adc0b1d6f61ee6f08d"
+    },
+    "packages/desktop/icons/dev/source-macos.svg": {
+      "profile": "macos",
+      "sha256": "88084adbddd9324fb9de850050416c1c6d969134b85fbda2e4b0b2dfe081e9a5"
+    },
+    "packages/desktop/icons/dev/source-web.svg": {
+      "profile": "web",
+      "sha256": "2aca3c570e106213e980005703f50c3acf56c2fa87f8094a7809f8fc8302facc"
+    },
+    "packages/desktop/icons/prod/128x128.png": {
+      "dimensions": [128, 128],
+      "profile": "linux-web",
+      "sha256": "114b5130f9703ee26acc963de2b51a7e732d79fd33275fc7566581acec7db156"
+    },
+    "packages/desktop/icons/prod/128x128@2x.png": {
+      "dimensions": [256, 256],
+      "profile": "macos",
+      "sha256": "d22c5bae966e0ede3748f28d94723cf1df2c7e4bf3278f37927502ec9041f83d"
+    },
+    "packages/desktop/icons/prod/256x256.png": {
+      "dimensions": [256, 256],
+      "profile": "linux-web",
+      "sha256": "8928da3d1cdde2a8ba0ed8f7585e0482919a6c7a27c20ed635d16180761d845d"
+    },
+    "packages/desktop/icons/prod/32x32.png": {
+      "dimensions": [32, 32],
+      "profile": "linux-web",
+      "sha256": "637997c3f4cc67fa58858ef23f49b8f39875c9b9bb8943e7dab64494141913b7"
+    },
+    "packages/desktop/icons/prod/512x512.png": {
+      "dimensions": [512, 512],
+      "profile": "linux-web",
+      "sha256": "2c60502a441d36881237a5c6492df162244ba2c8ed044d5de256cb27cb993710"
+    },
+    "packages/desktop/icons/prod/64x64.png": {
+      "dimensions": [64, 64],
+      "profile": "linux-web",
+      "sha256": "9646b81ee9585bfb317bfcff63169c997ccf457f2d07f1d4dbc2913bc36027c6"
+    },
+    "packages/desktop/icons/prod/android/mipmap-xxxhdpi/ic_launcher.png": {
+      "dimensions": [192, 192],
+      "profile": "pwa",
+      "sha256": "6c05d6de8907c9dd4b2c64d8abc112b6f1125b8819b0b1d230a9efd625ea9cd1"
+    },
+    "packages/desktop/icons/prod/dock.png": {
+      "dimensions": [256, 256],
+      "profile": "macos",
+      "sha256": "d22c5bae966e0ede3748f28d94723cf1df2c7e4bf3278f37927502ec9041f83d"
+    },
+    "packages/desktop/icons/prod/icon.icns": {
+      "profile": "macos",
+      "sha256": "e545d476e195eab7a1832bf453128ab98b2d5527436423b1d7f2cd4beb6242df"
+    },
+    "packages/desktop/icons/prod/icon.ico": {
+      "profile": "windows-web",
+      "sha256": "d4dc268f25f051bc1b2f8c0118081eddc9b9b88468a0dd55e26d31fe6cfdf446"
+    },
+    "packages/desktop/icons/prod/icon.png": {
+      "dimensions": [512, 512],
+      "profile": "linux-web",
+      "sha256": "2c60502a441d36881237a5c6492df162244ba2c8ed044d5de256cb27cb993710"
+    },
+    "packages/desktop/icons/prod/ios/AppIcon-60x60@3x.png": {
+      "dimensions": [180, 180],
+      "profile": "apple-touch",
+      "sha256": "c3d11c30b43f9e038c9ce97ec4091a3cbcc1b8598762cd9d75b6160c4aa683fa"
+    },
+    "packages/desktop/icons/prod/source-macos.svg": {
+      "profile": "macos",
+      "sha256": "ff743e78596a9e92b9ac83e5862b13f61a3290996612126b0333e66ed8a6c13a"
+    },
+    "packages/desktop/icons/prod/source-web.svg": {
+      "profile": "web",
+      "sha256": "506c82fc0fb1e5470e02b291496ec633a5ebc54967a6e2d39b78563218b97130"
+    },
+    "packages/desktop/scripts/social-share-source.svg": {
+      "profile": "social-share",
+      "sha256": "48adc3184485aa7e9b5d46e3c91f5a3b8648c3db86dfa3bb3882600418226465"
+    },
+    "packages/ui/src/assets/favicon/apple-touch-icon-v3.png": {
+      "dimensions": [180, 180],
+      "profile": "apple-touch",
+      "sha256": "c3d11c30b43f9e038c9ce97ec4091a3cbcc1b8598762cd9d75b6160c4aa683fa"
+    },
+    "packages/ui/src/assets/favicon/apple-touch-icon.png": {
+      "dimensions": [180, 180],
+      "profile": "apple-touch",
+      "sha256": "c3d11c30b43f9e038c9ce97ec4091a3cbcc1b8598762cd9d75b6160c4aa683fa"
+    },
+    "packages/ui/src/assets/favicon/favicon-96x96-v3.png": {
+      "dimensions": [96, 96],
+      "profile": "web",
+      "sha256": "9a5905836ef0b48204000747ccb1558d2d0f742f672aa33a7de63cfddea1cede"
+    },
+    "packages/ui/src/assets/favicon/favicon-96x96.png": {
+      "dimensions": [96, 96],
+      "profile": "web",
+      "sha256": "9a5905836ef0b48204000747ccb1558d2d0f742f672aa33a7de63cfddea1cede"
+    },
+    "packages/ui/src/assets/favicon/favicon-v3.ico": {
+      "profile": "web",
+      "sha256": "2938b11448be98fc14299b84b5508294b85a1bb86a7faaedb5104b0966237dec"
+    },
+    "packages/ui/src/assets/favicon/favicon-v3.svg": {
+      "profile": "web",
+      "sha256": "506c82fc0fb1e5470e02b291496ec633a5ebc54967a6e2d39b78563218b97130"
+    },
+    "packages/ui/src/assets/favicon/favicon.ico": {
+      "profile": "web",
+      "sha256": "2938b11448be98fc14299b84b5508294b85a1bb86a7faaedb5104b0966237dec"
+    },
+    "packages/ui/src/assets/favicon/favicon.svg": {
+      "profile": "web",
+      "sha256": "506c82fc0fb1e5470e02b291496ec633a5ebc54967a6e2d39b78563218b97130"
+    },
+    "packages/ui/src/assets/favicon/web-app-manifest-192x192.png": {
+      "dimensions": [192, 192],
+      "profile": "pwa",
+      "sha256": "6c05d6de8907c9dd4b2c64d8abc112b6f1125b8819b0b1d230a9efd625ea9cd1"
+    },
+    "packages/ui/src/assets/favicon/web-app-manifest-512x512.png": {
+      "dimensions": [512, 512],
+      "profile": "pwa",
+      "sha256": "2c60502a441d36881237a5c6492df162244ba2c8ed044d5de256cb27cb993710"
+    },
+    "packages/ui/src/assets/images/social-share.png": {
+      "dimensions": [1280, 721],
+      "profile": "social-share",
+      "sha256": "a2b9435de654bba5c71eb1f6c691a09051bce29b60371f4e1c467351b4fed359"
+    }
+  },
+  "generator": {
+    "path": "packages/desktop/scripts/generate-brand-icons.py",
+    "sha256": "a40600dd80db6c5ff8ad89b34edaaca4469a341eed38ee483b7845a5e998eb16"
+  },
+  "geometry": {
+    "core": "Splash rect[data-slot=core]",
+    "geometrySha256": "475a7c444254929fc304f9984488d301a244472b2fac83b1e19b765dd5b6cb23",
+    "path": "packages/ui/src/components/logo.tsx",
+    "sourceSha256": "f9b7e1226b98f192ff1203e477cec6e5c216b028e18176ec9762eceaeeb80eaa",
+    "wing": "WING_STANDARD"
+  },
+  "maskable": {
+    "checkedSize": 192,
+    "essentialPixelsOutsideSafeZone": 0,
+    "safeRadius": 0.4,
+    "webCanvasAlpha": 255
+  },
+  "socialShare": {
+    "backgroundSha256": "33377e393e46fad58d4f36aa2143c0dd33a26a54efd97cdab2cccb445af9ad0f",
+    "path": "packages/ui/src/assets/images/social-share.png",
+    "preservedRegions": 4,
+    "replaceBounds": [190, 220, 1090, 400],
+    "source": "packages/desktop/scripts/social-share-source.svg"
+  },
+  "tools": {
+    "ffmpeg": "ffmpeg version 6.1.1-3ubuntu5+esm15 Copyright (c) 2000-2023 the FFmpeg developers\nbuilt with gcc 13 (Ubuntu 13.3.0-6ubuntu2~24.04.1)\nconfiguration: --prefix=/usr --extra-version=3ubuntu5+esm15 --toolchain=hardened --libdir=/usr/lib/x86_64-linux-gnu --incdir=/usr/include/x86_64-linux-gnu --arch=amd64 --enable-gpl --disable-stripping --disable-omx --enable-gnutls --enable-libaom --enable-libass --enable-libbs2b --enable-libcaca --enable-libcdio --enable-libcodec2 --enable-libdav1d --enable-libflite --enable-libfontconfig --enable-libfreetype --enable-libfribidi --enable-libglslang --enable-libgme --enable-libgsm --enable-libharfbuzz --enable-libmp3lame --enable-libmysofa --enable-libopenjpeg --enable-libopenmpt --enable-libopus --enable-librubberband --enable-libshine --enable-libsnappy --enable-libsoxr --enable-libspeex --enable-libtheora --enable-libtwolame --enable-libvidstab --enable-libvorbis --enable-libvpx --enable-libwebp --enable-libx265 --enable-libxml2 --enable-libxvid --enable-libzimg --enable-openal --enable-opencl --enable-opengl --disable-sndio --enable-libvpl --disable-libmfx --enable-libdc1394 --enable-libdrm --enable-libiec61883 --enable-chromaprint --enable-frei0r --enable-ladspa --enable-libbluray --enable-libjack --enable-libpulse --enable-librabbitmq --enable-librist --enable-libsrt --enable-libssh --enable-libsvtav1 --enable-libx264 --enable-libzmq --enable-libzvbi --enable-lv2 --enable-sdl2 --enable-libplacebo --enable-librav1e --enable-pocketsphinx --enable-librsvg --enable-libjxl --enable-shared\nlibavutil      58. 29.100 / 58. 29.100\nlibavcodec     60. 31.102 / 60. 31.102\nlibavformat    60. 16.100 / 60. 16.100\nlibavdevice    60.  3.100 / 60.  3.100\nlibavfilter     9. 12.100 /  9. 12.100\nlibswscale      7.  5.100 /  7.  5.100\nlibswresample   4. 12.100 /  4. 12.100\nlibpostproc    57.  3.100 / 57.  3.100",
+    "pillow": "10.2.0",
+    "python": "3.12.3",
+    "svgDecoder": "librsvg"
+  },
+  "version": 1,
+  "wordmark": {
+    "core": "CORE_PATH",
+    "geometrySha256": "71267335298dd0a68885211e7005052c279c35ac12abc3ab14e99e19e2cfab51",
+    "letters": "LETTER_PATH",
+    "path": "packages/ui/src/typography/wordmark/wordmark.tsx",
+    "sourceSha256": "1c49188e50c295a7ef36cc9cd4780161afbd6b71f27a9a56c47e7f19fc5867c4"
+  }
+}

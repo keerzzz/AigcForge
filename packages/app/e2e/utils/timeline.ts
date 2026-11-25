@@ -112,6 +112,7 @@ type ToolSeed = {
 type TimelineServerInput = Partial<
   Pick<
     MockServerConfig,
+    | "agents"
     | "modelGroups"
     | "inbox"
     | "forms"

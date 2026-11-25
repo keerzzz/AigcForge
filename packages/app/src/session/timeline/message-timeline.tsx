@@ -21,6 +21,7 @@ import { ExtensionSlot } from "@/runtime/extension/render"
 import { useLanguage } from "@/runtime/i18n/language"
 import { useServer } from "@/runtime/server/current"
 import { useWorkspaceLocation } from "@/workspaces/location"
+import { SessionProgressIndicatorV2 } from "@omnixa/session-ui/v2/session-progress-indicator-v2"
 import { Timeline } from "@omnixa/session-ui/timeline/projection"
 import { createSessionTimelineRowRenderer } from "@omnixa/session-ui/timeline/row"
 import { getReadyMarkdown, preloadMarkdown } from "@omnixa/session-ui/markdown-cache"
@@ -475,7 +476,7 @@ function MessageTimelineView(
             <div class={`flex h-9 items-center gap-2 text-[13px] font-[530] leading-text-compact ${turnPadding()}`}>
               <Show when={showWorking()}>
                 <div data-component="session-working" role="status" class="inline-flex min-h-6 items-center gap-2">
-                  <Icon name="settings-gear" size="normal" class="session-working-gear" />
+                  <SessionProgressIndicatorV2 variant="agent" />
                   <TextShimmer text={language.t("session.timeline.working")} active={false} />
                 </div>
               </Show>

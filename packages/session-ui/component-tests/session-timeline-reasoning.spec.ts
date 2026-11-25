@@ -18,7 +18,7 @@ for (const mode of ["hidden", "compact", "full"] as const) {
       if (active)
         await expect(
           part.locator('[data-slot="tool-summary-icon"] [data-component="session-progress-indicator-v2"]'),
-        ).toHaveCount(1)
+        ).toHaveAttribute("data-variant", "agent")
 
       if (!active || reasoning !== "heading") {
         await expect(timeline.getByText("Inspecting stability", { exact: true })).toHaveCount(0)
@@ -29,7 +29,7 @@ for (const mode of ["hidden", "compact", "full"] as const) {
       const trigger = part.getByRole("button")
       const body = part.getByText("I will inspect the timeline before changing its state.", { exact: true })
       await expect(trigger).toHaveAttribute("aria-expanded", String(mode === "full"))
-      await expect(part.locator('[data-component="text-shimmer"]')).toHaveAttribute("data-active", "true")
+      await expect(part.locator('[data-component="text-shimmer"]')).toHaveAttribute("data-active", "false")
 
       if (mode === "compact") {
         await expect(trigger).toContainText("Inspecting stability")

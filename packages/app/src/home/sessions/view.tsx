@@ -267,16 +267,17 @@ function HomeSessionLeadingController(props: {
               open={state.open()}
               unread={state.unread()}
               loading={state.loading()}
+              motion={state.motion()}
             />
           }
         >
           <Show when={error() || state.loading() || state.unread()}>
-            <span class="flex shrink-0 items-center gap-1.5">
+            <span class="flex shrink-0 items-center gap-1.5" data-tool-motion={state.motion() ? undefined : "false"}>
               <Show
                 when={error()}
                 fallback={
                   <Show when={state.loading()} fallback={<Icon name="notifications" class="text-v2-state-fg-info" />}>
-                    <SessionProgressIndicatorV2 />
+                    <SessionProgressIndicatorV2 variant="agent" />
                   </Show>
                 }
               >
@@ -293,7 +294,13 @@ function HomeSessionLeadingController(props: {
   )
 }
 
-function HomeSessionLeading(props: { record: HomeSessionRecord; open: boolean; unread: boolean; loading: boolean }) {
+function HomeSessionLeading(props: {
+  record: HomeSessionRecord
+  open: boolean
+  unread: boolean
+  loading: boolean
+  motion: boolean
+}) {
   return (
     <div class="relative shrink-0">
       <Show when={props.open}>
@@ -311,6 +318,7 @@ function HomeSessionLeading(props: { record: HomeSessionRecord; open: boolean; u
         directory={props.record.session.location.directory}
         unread={props.unread}
         loading={props.loading}
+        motion={props.motion}
       />
     </div>
   )
