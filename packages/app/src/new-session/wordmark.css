@@ -43,6 +43,21 @@
   }
 }
 
+[data-startup-covering="true"] [data-component="new-session-wordmark"] .wordmark-shimmer {
+  animation: none;
+}
+
+[data-component="new-session-wordmark"][data-visible="false"] .wordmark-shimmer,
+[hidden] [data-component="new-session-wordmark"] .wordmark-shimmer {
+  animation-play-state: paused;
+}
+
+[data-component="new-session-wordmark"][data-complete="true"] .wordmark-shimmer {
+  animation: none;
+  mask-position: 0% 0;
+  opacity: 0;
+}
+
 @media (prefers-reduced-motion: reduce) {
   [data-component="new-session-wordmark"] {
     .wordmark-shimmer {

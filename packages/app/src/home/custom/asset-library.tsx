@@ -9,7 +9,9 @@ import type {
 import type { AssetPlacement } from "@omnixa/schema/asset-placement"
 import { Badge } from "@omnixa/ui/badge"
 import { Button } from "@omnixa/ui/button"
+import { Icon } from "@omnixa/ui/icon"
 import { Select } from "@omnixa/ui/select"
+import { resolveAgentColor } from "@omnixa/ui/theme"
 import { createMediaQuery } from "@solid-primitives/media"
 import { createEffect, createMemo, For, onCleanup, Show, untrack } from "solid-js"
 import { createStore } from "solid-js/store"
@@ -134,6 +136,18 @@ export function AssetLibrary(props: {
 
   const selectedItem = createMemo(() => state.items.find((item) => item.relativePath === state.selectedPath))
 
+  const selectedAgentColor = createMemo(() => {
+    const item = selectedItem()
+    const agent =
+      item?.kind === "agent"
+        ? props.owner.context?.data.location.agent
+            .list({ directory: props.owner.directory ?? "" })
+            ?.find((agent) => agent.originRelativePath === item.relativePath && agent.originRevision === item.revision)
+        : undefined
+
+    return agent ? resolveAgentColor(agent.name, agent.color).v2Color : "currentColor"
+  })
+
   const filteredItems = createMemo(() => {
     const q = state.search.trim().toLowerCase()
 
@@ -232,11 +246,15 @@ export function AssetLibrary(props: {
 
     try {
       if (kind === "agent") {
-        const res = await client["agent-asset"].list({ directory }, { signal: controller.signal })
+        const [assets] = await Promise.allSettled([
+          client["agent-asset"].list({ directory }, { signal: controller.signal }),
+          props.owner.context?.data.location.agent.sync({ directory }),
+        ])
 
         if (!current() || rev !== lifetime.listRev) return
+        if (assets.status === "rejected") throw assets.reason
         setState({
-          items: res.assets.map((asset) => ({
+          items: assets.value.assets.map((asset) => ({
             kind,
             name: asset.name,
             description: asset.description,
@@ -244,7 +262,7 @@ export function AssetLibrary(props: {
             revision: asset.revision,
             agentMeta: { mode: asset.mode, hidden: asset.hidden, disabled: asset.disabled },
           })),
-          invalid: res.invalid,
+          invalid: assets.value.invalid,
           loading: false,
         })
 
@@ -893,7 +911,17 @@ export function AssetLibrary(props: {
                 <div class="flex min-w-0 flex-col gap-2.5">
                   <div class="flex flex-wrap items-center justify-between gap-2">
                     <div class="min-w-0">
-                      <h3 class="break-words font-medium">{item().name}</h3>
+                      <h3 class="flex items-center gap-1.5 break-words font-medium">
+                        <Show when={item().kind === "agent"}>
+                          <Icon
+                            name="subagent"
+                            size="small"
+                            class="shrink-0 text-v2-icon-icon-base"
+                            style={{ "--omnxa-core-color": selectedAgentColor() }}
+                          />
+                        </Show>
+                        <span class="min-w-0 break-words">{item().name}</span>
+                      </h3>
                       <p class="break-all text-[12px] text-v2-text-text-muted">
                         {item().relativePath} · <code class="text-[11px]">{item().revision.slice(0, 12)}</code>
                       </p>

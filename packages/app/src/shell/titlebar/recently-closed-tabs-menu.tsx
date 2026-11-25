@@ -82,7 +82,13 @@ function RecentlyClosedTabItem(props: { entry: ClosedTab; onSelect: () => void }
   return (
     <Menu.Item class="max-w-56" onSelect={props.onSelect}>
       <span class="flex size-4 shrink-0 items-center justify-center">
-        <SessionTabAvatarView project={project()} directory={directory()} unread={false} loading={false} />
+        <SessionTabAvatarView
+          project={project()}
+          directory={directory()}
+          unread={false}
+          loading={false}
+          motion={false}
+        />
       </span>
       <Tooltip
         placement={placement}

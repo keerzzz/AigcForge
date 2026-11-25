@@ -398,7 +398,7 @@
       flex-shrink: 0;
 
       [data-slot="icon-svg"] {
-        color: var(--task-agent-color, var(--v2-icon-icon-base));
+        color: var(--v2-icon-icon-base);
       }
     }
 
@@ -519,8 +519,14 @@
 
 /* A waiting tool keeps its raw state and layout while its execution feedback is static. */
 [data-tool-motion="false"] [data-progress-arc],
+[data-tool-motion="false"] [data-wing],
+[data-tool-motion="false"] [data-core],
 [data-tool-motion="false"] [data-slot="text-shimmer-char-shimmer"] {
   animation: none !important;
+}
+
+[data-tool-motion="false"] [data-component="session-progress-indicator-v2"][data-variant="agent"] [data-core] {
+  transform: rotate(45deg);
 }
 
 [data-tool-motion="false"] [data-slot="text-shimmer-char-base"] {

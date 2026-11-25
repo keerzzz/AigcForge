@@ -182,3 +182,52 @@ export const OnDark = {
   globals: { theme: "dark" },
   render: () => <SessionProgressIndicatorV2 />,
 }
+
+export const AgentLifecycle = {
+  render: () => {
+    const [state, setState] = createStore({ motion: true, visible: true, hidden: false })
+
+    return (
+      <div style={{ display: "grid", gap: "12px", padding: "12px" }}>
+        <div style={{ display: "flex", gap: "8px" }}>
+          <Button data-test="toggle-motion" onClick={() => setState("motion", !state.motion)}>
+            {state.motion ? "Freeze motion" : "Resume motion"}
+          </Button>
+          <Button data-test="toggle-visible" onClick={() => setState("visible", !state.visible)}>
+            {state.visible ? "Mark invisible" : "Mark visible"}
+          </Button>
+          <Button data-test="toggle-hidden" onClick={() => setState("hidden", !state.hidden)}>
+            {state.hidden ? "Unhide" : "Hide"}
+          </Button>
+        </div>
+        <div
+          data-test="agent-wrapper"
+          data-tool-motion={state.motion ? undefined : "false"}
+          data-visible={state.visible ? "true" : "false"}
+          hidden={state.hidden}
+        >
+          <div style={{ display: "flex", gap: "12px", "align-items": "center" }}>
+            <SessionProgressIndicatorV2 variant="agent" coreColor="var(--v2-agent-build-solid)" />
+            <SessionProgressIndicatorV2 variant="agent" coreColor="var(--v2-agent-plan-solid)" width={24} height={24} />
+          </div>
+        </div>
+      </div>
+    )
+  },
+}
+
+export const AgentSizes = {
+  render: () => (
+    <div style={{ display: "flex", gap: "16px", "align-items": "center", "flex-wrap": "wrap" }}>
+      <For each={[12, 14, 16, 18, 20, 24, 64]}>
+        {(size) => (
+          <div data-size={size} style={{ display: "grid", gap: "8px", "justify-items": "center" }}>
+            <SessionProgressIndicatorV2 variant="agent" coreColor="#a84fbd" width={size} height={size} />
+            <Icon name="subagent" style={{ "--omnxa-core-color": "#a84fbd" }} />
+            <span>{size}px</span>
+          </div>
+        )}
+      </For>
+    </div>
+  ),
+}

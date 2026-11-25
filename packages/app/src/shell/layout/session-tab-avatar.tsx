@@ -23,6 +23,7 @@ export function SessionTabAvatar(props: {
       directory={props.directory}
       unread={state.unread()}
       loading={state.loading()}
+      motion={state.motion()}
     />
   )
 }
@@ -32,6 +33,7 @@ export function SessionTabAvatarView(props: {
   directory: string
   unread: boolean
   loading: boolean
+  motion?: boolean
 }) {
   return (
     <Show
@@ -45,7 +47,9 @@ export function SessionTabAvatarView(props: {
         />
       }
     >
-      <SessionProgressIndicatorV2 />
+      <span class="flex shrink-0" data-tool-motion={props.motion === false ? "false" : undefined}>
+        <SessionProgressIndicatorV2 variant="agent" />
+      </span>
     </Show>
   )
 }

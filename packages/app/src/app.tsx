@@ -6,7 +6,7 @@ import { ThemeProvider } from "@omnixa/ui/theme/context"
 import { MetaProvider } from "@solidjs/meta"
 import { type BaseRouterProps, Router } from "@solidjs/router"
 import { QueryClient, QueryClientProvider } from "@tanstack/solid-query"
-import { type Component, createRenderEffect, ErrorBoundary, type JSX, type ParentProps } from "solid-js"
+import { type Component, createRenderEffect, ErrorBoundary, type JSX, onCleanup, type ParentProps } from "solid-js"
 import { Dynamic } from "solid-js/web"
 import { CommandProvider } from "@/shell/commands/command"
 import { DesktopCommands } from "@/shell/commands/desktop"
@@ -40,6 +40,16 @@ function BodyTypography() {
     if (typeof document === "undefined") return
     document.body.classList.remove("text-12-regular")
     document.body.classList.add("font-(family-name:--font-family-text)", "text-[13px]", "font-[440]")
+
+    const updateVisibility = () => {
+      document.documentElement.dataset.windowVisible = document.visibilityState === "visible" ? "true" : "false"
+    }
+    updateVisibility()
+    document.addEventListener("visibilitychange", updateVisibility)
+    onCleanup(() => {
+      document.removeEventListener("visibilitychange", updateVisibility)
+      delete document.documentElement.dataset.windowVisible
+    })
   })
 
   return null

@@ -1,4 +1,6 @@
-import { expect, story } from "../../storybook/playwright/story"
+import { expect, sourceURL, story } from "../../storybook/playwright/story"
+
+const splashFixture = sourceURL(new URL("../../desktop/src/renderer/startup/splash.fixture.tsx", import.meta.url))
 
 for (const theme of ["light", "dark"]) {
   for (const direction of ["ltr", "rtl"]) {
@@ -15,7 +17,7 @@ for (const theme of ["light", "dark"]) {
       await expect(shimmer).toHaveCSS("color", "rgb(255, 255, 255)")
       await expect(shimmer).toHaveCSS("mix-blend-mode", "screen")
       await expect(base).toHaveAttribute("aria-label", "Omnixa")
-      await expect(base.locator("path")).toHaveAttribute("fill", "currentColor")
+      await expect(base.locator('path[fill="currentColor"]')).toHaveCount(1)
 
       await logo.evaluate((element) => {
         element.getAnimations({ subtree: true }).forEach((animation) => {
@@ -90,3 +92,78 @@ for (const theme of ["light", "dark"]) {
     expect(await logo.evaluate((element) => element.getBoundingClientRect().right <= innerWidth)).toBe(true)
   })
 }
+
+story("waits for an uncovered visible surface and does not replay after completion", async ({ mount }) => {
+  const component = await mount("app-new-session-wordmark--startup-handoff")
+  const logo = component.locator('[data-component="new-session-wordmark"]')
+  expect(await logo.evaluate((element) => element.getAnimations({ subtree: true }).length)).toBe(0)
+  await component.getByRole("button", { name: "Hide wordmark", exact: true }).click()
+  await component.getByRole("button", { name: "Reveal work surface", exact: true }).click()
+  expect(await logo.evaluate((element) => element.getAnimations({ subtree: true }).length)).toBe(0)
+  await component.getByRole("button", { name: "Show wordmark", exact: true }).click()
+  await expect(logo.locator(".wordmark-shimmer")).toHaveCSS("animation-name", "new-session-wordmark-shimmer")
+  await logo.evaluate(async (element) => {
+    const animations = element.getAnimations({ subtree: true })
+    animations.forEach((animation) => animation.finish())
+    await Promise.allSettled(animations.map((animation) => animation.finished))
+  })
+  await expect(logo).toHaveAttribute("data-complete", "true")
+  await expect(logo.locator(".wordmark-shimmer")).toHaveCSS("mask-position", "0% 0px")
+  await component.getByRole("button", { name: "Hide wordmark", exact: true }).click()
+  await component.getByRole("button", { name: "Show wordmark", exact: true }).click()
+  await component.getByRole("button", { name: "Cover work surface", exact: true }).click()
+  await component.getByRole("button", { name: "Reveal work surface", exact: true }).click()
+  expect(await logo.evaluate((element) => element.getAnimations({ subtree: true }).length)).toBe(0)
+})
+
+story("first-launch drawing keeps four wings and reports one completion", async ({ mount, page }) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" })
+  await mount("app-new-session-wordmark--reveal")
+  await page.evaluate(async (fixture) => {
+    const { mountStartupSplash } = await import(fixture)
+    mountStartupSplash({ firstLaunch: true, preview: false })
+  }, splashFixture)
+  const splash = page.locator('[data-component="first-launch-splash"]')
+  const wordmark = splash.getByRole("img", { name: "Omnixa", includeHidden: true })
+  await expect(wordmark.locator("path")).toHaveCount(2)
+  await expect(wordmark.locator('path[pathLength="1"]')).toHaveCount(2)
+  await splash.evaluate(async (element) => {
+    const animations = element.getAnimations({ subtree: true })
+    animations.forEach((animation) => animation.finish())
+    await Promise.allSettled(animations.map((animation) => animation.finished))
+  })
+  await expect(page.getByLabel("Drawing completions", { exact: true })).toHaveText("1")
+  const wings = await splash.locator('[data-component="logo-splash"] [data-slot^="wing-"]').evaluateAll((elements) =>
+    elements.map((element) => {
+      const bounds = element.getBoundingClientRect()
+      return {
+        slot: element.getAttribute("data-slot"),
+        x: bounds.x + bounds.width / 2,
+        y: bounds.y + bounds.height / 2,
+      }
+    }),
+  )
+  const top = wings.find((wing) => wing.slot === "wing-top")
+  const right = wings.find((wing) => wing.slot === "wing-right")
+  const bottom = wings.find((wing) => wing.slot === "wing-bottom")
+  const left = wings.find((wing) => wing.slot === "wing-left")
+  if (!top || !right || !bottom || !left) throw new Error("Expected all four startup wings")
+  expect(top.y).toBeLessThan(bottom.y)
+  expect(left.x).toBeLessThan(right.x)
+  expect(top.x).toBeCloseTo(bottom.x, 1)
+  expect(left.y).toBeCloseTo(right.y, 1)
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  await expect(page.getByLabel("Drawing completions", { exact: true })).toHaveText("1")
+})
+
+story("reduced-motion first launch settles without animation events", async ({ mount, page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  await mount("app-new-session-wordmark--reveal")
+  await page.evaluate(async (fixture) => {
+    const { mountStartupSplash } = await import(fixture)
+    mountStartupSplash({ firstLaunch: true, preview: false })
+  }, splashFixture)
+  const splash = page.locator('[data-component="first-launch-splash"]')
+  await expect(page.getByLabel("Drawing completions", { exact: true })).toHaveText("1")
+  expect(await splash.evaluate((element) => element.getAnimations({ subtree: true }).length)).toBe(0)
+})
