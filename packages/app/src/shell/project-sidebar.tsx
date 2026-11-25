@@ -46,7 +46,7 @@ function BuiltinProjectSidebar(props: { onNavigate?: () => void }) {
   const mode = createMemo(() => {
     const route = layout.route()
 
-    if (route.type !== "session") return
+    if (route.type !== "session") return undefined
 
     return ModeRoute.sourceMode(route, undefined, global.serverCtx(route.server)?.data.session.get(route.sessionId))
   })

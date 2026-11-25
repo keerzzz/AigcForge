@@ -537,7 +537,7 @@ export function Titlebar() {
               const tab = currentTab()
               const value = session()
 
-              if (!tab || !value) return
+              if (!tab || !value) return undefined
 
               return global.serverCtx(tab.server)?.projects.forSession(value)
             })
