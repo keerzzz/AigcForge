@@ -85,10 +85,24 @@ export const Input = Schema.Struct({
         }),
       ),
       intent: Schema.optionalKey(Schema.Literal("content_creation")),
+      claims: Schema.optionalKey(
+        Schema.Array(
+          Schema.Struct({
+            claim: Schema.String,
+            source: Schema.optionalKey(
+              Schema.Struct({
+                sessionID: Schema.optionalKey(Session.ID),
+                messageID: SessionMessage.ID,
+                id: Schema.String,
+              }),
+            ),
+          }),
+        ),
+      ),
     }),
   ).annotate({
     description:
-      "Associate a saved write/edit/patch mechanical result with configured verification. Explicit content_creation can use its complete Task input without a package check.",
+      "Associate a saved write/edit/patch mechanical result or structured delivery claims (bound to saved shell CommandResult or Verifier sources) with configured verification.",
   }),
   artifact_path: Schema.optionalKey(Schema.String).annotate({
     description: "Capture one existing tracked UTF-8 text path as a revision after this internal Task completes.",
@@ -408,6 +422,95 @@ export const Plugin = {
             ? ("l2" as const)
             : ("none" as const)
       const previous = yield* router.route({ history, source, operation, status: "not_dispatched" })
+      const resolveOwnedTool = Effect.fnUntraced(function* (
+        target: VerificationRouter.Source,
+        bindParticipant: boolean,
+      ) {
+        if (target.sessionID !== parent.id) {
+          const child = yield* sessions.get(target.sessionID).pipe(Effect.mapError(toToolFailure))
+          if (child.controller?.kind !== "child" || child.controller.source.kind !== "task")
+            return yield* new ToolFailure({ message: "verification source must belong to an existing Task child" })
+          const binding = child.controller.source
+          const state = yield* delegations
+            .resolve({
+              parentSessionID: parent.id,
+              agent: context.agent,
+              title: input.description,
+              delegationID: binding.delegationID,
+            })
+            .pipe(Effect.mapError(toToolFailure))
+          if (state.participants.get(binding.participantID)?.childSessionID !== child.id)
+            return yield* new ToolFailure({ message: "verification source child is not the saved participant binding" })
+          if (bindParticipant)
+            yield* delegations
+              .bindParticipant({
+                delegationID: binding.delegationID,
+                participantID: binding.participantID,
+                childSessionID: child.id,
+              })
+              .pipe(Effect.mapError(toToolFailure))
+        }
+        const message = yield* sessions.message({
+          sessionID: target.sessionID,
+          messageID: target.messageID,
+        })
+        const tool =
+          message?.type === "assistant"
+            ? message.content.find((part) => part.type === "tool" && part.id === target.id)
+            : undefined
+        return tool?.type === "tool" ? tool : undefined
+      })
+
+      const claims = input.verification.claims
+        ? yield* Effect.forEach(input.verification.claims, (item) =>
+            Effect.gen(function* () {
+              if (!item.source) return VerificationRouter.evaluateClaim({ claim: item.claim })
+              const claimSource = new VerificationRouter.Source({
+                sessionID: item.source.sessionID ?? parent.id,
+                messageID: item.source.messageID,
+                id: item.source.id,
+              })
+              const resolved = yield* resolveOwnedTool(claimSource, false).pipe(Effect.result)
+              if (resolved._tag === "Failure")
+                return VerificationRouter.evaluateClaim({
+                  claim: item.claim,
+                  source: claimSource,
+                  reason: resolved.failure.message,
+                })
+              const tool = resolved.success
+              const verifierResult =
+                tool && tool.state.status === "completed" && ["write", "edit", "patch"].includes(tool.name)
+                  ? Schema.decodeUnknownOption(Verifier.Result)(tool.state.metadata?.verification)
+                  : Option.none()
+              const verifierCurrent = Option.isSome(verifierResult)
+                ? yield* Verifier.isCurrent(parent.location.directory, verifierResult.value).pipe(
+                    Effect.provideService(FSUtil.Service, files),
+                    Effect.catchTag("PlatformError", () => Effect.succeed(false)),
+                  )
+                : undefined
+              return VerificationRouter.evaluateClaim({
+                claim: item.claim,
+                source: claimSource,
+                tool,
+                verifierCurrent,
+              })
+            }),
+          )
+        : undefined
+
+      if (!selected && input.verification.intent !== "content_creation" && claims !== undefined)
+        return verificationResponse(
+          yield* router.route({
+            history,
+            source,
+            operation,
+            status: "not_dispatched",
+            claims,
+          }),
+          undefined,
+          previousResults,
+        )
+
       const loaded = yield* Effect.gen(function* () {
         if (!selected) {
           if (input.verification?.intent !== "content_creation")
@@ -428,42 +531,8 @@ export const Plugin = {
           }
         }
         const mechanicalSource = selected
-        if (mechanicalSource.sessionID !== parent.id) {
-          const child = yield* sessions.get(mechanicalSource.sessionID).pipe(Effect.mapError(toToolFailure))
-          if (child.controller?.kind !== "child" || child.controller.source.kind !== "task")
-            return yield* new ToolFailure({ message: "verification source must belong to an existing Task child" })
-          const binding = child.controller.source
-          const state = yield* delegations
-            .resolve({
-              parentSessionID: parent.id,
-              agent: context.agent,
-              title: input.description,
-              delegationID: binding.delegationID,
-            })
-            .pipe(Effect.mapError(toToolFailure))
-          if (state.participants.get(binding.participantID)?.childSessionID !== child.id)
-            return yield* new ToolFailure({ message: "verification source child is not the saved participant binding" })
-          yield* delegations
-            .bindParticipant({
-              delegationID: binding.delegationID,
-              participantID: binding.participantID,
-              childSessionID: child.id,
-            })
-            .pipe(Effect.mapError(toToolFailure))
-        }
-        const message = yield* sessions.message({
-          sessionID: mechanicalSource.sessionID,
-          messageID: mechanicalSource.messageID,
-        })
-        const tool =
-          message?.type === "assistant"
-            ? message.content.find((part) => part.type === "tool" && part.id === mechanicalSource.id)
-            : undefined
-        if (
-          tool?.type !== "tool" ||
-          !["write", "edit", "patch"].includes(tool.name) ||
-          tool.state.status !== "completed"
-        )
+        const tool = yield* resolveOwnedTool(mechanicalSource, true)
+        if (!tool || !["write", "edit", "patch"].includes(tool.name) || tool.state.status !== "completed")
           return yield* new ToolFailure({
             message: "verification source must locate a saved completed write/edit/patch Tool",
           })
@@ -504,7 +573,14 @@ export const Plugin = {
       }).pipe(Effect.result)
       if (loaded._tag === "Failure")
         return verificationResponse(
-          yield* router.route({ history, source, operation, status: "unavailable", reason: loaded.failure.message }),
+          yield* router.route({
+            history,
+            source,
+            operation,
+            status: "unavailable",
+            reason: loaded.failure.message,
+            ...(claims !== undefined ? { claims } : {}),
+          }),
           undefined,
           previousResults,
         )
@@ -515,6 +591,7 @@ export const Plugin = {
         mechanical: loaded.success.mechanical,
         mechanicalSource: loaded.success.mechanicalSource,
         intent: input.verification.intent,
+        ...(claims !== undefined ? { claims } : {}),
       }
       const initial = yield* router.route({ ...facts, status: "not_dispatched" })
       const reason =
