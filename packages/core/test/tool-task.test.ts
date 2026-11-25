@@ -4057,6 +4057,7 @@ describe("TaskTool persistent delegation", () => {
       if (!source) return yield* Effect.die(new Error("Foreground delivery source is missing"))
       expect(yield* seed.execution.readResult(source)).toMatchObject({ available: true, text })
       const receipt = Schema.decodeUnknownSync(Delegation.Receipt)(response.metadata?.receipt)
+      yield* seed.sessions.wait(receipt.childSessionID)
       yield* seed.sessions.revert.stage({ sessionID: receipt.childSessionID, messageID: receipt.inputID, files: false })
       yield* seed.sessions.revert.commit(receipt.childSessionID)
       const db = (yield* Database.Service).db

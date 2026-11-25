@@ -60,6 +60,7 @@ import { SessionInbox } from "@omnixa/core/session/inbox"
 import { SessionMessageTable, SessionTable } from "@omnixa/core/session/sql"
 import { SessionMessage } from "@omnixa/core/session/message"
 import { SessionTask } from "@omnixa/core/session/task"
+import { InstructionDiscovery } from "@omnixa/core/instruction-discovery"
 import { SessionComposition } from "@omnixa/core/session/composition"
 import { WorkflowAsset } from "@omnixa/core/workflow-asset"
 import { WorkflowExecution } from "@omnixa/core/workflow/execution"
@@ -167,6 +168,7 @@ const metaLayer = (persist: boolean, databasePath?: string) =>
       SessionComposition.node,
       DelegationExecution.node,
       DelegationService.node,
+      Global.node,
       Session.node,
       SessionTask.node,
       SessionExecution.node,
@@ -293,6 +295,123 @@ const metaSetup = (
       runs: yield* SessionExecution.Service,
     }
   })
+
+effectTest.live("Meta requests carry current task state instead of stale completion counts", () =>
+  Effect.gen(function* () {
+    const fixture = yield* metaSetup()
+    const tasks = yield* SessionTask.Service
+    const plan = yield* tasks.append({
+      sessionID: fixture.root.id,
+      tasks: Array.from({ length: 6 }, (_, index) => ({
+        content: `audit ${index + 1}`,
+        status: index < 4 ? ("completed" as const) : ("in_progress" as const),
+        priority: "medium" as const,
+      })),
+    })
+    yield* fixture.llm.push(TestLLM.text("Stage report", "task-snapshot-first"))
+    yield* fixture.sessions.prompt({ sessionID: fixture.root.id, text: "Report current progress" })
+    yield* fixture.runs.awaitIdle(fixture.root.id)
+    const first = (yield* fixture.llm.requests()).at(-1)
+    const initial = first?.messages
+      .flatMap((message) => message.content)
+      .findLast((part) => part.type === "text" && part.text.startsWith("<session_task_snapshot>"))
+    expect(initial?.type === "text" && initial.text).toContain('"completed":4')
+    expect(initial?.type === "text" && initial.text).toContain('"in_progress":2')
+    expect(initial?.type === "text" && initial.text).toContain(plan[4].id)
+    yield* tasks.patch({ sessionID: fixture.root.id, id: plan[4].id, status: "completed" })
+    yield* fixture.llm.push(TestLLM.text("Updated stage report", "task-snapshot-second"))
+    yield* fixture.sessions.prompt({ sessionID: fixture.root.id, text: "Report again" })
+    yield* fixture.runs.awaitIdle(fixture.root.id)
+    const second = (yield* fixture.llm.requests()).at(-1)
+    const updated = second?.messages
+      .flatMap((message) => message.content)
+      .findLast((part) => part.type === "text" && part.text.startsWith("<session_task_snapshot>"))
+    expect(updated?.type === "text" && updated.text).toContain('"completed":5')
+    expect(updated?.type === "text" && updated.text).toContain('"in_progress":1')
+    expect(
+      (yield* fixture.sessions.context(fixture.root.id)).some(
+        (message) => message.type === "synthetic" && message.text.startsWith("<session_task_snapshot>"),
+      ),
+    ).toBe(false)
+  }),
+)
+
+effectTest.live("Meta and its child receive global and project protocols through real model requests", () =>
+  Effect.gen(function* () {
+    const global = yield* Global.Service
+    const globalFile = path.join(global.config, "AGENTS.md")
+    yield* Effect.promise(() => Bun.write(globalFile, "global protocol sentinel"))
+    yield* Effect.addFinalizer(() => Effect.promise(() => Bun.file(globalFile).delete()))
+    const fixture = yield* metaSetup(Agent.ID.make("build"))
+    const bus = yield* Bus.Service
+    const updated = yield* bus
+      .subscribe(InstructionDiscovery.Event.Updated)
+      .pipe(Stream.take(1), Stream.runCollect, Effect.forkScoped({ startImmediately: true }))
+    yield* Effect.promise(() =>
+      Bun.write(path.join(fixture.root.location.directory, "AGENTS.md"), "project protocol sentinel"),
+    )
+    yield* Fiber.join(updated).pipe(Effect.timeout("2 seconds"))
+    yield* fixture.llm.push(
+      TestLLM.tool("protocol-child", "subagent", {
+        agent: "explore",
+        description: "Read project",
+        prompt: "Read current project protocols",
+      }),
+      TestLLM.text("Child protocol report", "protocol-child-result"),
+      TestLLM.text("Parent protocol report", "protocol-parent-result"),
+    )
+    yield* fixture.sessions.prompt({ sessionID: fixture.root.id, text: "Read project protocols" })
+    yield* fixture.runs.awaitIdle(fixture.root.id)
+    const requests = yield* fixture.llm.requests()
+    expect(requests.length).toBeGreaterThanOrEqual(3)
+    for (const request of requests) {
+      const system = request.system.map((part) => part.text).join("\n")
+      expect(system).toContain("global protocol sentinel")
+      expect(system).toContain("project protocol sentinel")
+    }
+  }),
+)
+
+effectTest.live("Meta snapshots keep the linked root result locator without repeating its full body", () =>
+  Effect.gen(function* () {
+    const fixture = yield* metaSetup(Agent.ID.make("build"))
+    const tasks = yield* SessionTask.Service
+    const [plan] = yield* tasks.append({
+      sessionID: fixture.root.id,
+      tasks: [{ content: "produce result", status: "pending", priority: "medium" }],
+    })
+    const body = "long result evidence ".repeat(6000)
+    yield* fixture.llm.push(
+      TestLLM.tool("linked-root-result", TaskTool.name, {
+        description: "Produce the result",
+        prompt: "Return the result",
+        parent_task_id: plan.id,
+        target: new SessionTask.OperationNewRootTarget({
+          type: "new_root",
+          mode: "coding",
+          agent: Agent.ID.make("build"),
+          model: fixture.executorModel,
+        }),
+      }),
+      TestLLM.text(body, "linked-root-worker"),
+      TestLLM.text("Result collected", "linked-root-parent"),
+    )
+    yield* fixture.sessions.prompt({ sessionID: fixture.root.id, text: "Produce the planned result" })
+    yield* fixture.runs.awaitIdle(fixture.root.id)
+    const [completed] = yield* tasks.get(fixture.root.id)
+    expect(completed.id).toBe(plan.id)
+    expect(completed.status).toBe("completed")
+    expect(completed.outputDigest).toBe(body)
+    expect(completed.operationRef).toBeDefined()
+    const request = (yield* fixture.llm.requests()).at(-1)
+    const snapshot = request?.messages
+      .flatMap((message) => message.content)
+      .findLast((part) => part.type === "text" && part.text.startsWith("<session_task_snapshot>"))
+    expect(snapshot?.type === "text" && snapshot.text).toContain(JSON.stringify(completed.operationRef))
+    expect(snapshot?.type === "text" && snapshot.text).not.toContain(body)
+    expect(snapshot?.type === "text" && snapshot.text).toContain('"hasOutput":true')
+  }),
+)
 
 const mc04bTask = Effect.fnUntraced(function* (
   fixture: Effect.Success<ReturnType<typeof metaSetup>>,

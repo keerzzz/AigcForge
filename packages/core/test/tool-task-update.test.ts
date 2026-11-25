@@ -97,6 +97,139 @@ const executeUpdate = (registry: Tool.Interface, options: { id: string; input: R
   })
 
 describe("TaskUpdateTool", () => {
+  it.effect("rejects completing a report while its declared worker is unfinished without partial edits", () =>
+    Effect.gen(function* () {
+      yield* setup
+      yield* registerToolPlugin(TaskUpdateTool.Plugin)
+      const registry = yield* Tool.Service
+      const tasks = yield* SessionTask.Service
+      const [worker] = yield* tasks.get(sessionID)
+      const report = (yield* tasks.append({
+        sessionID,
+        tasks: [{ content: "collect results", status: "in_progress", priority: "medium", dependsOn: [worker.id] }],
+      })).at(-1)
+      if (!report) throw new Error("Expected report task")
+      const before = yield* tasks.get(sessionID)
+      const published = yield* listen
+      const result = yield* executeUpdate(registry, {
+        id: "call-premature-report",
+        input: { id: report.id, status: "completed", outputDigest: "all done", expectedRevision: report.revision },
+      })
+      expect(result.status).toBe("error")
+      expect(result.error?.message).toContain(worker.id)
+      expect(yield* tasks.get(sessionID)).toEqual(before)
+      expect(published).toEqual([])
+      yield* tasks.patch({ sessionID, id: worker.id, status: "failed" })
+      const finished = yield* executeUpdate(registry, {
+        id: "call-terminal-report",
+        input: { id: report.id, status: "completed", expectedRevision: report.revision },
+      })
+      expect(finished.status).toBe("completed")
+    }),
+  )
+
+  for (const mutation of ["update", "replaceLegacy", "patch"] as const) {
+    it.effect(`checks declared cross-session dependencies through ${mutation}`, () =>
+      Effect.gen(function* () {
+        yield* setup
+        const tasks = yield* SessionTask.Service
+        const database = yield* Database.Service
+        const externalSessionID = Session.ID.make("ses_task_dependency_external")
+        yield* database.db
+          .insert(SessionTable)
+          .values({
+            id: externalSessionID,
+            project_id: Project.ID.global,
+            slug: "dependency-worker",
+            directory: "/project",
+            title: "dependency-worker",
+            version: "test",
+          })
+          .run()
+          .pipe(Effect.orDie)
+        const [worker] = yield* tasks.append({
+          sessionID: externalSessionID,
+          tasks: [{ content: "external worker", status: "in_progress", priority: "medium" }],
+        })
+        const [report] = yield* tasks.update({
+          sessionID,
+          tasks: [{ content: "report", status: "pending", priority: "medium", dependsOn: [worker.id] }],
+        })
+        const complete =
+          mutation === "patch"
+            ? tasks.patch({ sessionID, id: report.id, status: "completed" }).pipe(Effect.asVoid)
+            : tasks[mutation]({ sessionID, tasks: [{ ...report, status: "completed" }] }).pipe(Effect.asVoid)
+        const published = yield* listen
+        const rejected = yield* complete.pipe(Effect.flip)
+        expect(rejected.message).toContain(worker.id)
+        expect(yield* tasks.get(sessionID)).toEqual([report])
+        expect(published).toEqual([])
+        yield* tasks.patch({ sessionID: externalSessionID, id: worker.id, status: "cancelled" })
+        yield* complete
+        expect((yield* tasks.get(sessionID))[0].status).toBe("completed")
+      }),
+    )
+  }
+
+  it.effect("rejects a batch that completes a dependency chain ahead of its last worker", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const tasks = yield* SessionTask.Service
+      const [worker] = yield* tasks.get(sessionID)
+      const middle = (yield* tasks.append({
+        sessionID,
+        tasks: [{ content: "middle", status: "pending", priority: "medium", dependsOn: [worker.id] }],
+      })).at(-1)
+      if (!middle) throw new Error("Expected middle task")
+      const before = yield* tasks.append({
+        sessionID,
+        tasks: [{ content: "report", status: "pending", priority: "medium", dependsOn: [middle.id] }],
+      })
+      const error = yield* tasks
+        .update({
+          sessionID,
+          tasks: before.map((task) => ({ ...task, status: task.id === worker.id ? task.status : "completed" })),
+        })
+        .pipe(Effect.flip)
+      expect(error.message).toContain(worker.id)
+      expect(yield* tasks.get(sessionID)).toEqual(before)
+      yield* tasks.update({ sessionID, tasks: before.map((task) => ({ ...task, status: "completed" })) })
+      expect((yield* tasks.get(sessionID)).every((task) => task.status === "completed")).toBe(true)
+    }),
+  )
+
+  it.effect("checks new dependencies added to a completed task and preserves ordinary history edits", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const tasks = yield* SessionTask.Service
+      const [worker] = yield* tasks.get(sessionID)
+      const before = yield* tasks.append({
+        sessionID,
+        tasks: [{ content: "completed report", status: "completed", priority: "medium" }],
+      })
+      const report = before[1]
+      const rejected = yield* tasks
+        .update({
+          sessionID,
+          tasks: [worker, { ...report, dependsOn: [worker.id] }],
+        })
+        .pipe(Effect.flip)
+      expect(rejected.message).toContain(worker.id)
+      expect(yield* tasks.get(sessionID)).toEqual(before)
+      yield* tasks.patch({ sessionID, id: worker.id, status: "completed" })
+      const admitted = yield* tasks.update({
+        sessionID,
+        tasks: [
+          { ...worker, status: "completed" },
+          { ...report, dependsOn: [worker.id] },
+        ],
+      })
+      yield* tasks.patch({ sessionID, id: worker.id, status: "pending" })
+      yield* tasks.update({ sessionID, tasks: [worker, { ...admitted[1], content: "edit historical report" }] })
+      expect((yield* tasks.get(sessionID))[1].content).toBe("edit historical report")
+    }),
+  )
+
   it.effect("automatic update and delete return the owned execution conflict through the real registry", () =>
     Effect.gen(function* () {
       yield* setup
