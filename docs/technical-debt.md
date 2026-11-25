@@ -17,7 +17,7 @@ Owner：Review extension / App layout。旧 pinned Review 可以只保存 active
 
 ## 2026-11-16 新建菜单焦点
 
-- **NEW-SESSION-MENU-FOCUS** — Owner：App new-session / 公共 Menu。工作树菜单关闭时，公共 Menu 恢复触发按钮与页面 `composer.restoreFocus` 同时处理焦点。原生输入框构建和公共 TextInput 构建的同条件回放均出现不同最终落点；完整项目／工作树／分支搜索、清空、关闭后继续编辑在两构建中通过。解除条件：在原 Menu 关闭边界确定唯一焦点归属，使用现有 new-session keeper 验证键盘关闭落点及草稿保持；见[焦点 RCA](/home/keer/.codex/outputs/2026-11-16/child-sidebar/worktree-focus-differential-v1/final-focus-rca.md)和[差分验收](/home/keer/.codex/outputs/2026-11-16/child-sidebar/worktree-focus-differential-v1/final-verification.json)。
+- **NEW-SESSION-MENU-FOCUS — 已关闭（2026-11-25）** — Owner：App new-session / 公共 Menu。已在 `PromptWorkspaceSelector`（工作树菜单与分支菜单）接入 `createMenuDismissController`：在 `Menu.Content` 关闭边界通过 `onCloseAutoFocus` 统一仲裁焦点归属，选中项后阻止触发器恢复并将焦点交给 `composer.restoreFocus`，Escape 关闭时保持触发器焦点，外部点击不抢回焦点，并在 `new-session.spec.ts` 验证键盘关闭落点与草稿保持。
 
 ## 2026-11-15 lint警告调查与实施工作树清理
 
