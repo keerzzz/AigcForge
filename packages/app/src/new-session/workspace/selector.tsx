@@ -167,9 +167,9 @@ export function PromptWorkspaceSelector(props: {
             <Menu.Content
               ref={workspaceMenuRef}
               class="w-[200px]"
-              onPointerDownOutside={workspaceDismiss.preventTriggerRestore}
-              onFocusOutside={workspaceDismiss.preventTriggerRestore}
-              onCloseAutoFocus={workspaceDismiss.onCloseAutoFocus}
+              onPointerDownOutside={() => workspaceDismiss.preventTriggerRestore()}
+              onFocusOutside={() => workspaceDismiss.preventTriggerRestore()}
+              onCloseAutoFocus={(event) => workspaceDismiss.onCloseAutoFocus(event)}
             >
               <Menu.Group>
                 <Menu.GroupLabel>{language.t("session.new.workspace.runIn")}</Menu.GroupLabel>
@@ -345,9 +345,9 @@ export function PromptWorkspaceSelector(props: {
               <Menu.Content
                 ref={branchMenuRef}
                 class="w-[243px] overflow-hidden rounded-md border-0 bg-v2-background-bg-layer-01 shadow-[var(--v2-elevation-floating)] focus:outline-none"
-                onPointerDownOutside={branchDismiss.preventTriggerRestore}
-                onFocusOutside={branchDismiss.preventTriggerRestore}
-                onCloseAutoFocus={branchDismiss.onCloseAutoFocus}
+                onPointerDownOutside={() => branchDismiss.preventTriggerRestore()}
+                onFocusOutside={() => branchDismiss.preventTriggerRestore()}
+                onCloseAutoFocus={(event) => branchDismiss.onCloseAutoFocus(event)}
                 onOpenAutoFocus={(event) => {
                   event.preventDefault()
                   // Kobalte defers its list autofocus until after the focus scope opens.
