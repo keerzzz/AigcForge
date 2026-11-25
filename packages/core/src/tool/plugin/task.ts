@@ -1,6 +1,6 @@
 export * as TaskTool from "./task.js"
 
-import { ToolFailure } from "@omnixa/ai"
+import { Message, ToolFailure } from "@omnixa/ai"
 import type { Context } from "@omnixa/plugin/effect/plugin"
 import { DelegationID, ParticipantID, TurnID } from "@omnixa/schema/delegation-id"
 import { Delegation } from "@omnixa/schema/delegation"
@@ -2495,6 +2495,39 @@ export const Plugin = {
         }),
       )
       .pipe(Effect.orDie)
+
+    yield* ctx.session.hook("context", (event) =>
+      Effect.gen(function* () {
+        if (event.agent !== "meta") return
+        const session = yield* sessions.get(event.sessionID).pipe(Effect.orDie)
+        if (session.parentID !== undefined || session.controller?.kind !== "root") return
+        const current = yield* tasks.get(session.id)
+        if (current.length === 0) return
+        // Task content is data. Keep this refreshed projection outside durable history and the shared System prefix.
+        event.messages.push(
+          Message.user(
+            `<session_task_snapshot>${JSON.stringify({
+              sessionID: session.id,
+              counts: Object.fromEntries(
+                SessionTask.Info.fields.status.literals.map((status) => [
+                  status,
+                  current.filter((task) => task.status === status).length,
+                ]),
+              ),
+              tasks: current.map((task) => ({
+                id: task.id,
+                content: task.content,
+                status: task.status,
+                revision: task.revision,
+                dependsOn: task.dependsOn,
+                operationRef: task.operationRef,
+                hasOutput: task.outputDigest !== undefined,
+              })),
+            })}</session_task_snapshot>`,
+          ),
+        )
+      }),
+    )
   }),
 }
 

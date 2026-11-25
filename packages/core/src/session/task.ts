@@ -117,11 +117,13 @@ export class TaskWriteError extends Schema.TaggedError<TaskWriteError>()("Sessio
     "depends_on_cycle",
     "stale_revision",
     "execution_owned",
+    "dependencies_unfinished",
   ]),
   // Which half of the `invalid_schedule` guard fired (see `scheduleFailureKind`):
   // `cron` = recurrence malformed / no future run, `trigger` = scheduled without
   // a scheduledAt or enabled recurrence. Absent for the other reasons.
   schedule: Schema.optional(Schema.Literals(["cron", "trigger"])),
+  blockedBy: Schema.optional(Schema.Array(Schema.String)),
 }) {
   override get message() {
     switch (this.reason) {
@@ -140,6 +142,8 @@ export class TaskWriteError extends Schema.TaggedError<TaskWriteError>()("Sessio
         return `Task ${this.id ? `"${this.id}" ` : ""}in session ${this.sessionID} changed since the caller last read it; retry with the current revision`
       case "execution_owned":
         return `Task "${this.id}" in session ${this.sessionID} is owned by unsettled execution; use its execution controls`
+      case "dependencies_unfinished":
+        return `Task "${this.id}" in session ${this.sessionID} has unfinished dependencies: ${this.blockedBy?.join(", ")}`
     }
     // Unreachable: reason is a closed literal union (narrowed to `never` here),
     // but consistent-return requires every path to return.
@@ -747,6 +751,51 @@ export const layer = Layer.effect(
       }
     })
 
+    // Completion uses the same terminal/deleted-predecessor policy as scheduling.
+    // Original execution settlement owns its outcome even if a predecessor is later reopened.
+    const completionConflict = Effect.fn("SessionTask.completionConflict")(function* (
+      connection: Pick<Database.Interface["db"], "select">,
+      sessionID: SessionSchema.ID,
+      changes: readonly (TaskDag.DagTask & {
+        readonly previousStatus?: string
+        readonly previousDependsOn?: readonly string[]
+      })[],
+      options?: WriteOptions,
+      removed: readonly string[] = [],
+    ) {
+      if (options?.settle) return undefined
+      const completed = changes.filter(
+        (task) =>
+          task.status === "completed" &&
+          (task.previousStatus !== "completed" ||
+            (task.dependsOn ?? []).some((id) => !task.previousDependsOn?.includes(id))),
+      )
+      const ids = [...new Set(completed.flatMap((task) => task.dependsOn ?? []))]
+      if (ids.length === 0) return undefined
+      const predecessors = yield* connection
+        .select()
+        .from(TaskTable)
+        .where(inArray(TaskTable.id, ids))
+        .all()
+        .pipe(Effect.orDie)
+      const graph = [
+        ...new Map(
+          [
+            ...predecessors
+              .filter((row) => !removed.includes(row.id))
+              .map((row) => ({ id: row.id, status: row.status })),
+            ...changes,
+          ].map((task) => [task.id, task]),
+        ).values(),
+      ]
+      for (const task of completed) {
+        const blockedBy = TaskDag.blockedBy(graph, task.id)
+        if (blockedBy.length > 0)
+          return new TaskWriteError({ sessionID, id: task.id, reason: "dependencies_unfinished", blockedBy })
+      }
+      return undefined
+    })
+
     const releaseClaim = Effect.fn("SessionTask.releaseClaim")(
       (input: {
         readonly sessionID: SessionSchema.ID
@@ -1320,6 +1369,19 @@ export const layer = Layer.effect(
                     seen.add(task.id)
                   }
                   if (invalid) return yield* Effect.succeed({ type: "invalid" as const, error: invalid })
+                  const completion = yield* completionConflict(
+                    tx,
+                    input.sessionID,
+                    planned.map((task) => ({
+                      ...task,
+                      dependsOn: task.dependsOn ?? existingById.get(task.id)?.depends_on ?? undefined,
+                      previousStatus: existingById.get(task.id)?.status,
+                      previousDependsOn: existingById.get(task.id)?.depends_on ?? undefined,
+                    })),
+                    options,
+                    existing.filter((row) => !retained.has(row.id)).map((row) => row.id),
+                  )
+                  if (completion) return { type: "invalid" as const, error: completion }
                   for (const task of planned) {
                     const prior = existingById.get(task.id)
                     const nextRevision = (prior?.revision ?? 0) + 1
@@ -1491,6 +1553,8 @@ export const layer = Layer.effect(
                       }),
                     }
                   }
+                  const completion = yield* completionConflict(tx, input.sessionID, planned, options)
+                  if (completion) return { type: "invalid" as const, error: completion }
                   // Position = max existing position + 1, NOT existing.length
                   // (differential-review MEDIUM-2): a middle DELETE leaves a position
                   // hole, and length-based positions would mint a duplicate — the
@@ -1587,6 +1651,21 @@ export const layer = Layer.effect(
                   // Dead-job guard (re-review M-1): the legacy TodoWrite bridge can
                   // carry `status: "scheduled"` with no trigger — reject instead of
                   // persisting a job the daemon's arm scan can never pick up.
+                  const planned = input.tasks.map((task, index) => ({
+                    ...task,
+                    id: existing[index]?.id ?? Identifier.ascending("task"),
+                    dependsOn: task.dependsOn ?? existing[index]?.depends_on ?? undefined,
+                    previousStatus: existing[index]?.status,
+                    previousDependsOn: existing[index]?.depends_on ?? undefined,
+                  }))
+                  const completion = yield* completionConflict(
+                    tx,
+                    input.sessionID,
+                    planned,
+                    options,
+                    existing.slice(input.tasks.length).map((row) => row.id),
+                  )
+                  if (completion) return { type: "invalid" as const, error: completion }
                   for (const [index, task] of input.tasks.entries()) {
                     const dead = scheduleFailureKind(task, existing[index], now)
                     if (dead) {
@@ -1603,7 +1682,7 @@ export const layer = Layer.effect(
                   }
                   for (const [index, task] of input.tasks.entries()) {
                     const prior = existing[index]
-                    const id = prior?.id ?? Identifier.ascending("task")
+                    const id = planned[index].id
                     // Preserve-omitted is input-first (same rule as update and
                     // hasDeadSchedule): an omitted field keeps the existing row's
                     // value, an explicit one wins.
@@ -1782,6 +1861,21 @@ export const layer = Layer.effect(
               if (input.expect !== undefined && !input.expect.some((status) => status === prior.status))
                 return undefined
               if (input.expectedRevision !== undefined && prior.revision !== input.expectedRevision) return undefined
+              const completion = yield* completionConflict(
+                db,
+                input.sessionID,
+                [
+                  {
+                    id: prior.id,
+                    status: input.status ?? prior.status,
+                    previousStatus: prior.status,
+                    previousDependsOn: prior.depends_on ?? undefined,
+                    dependsOn: prior.depends_on ?? undefined,
+                  },
+                ],
+                options,
+              )
+              if (completion) return yield* completion
               const dead =
                 input.status === undefined ? undefined : scheduleFailureKind({ status: input.status }, prior, now)
               if (dead)

@@ -71,6 +71,8 @@ v2已通过业务、类型和performance信用保留。[同context production样
 | MD07 操作系统常驻、跨机器接管及集群执行所有权                   | Core Execution／CLI                     | 显式进程外所有权方案，Event replay claim保持原职责。                                                   |
 | MD08 任意模型条件自动判定Goal完成                               | Goal owner                              | 具体可执行验收器或明确人工验收。                                                                       |
 
+- **META-CLAIM-EVIDENCE** — Owner：Core Meta / 验证来源。2026-11-25 会话复审已确认“源码检索被描述为 curl、psql、故障注入均已实测”。当前 Meta 提示词要求计划委派使用既有 task + parent_task_id；确定性门禁在已声明依赖未终态时拒绝提前完成，Meta 请求提供真实任务计数与结果定位；完成状态仍不授予机械验证。自由文本中的每项实测断言尚无确定性证据绑定。解除条件：沿既有 CommandResult / Verifier 来源为结构化交付断言绑定实际执行结果，验证缺失来源不能授予 passed；不让 LLM 自行给出 allow/block，不新增另一套执行或结果账本。
+
 规范维护记录：原 [19专项提示](/home/keer/.codex/outputs/2026-11-13/meta-engineering/mp03/final-spacing-diagnostics.json)为18条件spread与1 Effect Match；[v2最终26文件lint](/home/keer/.codex/outputs/2026-11-13/meta-engineering/mp03/delivery-v2-source-lint.json)为23warnings/0errors/exit0，另4条来自editor空行，两种数量分别保留，均不阻断功能。条件spread保留 [codec显式undefined/省略对照](/home/keer/.codex/outputs/2026-11-13/meta-engineering/mp03/goal-ui-codec-evidence.log)的真实字段省略语义；Match偏好标为**待验证规范**。Owner：Root / Script oxlint / Effect规范维护者；解除条件：据该真实案例修订原 [spread规则](/home/keer/workspace/aigcfroge-v2/script/oxlint/anti-slop/rules/no-conditional-empty-object-spread.ts:26)的适用边界，原 [Match规则](/home/keer/workspace/aigcfroge-v2/script/oxlint/anti-slop/effect/rules/prefer-effect-match.ts:5)提供可执行故障或可量化依据，否则保持建议级。
 
 此前SC/MA/MC接受、未交付owner/unlock及全部WIP沿下方原记录持有。
