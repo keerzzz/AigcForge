@@ -4524,15 +4524,39 @@ function SessionLogSseValue519(value: unknown): boolean {
   return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value >= 0
 }
 
-function SessionLogSseValue521(value: unknown): boolean {
+function SessionLogSseValue522(value: unknown): boolean {
   return value === "response-headers"
 }
 
-function SessionLogSseValue522(value: unknown): boolean {
+function SessionLogSseValue523(value: unknown): boolean {
+  return value === "response-stream"
+}
+
+function SessionLogSseValue524(value: unknown): boolean {
+  return value === "route-trace"
+}
+
+function SessionLogSseValue521(value: unknown): boolean {
+  return SessionLogSseValue522(value) || SessionLogSseValue523(value) || SessionLogSseValue524(value)
+}
+
+function SessionLogSseValue525(value: unknown): boolean {
   return typeof value === "string"
 }
 
-function SessionLogSseValue523(value: unknown): boolean {
+function SessionLogSseValue526(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function SessionLogSseValue527(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function SessionLogSseValue528(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function SessionLogSseValue529(value: unknown): boolean {
   return typeof value === "string"
 }
 
@@ -4541,8 +4565,11 @@ function SessionLogSseValue520(value: unknown): boolean {
     isSseRecord(value) &&
     Object.hasOwn(value, "source") &&
     SessionLogSseValue521(value["source"]) &&
-    (!Object.hasOwn(value, "provider") || SessionLogSseValue522(value["provider"])) &&
-    (!Object.hasOwn(value, "model") || SessionLogSseValue523(value["model"]))
+    (!Object.hasOwn(value, "provider") || SessionLogSseValue525(value["provider"])) &&
+    (!Object.hasOwn(value, "model") || SessionLogSseValue526(value["model"])) &&
+    (!Object.hasOwn(value, "session") || SessionLogSseValue527(value["session"])) &&
+    (!Object.hasOwn(value, "attempt") || SessionLogSseValue528(value["attempt"])) &&
+    (!Object.hasOwn(value, "routeID") || SessionLogSseValue529(value["routeID"]))
   )
 }
 
@@ -4593,22 +4620,22 @@ function SessionLogSseValue507(value: unknown): boolean {
   )
 }
 
-function SessionLogSseValue525(value: unknown): boolean {
+function SessionLogSseValue531(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue7(item))
   )
 }
 
-function SessionLogSseValue526(value: unknown): boolean {
+function SessionLogSseValue532(value: unknown): boolean {
   return value === "session.attempt.ended"
 }
 
-function SessionLogSseValue528(value: unknown): boolean {
+function SessionLogSseValue534(value: unknown): boolean {
   return value === 1
 }
 
-function SessionLogSseValue527(value: unknown): boolean {
+function SessionLogSseValue533(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -4616,61 +4643,24 @@ function SessionLogSseValue527(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     SessionLogSseValue10(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    SessionLogSseValue528(value["version"])
+    SessionLogSseValue534(value["version"])
   )
-}
-
-function SessionLogSseValue532(value: unknown): boolean {
-  return value === "completed"
-}
-
-function SessionLogSseValue533(value: unknown): boolean {
-  return value === "failed"
-}
-
-function SessionLogSseValue534(value: unknown): boolean {
-  return value === "cancelled"
-}
-
-function SessionLogSseValue535(value: unknown): boolean {
-  return value === "interrupted"
-}
-
-function SessionLogSseValue531(value: unknown): boolean {
-  return (
-    SessionLogSseValue532(value) ||
-    SessionLogSseValue533(value) ||
-    SessionLogSseValue534(value) ||
-    SessionLogSseValue535(value)
-  )
-}
-
-function SessionLogSseValue536(value: unknown): boolean {
-  return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value >= 0
 }
 
 function SessionLogSseValue538(value: unknown): boolean {
-  return value === "stop"
+  return value === "completed"
 }
 
 function SessionLogSseValue539(value: unknown): boolean {
-  return value === "length"
+  return value === "failed"
 }
 
 function SessionLogSseValue540(value: unknown): boolean {
-  return value === "tool-calls"
+  return value === "cancelled"
 }
 
 function SessionLogSseValue541(value: unknown): boolean {
-  return value === "content-filter"
-}
-
-function SessionLogSseValue542(value: unknown): boolean {
-  return value === "error"
-}
-
-function SessionLogSseValue543(value: unknown): boolean {
-  return value === "unknown"
+  return value === "interrupted"
 }
 
 function SessionLogSseValue537(value: unknown): boolean {
@@ -4678,17 +4668,54 @@ function SessionLogSseValue537(value: unknown): boolean {
     SessionLogSseValue538(value) ||
     SessionLogSseValue539(value) ||
     SessionLogSseValue540(value) ||
-    SessionLogSseValue541(value) ||
-    SessionLogSseValue542(value) ||
-    SessionLogSseValue543(value)
+    SessionLogSseValue541(value)
   )
 }
 
+function SessionLogSseValue542(value: unknown): boolean {
+  return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value >= 0
+}
+
 function SessionLogSseValue544(value: unknown): boolean {
-  return typeof value === "string"
+  return value === "stop"
+}
+
+function SessionLogSseValue545(value: unknown): boolean {
+  return value === "length"
 }
 
 function SessionLogSseValue546(value: unknown): boolean {
+  return value === "tool-calls"
+}
+
+function SessionLogSseValue547(value: unknown): boolean {
+  return value === "content-filter"
+}
+
+function SessionLogSseValue548(value: unknown): boolean {
+  return value === "error"
+}
+
+function SessionLogSseValue549(value: unknown): boolean {
+  return value === "unknown"
+}
+
+function SessionLogSseValue543(value: unknown): boolean {
+  return (
+    SessionLogSseValue544(value) ||
+    SessionLogSseValue545(value) ||
+    SessionLogSseValue546(value) ||
+    SessionLogSseValue547(value) ||
+    SessionLogSseValue548(value) ||
+    SessionLogSseValue549(value)
+  )
+}
+
+function SessionLogSseValue550(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function SessionLogSseValue552(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "read") &&
@@ -4698,7 +4725,7 @@ function SessionLogSseValue546(value: unknown): boolean {
   )
 }
 
-function SessionLogSseValue545(value: unknown): boolean {
+function SessionLogSseValue551(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "input") &&
@@ -4708,15 +4735,80 @@ function SessionLogSseValue545(value: unknown): boolean {
     Object.hasOwn(value, "reasoning") &&
     SessionLogSseValue4(value["reasoning"]) &&
     Object.hasOwn(value, "cache") &&
-    SessionLogSseValue546(value["cache"])
+    SessionLogSseValue552(value["cache"])
   )
 }
 
-function SessionLogSseValue547(value: unknown): boolean {
+function SessionLogSseValue553(value: unknown): boolean {
   return typeof value === "number" && Number.isFinite(value)
 }
 
-function SessionLogSseValue548(value: unknown): boolean {
+function SessionLogSseValue556(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function SessionLogSseValue557(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function SessionLogSseValue558(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function SessionLogSseValue559(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function SessionLogSseValue560(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function SessionLogSseValue561(value: unknown): boolean {
+  return (
+    typeof value === "number" &&
+    Number.isSafeInteger(value) &&
+    typeof value === "number" &&
+    value >= 100 &&
+    value <= 599
+  )
+}
+
+function SessionLogSseValue562(value: unknown): boolean {
+  return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value >= 0
+}
+
+function SessionLogSseValue563(value: unknown): boolean {
+  return SessionLogSseValue393(value) || SessionLogSseValue395(value)
+}
+
+function SessionLogSseValue564(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function SessionLogSseValue555(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "ordinal") &&
+    SessionLogSseValue380(value["ordinal"]) &&
+    (!Object.hasOwn(value, "correlationID") || SessionLogSseValue556(value["correlationID"])) &&
+    (!Object.hasOwn(value, "provider") || SessionLogSseValue557(value["provider"])) &&
+    (!Object.hasOwn(value, "model") || SessionLogSseValue558(value["model"])) &&
+    (!Object.hasOwn(value, "account") || SessionLogSseValue559(value["account"])) &&
+    (!Object.hasOwn(value, "endpoint") || SessionLogSseValue560(value["endpoint"])) &&
+    (!Object.hasOwn(value, "status") || SessionLogSseValue561(value["status"])) &&
+    (!Object.hasOwn(value, "durationMs") || SessionLogSseValue562(value["durationMs"])) &&
+    (!Object.hasOwn(value, "usage") || SessionLogSseValue551(value["usage"])) &&
+    (!Object.hasOwn(value, "quote") || SessionLogSseValue563(value["quote"])) &&
+    (!Object.hasOwn(value, "cost") || SessionLogSseValue553(value["cost"])) &&
+    (!Object.hasOwn(value, "error") || SessionLogSseValue564(value["error"]))
+  )
+}
+
+function SessionLogSseValue554(value: unknown): boolean {
+  return isSseArray(value) && value.length >= 0 && value.slice(0).every(SessionLogSseValue555)
+}
+
+function SessionLogSseValue565(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "reason") &&
@@ -4731,26 +4823,27 @@ function SessionLogSseValue548(value: unknown): boolean {
   )
 }
 
-function SessionLogSseValue530(value: unknown): boolean {
+function SessionLogSseValue536(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "status") &&
-    SessionLogSseValue531(value["status"]) &&
+    SessionLogSseValue537(value["status"]) &&
     Object.hasOwn(value, "ended") &&
     SessionLogSseValue380(value["ended"]) &&
-    (!Object.hasOwn(value, "providerEndedAt") || SessionLogSseValue536(value["providerEndedAt"])) &&
+    (!Object.hasOwn(value, "providerEndedAt") || SessionLogSseValue542(value["providerEndedAt"])) &&
     Object.hasOwn(value, "outputStarted") &&
     SessionLogSseValue199(value["outputStarted"]) &&
-    (!Object.hasOwn(value, "finish") || SessionLogSseValue537(value["finish"])) &&
-    (!Object.hasOwn(value, "rawFinish") || SessionLogSseValue544(value["rawFinish"])) &&
-    (!Object.hasOwn(value, "usage") || SessionLogSseValue545(value["usage"])) &&
-    (!Object.hasOwn(value, "cost") || SessionLogSseValue547(value["cost"])) &&
-    (!Object.hasOwn(value, "failure") || SessionLogSseValue548(value["failure"])) &&
+    (!Object.hasOwn(value, "finish") || SessionLogSseValue543(value["finish"])) &&
+    (!Object.hasOwn(value, "rawFinish") || SessionLogSseValue550(value["rawFinish"])) &&
+    (!Object.hasOwn(value, "usage") || SessionLogSseValue551(value["usage"])) &&
+    (!Object.hasOwn(value, "cost") || SessionLogSseValue553(value["cost"])) &&
+    (!Object.hasOwn(value, "gatewayAttempts") || SessionLogSseValue554(value["gatewayAttempts"])) &&
+    (!Object.hasOwn(value, "failure") || SessionLogSseValue565(value["failure"])) &&
     (!Object.hasOwn(value, "delivery") || SessionLogSseValue495(value["delivery"]))
   )
 }
 
-function SessionLogSseValue529(value: unknown): boolean {
+function SessionLogSseValue535(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
@@ -4760,44 +4853,44 @@ function SessionLogSseValue529(value: unknown): boolean {
     Object.hasOwn(value, "ordinal") &&
     SessionLogSseValue380(value["ordinal"]) &&
     Object.hasOwn(value, "terminal") &&
-    SessionLogSseValue530(value["terminal"])
+    SessionLogSseValue536(value["terminal"])
   )
 }
 
-function SessionLogSseValue524(value: unknown): boolean {
+function SessionLogSseValue530(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     SessionLogSseValue3(value["id"]) &&
     Object.hasOwn(value, "created") &&
     SessionLogSseValue4(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || SessionLogSseValue525(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || SessionLogSseValue531(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    SessionLogSseValue526(value["type"]) &&
+    SessionLogSseValue532(value["type"]) &&
     Object.hasOwn(value, "durable") &&
-    SessionLogSseValue527(value["durable"]) &&
+    SessionLogSseValue533(value["durable"]) &&
     (!Object.hasOwn(value, "location") || SessionLogSseValue12(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    SessionLogSseValue529(value["data"])
+    SessionLogSseValue535(value["data"])
   )
 }
 
-function SessionLogSseValue550(value: unknown): boolean {
+function SessionLogSseValue567(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue7(item))
   )
 }
 
-function SessionLogSseValue551(value: unknown): boolean {
+function SessionLogSseValue568(value: unknown): boolean {
   return value === "session.step.started"
 }
 
-function SessionLogSseValue553(value: unknown): boolean {
+function SessionLogSseValue570(value: unknown): boolean {
   return value === 1
 }
 
-function SessionLogSseValue552(value: unknown): boolean {
+function SessionLogSseValue569(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -4805,15 +4898,15 @@ function SessionLogSseValue552(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     SessionLogSseValue10(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    SessionLogSseValue553(value["version"])
+    SessionLogSseValue570(value["version"])
   )
 }
 
-function SessionLogSseValue555(value: unknown): boolean {
+function SessionLogSseValue572(value: unknown): boolean {
   return typeof value === "string"
 }
 
-function SessionLogSseValue554(value: unknown): boolean {
+function SessionLogSseValue571(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
@@ -4824,46 +4917,46 @@ function SessionLogSseValue554(value: unknown): boolean {
     SessionLogSseValue73(value["agent"]) &&
     Object.hasOwn(value, "model") &&
     SessionLogSseValue30(value["model"]) &&
-    (!Object.hasOwn(value, "snapshot") || SessionLogSseValue555(value["snapshot"])) &&
+    (!Object.hasOwn(value, "snapshot") || SessionLogSseValue572(value["snapshot"])) &&
     Object.hasOwn(value, "started") &&
     SessionLogSseValue380(value["started"])
   )
 }
 
-function SessionLogSseValue549(value: unknown): boolean {
+function SessionLogSseValue566(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     SessionLogSseValue3(value["id"]) &&
     Object.hasOwn(value, "created") &&
     SessionLogSseValue4(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || SessionLogSseValue550(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || SessionLogSseValue567(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    SessionLogSseValue551(value["type"]) &&
+    SessionLogSseValue568(value["type"]) &&
     Object.hasOwn(value, "durable") &&
-    SessionLogSseValue552(value["durable"]) &&
+    SessionLogSseValue569(value["durable"]) &&
     (!Object.hasOwn(value, "location") || SessionLogSseValue12(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    SessionLogSseValue554(value["data"])
+    SessionLogSseValue571(value["data"])
   )
 }
 
-function SessionLogSseValue557(value: unknown): boolean {
+function SessionLogSseValue574(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue7(item))
   )
 }
 
-function SessionLogSseValue558(value: unknown): boolean {
+function SessionLogSseValue575(value: unknown): boolean {
   return value === "session.step.streamed"
 }
 
-function SessionLogSseValue560(value: unknown): boolean {
+function SessionLogSseValue577(value: unknown): boolean {
   return value === 1
 }
 
-function SessionLogSseValue559(value: unknown): boolean {
+function SessionLogSseValue576(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -4871,11 +4964,11 @@ function SessionLogSseValue559(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     SessionLogSseValue10(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    SessionLogSseValue560(value["version"])
+    SessionLogSseValue577(value["version"])
   )
 }
 
-function SessionLogSseValue561(value: unknown): boolean {
+function SessionLogSseValue578(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
@@ -4885,40 +4978,40 @@ function SessionLogSseValue561(value: unknown): boolean {
   )
 }
 
-function SessionLogSseValue556(value: unknown): boolean {
+function SessionLogSseValue573(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     SessionLogSseValue3(value["id"]) &&
     Object.hasOwn(value, "created") &&
     SessionLogSseValue4(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || SessionLogSseValue557(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || SessionLogSseValue574(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    SessionLogSseValue558(value["type"]) &&
+    SessionLogSseValue575(value["type"]) &&
     Object.hasOwn(value, "durable") &&
-    SessionLogSseValue559(value["durable"]) &&
+    SessionLogSseValue576(value["durable"]) &&
     (!Object.hasOwn(value, "location") || SessionLogSseValue12(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    SessionLogSseValue561(value["data"])
+    SessionLogSseValue578(value["data"])
   )
 }
 
-function SessionLogSseValue563(value: unknown): boolean {
+function SessionLogSseValue580(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue7(item))
   )
 }
 
-function SessionLogSseValue564(value: unknown): boolean {
+function SessionLogSseValue581(value: unknown): boolean {
   return value === "session.step.ended"
 }
 
-function SessionLogSseValue566(value: unknown): boolean {
+function SessionLogSseValue583(value: unknown): boolean {
   return value === 1
 }
 
-function SessionLogSseValue565(value: unknown): boolean {
+function SessionLogSseValue582(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -4926,41 +5019,41 @@ function SessionLogSseValue565(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     SessionLogSseValue10(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    SessionLogSseValue566(value["version"])
+    SessionLogSseValue583(value["version"])
   )
 }
 
-function SessionLogSseValue568(value: unknown): boolean {
+function SessionLogSseValue585(value: unknown): boolean {
   return typeof value === "boolean"
 }
 
-function SessionLogSseValue569(value: unknown): boolean {
+function SessionLogSseValue586(value: unknown): boolean {
   return (
-    SessionLogSseValue538(value) ||
-    SessionLogSseValue539(value) ||
-    SessionLogSseValue540(value) ||
-    SessionLogSseValue541(value) ||
-    SessionLogSseValue542(value) ||
-    SessionLogSseValue543(value)
+    SessionLogSseValue544(value) ||
+    SessionLogSseValue545(value) ||
+    SessionLogSseValue546(value) ||
+    SessionLogSseValue547(value) ||
+    SessionLogSseValue548(value) ||
+    SessionLogSseValue549(value)
   )
 }
 
-function SessionLogSseValue570(value: unknown): boolean {
+function SessionLogSseValue587(value: unknown): boolean {
   return typeof value === "string"
 }
 
-function SessionLogSseValue571(value: unknown): boolean {
+function SessionLogSseValue588(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue7(item))
   )
 }
 
-function SessionLogSseValue572(value: unknown): boolean {
+function SessionLogSseValue589(value: unknown): boolean {
   return typeof value === "number" && Number.isFinite(value)
 }
 
-function SessionLogSseValue573(value: unknown): boolean {
+function SessionLogSseValue590(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "input") &&
@@ -4970,83 +5063,83 @@ function SessionLogSseValue573(value: unknown): boolean {
     Object.hasOwn(value, "reasoning") &&
     SessionLogSseValue4(value["reasoning"]) &&
     Object.hasOwn(value, "cache") &&
-    SessionLogSseValue546(value["cache"])
+    SessionLogSseValue552(value["cache"])
   )
 }
 
-function SessionLogSseValue574(value: unknown): boolean {
+function SessionLogSseValue591(value: unknown): boolean {
   return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value >= 0
 }
 
-function SessionLogSseValue575(value: unknown): boolean {
+function SessionLogSseValue592(value: unknown): boolean {
   return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value >= 0
 }
 
-function SessionLogSseValue577(value: unknown): boolean {
+function SessionLogSseValue594(value: unknown): boolean {
   return typeof value === "string"
 }
 
-function SessionLogSseValue576(value: unknown): boolean {
-  return isSseArray(value) && value.length >= 0 && value.slice(0).every(SessionLogSseValue577)
+function SessionLogSseValue593(value: unknown): boolean {
+  return isSseArray(value) && value.length >= 0 && value.slice(0).every(SessionLogSseValue594)
 }
 
-function SessionLogSseValue567(value: unknown): boolean {
+function SessionLogSseValue584(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
     SessionLogSseValue16(value["sessionID"]) &&
     Object.hasOwn(value, "assistantMessageID") &&
     SessionLogSseValue88(value["assistantMessageID"]) &&
-    (!Object.hasOwn(value, "needsContinuation") || SessionLogSseValue568(value["needsContinuation"])) &&
+    (!Object.hasOwn(value, "needsContinuation") || SessionLogSseValue585(value["needsContinuation"])) &&
     Object.hasOwn(value, "finish") &&
-    SessionLogSseValue569(value["finish"]) &&
-    (!Object.hasOwn(value, "rawFinish") || SessionLogSseValue570(value["rawFinish"])) &&
-    (!Object.hasOwn(value, "providerState") || SessionLogSseValue571(value["providerState"])) &&
+    SessionLogSseValue586(value["finish"]) &&
+    (!Object.hasOwn(value, "rawFinish") || SessionLogSseValue587(value["rawFinish"])) &&
+    (!Object.hasOwn(value, "providerState") || SessionLogSseValue588(value["providerState"])) &&
     Object.hasOwn(value, "cost") &&
-    SessionLogSseValue572(value["cost"]) &&
+    SessionLogSseValue589(value["cost"]) &&
     Object.hasOwn(value, "tokens") &&
-    SessionLogSseValue573(value["tokens"]) &&
-    (!Object.hasOwn(value, "unknownPriceAttempts") || SessionLogSseValue574(value["unknownPriceAttempts"])) &&
-    (!Object.hasOwn(value, "missingUsageAttempts") || SessionLogSseValue575(value["missingUsageAttempts"])) &&
-    (!Object.hasOwn(value, "snapshot") || SessionLogSseValue555(value["snapshot"])) &&
-    (!Object.hasOwn(value, "files") || SessionLogSseValue576(value["files"]))
-  )
-}
-
-function SessionLogSseValue562(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    SessionLogSseValue3(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    SessionLogSseValue4(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || SessionLogSseValue563(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    SessionLogSseValue564(value["type"]) &&
-    Object.hasOwn(value, "durable") &&
-    SessionLogSseValue565(value["durable"]) &&
-    (!Object.hasOwn(value, "location") || SessionLogSseValue12(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    SessionLogSseValue567(value["data"])
+    SessionLogSseValue590(value["tokens"]) &&
+    (!Object.hasOwn(value, "unknownPriceAttempts") || SessionLogSseValue591(value["unknownPriceAttempts"])) &&
+    (!Object.hasOwn(value, "missingUsageAttempts") || SessionLogSseValue592(value["missingUsageAttempts"])) &&
+    (!Object.hasOwn(value, "snapshot") || SessionLogSseValue572(value["snapshot"])) &&
+    (!Object.hasOwn(value, "files") || SessionLogSseValue593(value["files"]))
   )
 }
 
 function SessionLogSseValue579(value: unknown): boolean {
   return (
     isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    SessionLogSseValue3(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    SessionLogSseValue4(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || SessionLogSseValue580(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    SessionLogSseValue581(value["type"]) &&
+    Object.hasOwn(value, "durable") &&
+    SessionLogSseValue582(value["durable"]) &&
+    (!Object.hasOwn(value, "location") || SessionLogSseValue12(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    SessionLogSseValue584(value["data"])
+  )
+}
+
+function SessionLogSseValue596(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue7(item))
   )
 }
 
-function SessionLogSseValue580(value: unknown): boolean {
+function SessionLogSseValue597(value: unknown): boolean {
   return value === "session.step.completed"
 }
 
-function SessionLogSseValue582(value: unknown): boolean {
+function SessionLogSseValue599(value: unknown): boolean {
   return value === 1
 }
 
-function SessionLogSseValue581(value: unknown): boolean {
+function SessionLogSseValue598(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -5054,11 +5147,11 @@ function SessionLogSseValue581(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     SessionLogSseValue10(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    SessionLogSseValue582(value["version"])
+    SessionLogSseValue599(value["version"])
   )
 }
 
-function SessionLogSseValue583(value: unknown): boolean {
+function SessionLogSseValue600(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
@@ -5069,40 +5162,40 @@ function SessionLogSseValue583(value: unknown): boolean {
   )
 }
 
-function SessionLogSseValue578(value: unknown): boolean {
+function SessionLogSseValue595(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     SessionLogSseValue3(value["id"]) &&
     Object.hasOwn(value, "created") &&
     SessionLogSseValue4(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || SessionLogSseValue579(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || SessionLogSseValue596(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    SessionLogSseValue580(value["type"]) &&
+    SessionLogSseValue597(value["type"]) &&
     Object.hasOwn(value, "durable") &&
-    SessionLogSseValue581(value["durable"]) &&
+    SessionLogSseValue598(value["durable"]) &&
     (!Object.hasOwn(value, "location") || SessionLogSseValue12(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    SessionLogSseValue583(value["data"])
+    SessionLogSseValue600(value["data"])
   )
 }
 
-function SessionLogSseValue585(value: unknown): boolean {
+function SessionLogSseValue602(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue7(item))
   )
 }
 
-function SessionLogSseValue586(value: unknown): boolean {
+function SessionLogSseValue603(value: unknown): boolean {
   return value === "session.step.failed"
 }
 
-function SessionLogSseValue588(value: unknown): boolean {
+function SessionLogSseValue605(value: unknown): boolean {
   return value === 1
 }
 
-function SessionLogSseValue587(value: unknown): boolean {
+function SessionLogSseValue604(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -5110,27 +5203,27 @@ function SessionLogSseValue587(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     SessionLogSseValue10(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    SessionLogSseValue588(value["version"])
+    SessionLogSseValue605(value["version"])
   )
 }
 
-function SessionLogSseValue591(value: unknown): boolean {
+function SessionLogSseValue608(value: unknown): boolean {
   return value === "content-filter"
 }
 
-function SessionLogSseValue590(value: unknown): boolean {
-  return SessionLogSseValue591(value)
+function SessionLogSseValue607(value: unknown): boolean {
+  return SessionLogSseValue608(value)
 }
 
-function SessionLogSseValue592(value: unknown): boolean {
+function SessionLogSseValue609(value: unknown): boolean {
   return typeof value === "string"
 }
 
-function SessionLogSseValue593(value: unknown): boolean {
-  return isSseArray(value) && value.length >= 0 && value.slice(0).every(SessionLogSseValue577)
+function SessionLogSseValue610(value: unknown): boolean {
+  return isSseArray(value) && value.length >= 0 && value.slice(0).every(SessionLogSseValue594)
 }
 
-function SessionLogSseValue589(value: unknown): boolean {
+function SessionLogSseValue606(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
@@ -5139,52 +5232,52 @@ function SessionLogSseValue589(value: unknown): boolean {
     SessionLogSseValue88(value["assistantMessageID"]) &&
     Object.hasOwn(value, "error") &&
     SessionLogSseValue315(value["error"]) &&
-    (!Object.hasOwn(value, "finish") || SessionLogSseValue590(value["finish"])) &&
-    (!Object.hasOwn(value, "rawFinish") || SessionLogSseValue592(value["rawFinish"])) &&
-    (!Object.hasOwn(value, "providerState") || SessionLogSseValue571(value["providerState"])) &&
-    (!Object.hasOwn(value, "cost") || SessionLogSseValue547(value["cost"])) &&
-    (!Object.hasOwn(value, "tokens") || SessionLogSseValue545(value["tokens"])) &&
-    (!Object.hasOwn(value, "unknownPriceAttempts") || SessionLogSseValue574(value["unknownPriceAttempts"])) &&
-    (!Object.hasOwn(value, "missingUsageAttempts") || SessionLogSseValue575(value["missingUsageAttempts"])) &&
-    (!Object.hasOwn(value, "snapshot") || SessionLogSseValue555(value["snapshot"])) &&
-    (!Object.hasOwn(value, "files") || SessionLogSseValue593(value["files"]))
+    (!Object.hasOwn(value, "finish") || SessionLogSseValue607(value["finish"])) &&
+    (!Object.hasOwn(value, "rawFinish") || SessionLogSseValue609(value["rawFinish"])) &&
+    (!Object.hasOwn(value, "providerState") || SessionLogSseValue588(value["providerState"])) &&
+    (!Object.hasOwn(value, "cost") || SessionLogSseValue553(value["cost"])) &&
+    (!Object.hasOwn(value, "tokens") || SessionLogSseValue551(value["tokens"])) &&
+    (!Object.hasOwn(value, "unknownPriceAttempts") || SessionLogSseValue591(value["unknownPriceAttempts"])) &&
+    (!Object.hasOwn(value, "missingUsageAttempts") || SessionLogSseValue592(value["missingUsageAttempts"])) &&
+    (!Object.hasOwn(value, "snapshot") || SessionLogSseValue572(value["snapshot"])) &&
+    (!Object.hasOwn(value, "files") || SessionLogSseValue610(value["files"]))
   )
 }
 
-function SessionLogSseValue584(value: unknown): boolean {
+function SessionLogSseValue601(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     SessionLogSseValue3(value["id"]) &&
     Object.hasOwn(value, "created") &&
     SessionLogSseValue4(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || SessionLogSseValue585(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || SessionLogSseValue602(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    SessionLogSseValue586(value["type"]) &&
+    SessionLogSseValue603(value["type"]) &&
     Object.hasOwn(value, "durable") &&
-    SessionLogSseValue587(value["durable"]) &&
+    SessionLogSseValue604(value["durable"]) &&
     (!Object.hasOwn(value, "location") || SessionLogSseValue12(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    SessionLogSseValue589(value["data"])
+    SessionLogSseValue606(value["data"])
   )
 }
 
-function SessionLogSseValue595(value: unknown): boolean {
+function SessionLogSseValue612(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue7(item))
   )
 }
 
-function SessionLogSseValue596(value: unknown): boolean {
+function SessionLogSseValue613(value: unknown): boolean {
   return value === "session.text.started"
 }
 
-function SessionLogSseValue598(value: unknown): boolean {
+function SessionLogSseValue615(value: unknown): boolean {
   return value === 1
 }
 
-function SessionLogSseValue597(value: unknown): boolean {
+function SessionLogSseValue614(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -5192,11 +5285,11 @@ function SessionLogSseValue597(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     SessionLogSseValue10(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    SessionLogSseValue598(value["version"])
+    SessionLogSseValue615(value["version"])
   )
 }
 
-function SessionLogSseValue599(value: unknown): boolean {
+function SessionLogSseValue616(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
@@ -5208,40 +5301,40 @@ function SessionLogSseValue599(value: unknown): boolean {
   )
 }
 
-function SessionLogSseValue594(value: unknown): boolean {
+function SessionLogSseValue611(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     SessionLogSseValue3(value["id"]) &&
     Object.hasOwn(value, "created") &&
     SessionLogSseValue4(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || SessionLogSseValue595(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || SessionLogSseValue612(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    SessionLogSseValue596(value["type"]) &&
+    SessionLogSseValue613(value["type"]) &&
     Object.hasOwn(value, "durable") &&
-    SessionLogSseValue597(value["durable"]) &&
+    SessionLogSseValue614(value["durable"]) &&
     (!Object.hasOwn(value, "location") || SessionLogSseValue12(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    SessionLogSseValue599(value["data"])
+    SessionLogSseValue616(value["data"])
   )
 }
 
-function SessionLogSseValue601(value: unknown): boolean {
+function SessionLogSseValue618(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue7(item))
   )
 }
 
-function SessionLogSseValue602(value: unknown): boolean {
+function SessionLogSseValue619(value: unknown): boolean {
   return value === "session.text.ended"
 }
 
-function SessionLogSseValue604(value: unknown): boolean {
+function SessionLogSseValue621(value: unknown): boolean {
   return value === 1
 }
 
-function SessionLogSseValue603(value: unknown): boolean {
+function SessionLogSseValue620(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -5249,11 +5342,11 @@ function SessionLogSseValue603(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     SessionLogSseValue10(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    SessionLogSseValue604(value["version"])
+    SessionLogSseValue621(value["version"])
   )
 }
 
-function SessionLogSseValue605(value: unknown): boolean {
+function SessionLogSseValue622(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
@@ -5264,116 +5357,116 @@ function SessionLogSseValue605(value: unknown): boolean {
     SessionLogSseValue380(value["ordinal"]) &&
     Object.hasOwn(value, "text") &&
     SessionLogSseValue6(value["text"]) &&
-    (!Object.hasOwn(value, "state") || SessionLogSseValue571(value["state"]))
-  )
-}
-
-function SessionLogSseValue600(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    SessionLogSseValue3(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    SessionLogSseValue4(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || SessionLogSseValue601(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    SessionLogSseValue602(value["type"]) &&
-    Object.hasOwn(value, "durable") &&
-    SessionLogSseValue603(value["durable"]) &&
-    (!Object.hasOwn(value, "location") || SessionLogSseValue12(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    SessionLogSseValue605(value["data"])
-  )
-}
-
-function SessionLogSseValue607(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue7(item))
-  )
-}
-
-function SessionLogSseValue608(value: unknown): boolean {
-  return value === "session.reasoning.started"
-}
-
-function SessionLogSseValue610(value: unknown): boolean {
-  return value === 1
-}
-
-function SessionLogSseValue609(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "aggregateID") &&
-    SessionLogSseValue6(value["aggregateID"]) &&
-    Object.hasOwn(value, "seq") &&
-    SessionLogSseValue10(value["seq"]) &&
-    Object.hasOwn(value, "version") &&
-    SessionLogSseValue610(value["version"])
-  )
-}
-
-function SessionLogSseValue611(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "sessionID") &&
-    SessionLogSseValue16(value["sessionID"]) &&
-    Object.hasOwn(value, "assistantMessageID") &&
-    SessionLogSseValue88(value["assistantMessageID"]) &&
-    Object.hasOwn(value, "ordinal") &&
-    SessionLogSseValue380(value["ordinal"]) &&
-    (!Object.hasOwn(value, "state") || SessionLogSseValue571(value["state"]))
-  )
-}
-
-function SessionLogSseValue606(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    SessionLogSseValue3(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    SessionLogSseValue4(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || SessionLogSseValue607(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    SessionLogSseValue608(value["type"]) &&
-    Object.hasOwn(value, "durable") &&
-    SessionLogSseValue609(value["durable"]) &&
-    (!Object.hasOwn(value, "location") || SessionLogSseValue12(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    SessionLogSseValue611(value["data"])
-  )
-}
-
-function SessionLogSseValue613(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue7(item))
-  )
-}
-
-function SessionLogSseValue614(value: unknown): boolean {
-  return value === "session.reasoning.ended"
-}
-
-function SessionLogSseValue616(value: unknown): boolean {
-  return value === 1
-}
-
-function SessionLogSseValue615(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "aggregateID") &&
-    SessionLogSseValue6(value["aggregateID"]) &&
-    Object.hasOwn(value, "seq") &&
-    SessionLogSseValue10(value["seq"]) &&
-    Object.hasOwn(value, "version") &&
-    SessionLogSseValue616(value["version"])
+    (!Object.hasOwn(value, "state") || SessionLogSseValue588(value["state"]))
   )
 }
 
 function SessionLogSseValue617(value: unknown): boolean {
   return (
     isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    SessionLogSseValue3(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    SessionLogSseValue4(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || SessionLogSseValue618(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    SessionLogSseValue619(value["type"]) &&
+    Object.hasOwn(value, "durable") &&
+    SessionLogSseValue620(value["durable"]) &&
+    (!Object.hasOwn(value, "location") || SessionLogSseValue12(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    SessionLogSseValue622(value["data"])
+  )
+}
+
+function SessionLogSseValue624(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue7(item))
+  )
+}
+
+function SessionLogSseValue625(value: unknown): boolean {
+  return value === "session.reasoning.started"
+}
+
+function SessionLogSseValue627(value: unknown): boolean {
+  return value === 1
+}
+
+function SessionLogSseValue626(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "aggregateID") &&
+    SessionLogSseValue6(value["aggregateID"]) &&
+    Object.hasOwn(value, "seq") &&
+    SessionLogSseValue10(value["seq"]) &&
+    Object.hasOwn(value, "version") &&
+    SessionLogSseValue627(value["version"])
+  )
+}
+
+function SessionLogSseValue628(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "sessionID") &&
+    SessionLogSseValue16(value["sessionID"]) &&
+    Object.hasOwn(value, "assistantMessageID") &&
+    SessionLogSseValue88(value["assistantMessageID"]) &&
+    Object.hasOwn(value, "ordinal") &&
+    SessionLogSseValue380(value["ordinal"]) &&
+    (!Object.hasOwn(value, "state") || SessionLogSseValue588(value["state"]))
+  )
+}
+
+function SessionLogSseValue623(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    SessionLogSseValue3(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    SessionLogSseValue4(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || SessionLogSseValue624(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    SessionLogSseValue625(value["type"]) &&
+    Object.hasOwn(value, "durable") &&
+    SessionLogSseValue626(value["durable"]) &&
+    (!Object.hasOwn(value, "location") || SessionLogSseValue12(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    SessionLogSseValue628(value["data"])
+  )
+}
+
+function SessionLogSseValue630(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue7(item))
+  )
+}
+
+function SessionLogSseValue631(value: unknown): boolean {
+  return value === "session.reasoning.ended"
+}
+
+function SessionLogSseValue633(value: unknown): boolean {
+  return value === 1
+}
+
+function SessionLogSseValue632(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "aggregateID") &&
+    SessionLogSseValue6(value["aggregateID"]) &&
+    Object.hasOwn(value, "seq") &&
+    SessionLogSseValue10(value["seq"]) &&
+    Object.hasOwn(value, "version") &&
+    SessionLogSseValue633(value["version"])
+  )
+}
+
+function SessionLogSseValue634(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
     SessionLogSseValue16(value["sessionID"]) &&
     Object.hasOwn(value, "assistantMessageID") &&
@@ -5382,44 +5475,44 @@ function SessionLogSseValue617(value: unknown): boolean {
     SessionLogSseValue380(value["ordinal"]) &&
     Object.hasOwn(value, "text") &&
     SessionLogSseValue6(value["text"]) &&
-    (!Object.hasOwn(value, "state") || SessionLogSseValue571(value["state"]))
+    (!Object.hasOwn(value, "state") || SessionLogSseValue588(value["state"]))
   )
 }
 
-function SessionLogSseValue612(value: unknown): boolean {
+function SessionLogSseValue629(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     SessionLogSseValue3(value["id"]) &&
     Object.hasOwn(value, "created") &&
     SessionLogSseValue4(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || SessionLogSseValue613(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || SessionLogSseValue630(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    SessionLogSseValue614(value["type"]) &&
+    SessionLogSseValue631(value["type"]) &&
     Object.hasOwn(value, "durable") &&
-    SessionLogSseValue615(value["durable"]) &&
+    SessionLogSseValue632(value["durable"]) &&
     (!Object.hasOwn(value, "location") || SessionLogSseValue12(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    SessionLogSseValue617(value["data"])
+    SessionLogSseValue634(value["data"])
   )
 }
 
-function SessionLogSseValue619(value: unknown): boolean {
+function SessionLogSseValue636(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue7(item))
   )
 }
 
-function SessionLogSseValue620(value: unknown): boolean {
+function SessionLogSseValue637(value: unknown): boolean {
   return value === "session.tool.input.started"
 }
 
-function SessionLogSseValue622(value: unknown): boolean {
+function SessionLogSseValue639(value: unknown): boolean {
   return value === 1
 }
 
-function SessionLogSseValue621(value: unknown): boolean {
+function SessionLogSseValue638(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -5427,11 +5520,11 @@ function SessionLogSseValue621(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     SessionLogSseValue10(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    SessionLogSseValue622(value["version"])
+    SessionLogSseValue639(value["version"])
   )
 }
 
-function SessionLogSseValue623(value: unknown): boolean {
+function SessionLogSseValue640(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
@@ -5445,271 +5538,107 @@ function SessionLogSseValue623(value: unknown): boolean {
   )
 }
 
-function SessionLogSseValue618(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    SessionLogSseValue3(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    SessionLogSseValue4(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || SessionLogSseValue619(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    SessionLogSseValue620(value["type"]) &&
-    Object.hasOwn(value, "durable") &&
-    SessionLogSseValue621(value["durable"]) &&
-    (!Object.hasOwn(value, "location") || SessionLogSseValue12(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    SessionLogSseValue623(value["data"])
-  )
-}
-
-function SessionLogSseValue625(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue7(item))
-  )
-}
-
-function SessionLogSseValue626(value: unknown): boolean {
-  return value === "session.tool.input.ended"
-}
-
-function SessionLogSseValue628(value: unknown): boolean {
-  return value === 1
-}
-
-function SessionLogSseValue627(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "aggregateID") &&
-    SessionLogSseValue6(value["aggregateID"]) &&
-    Object.hasOwn(value, "seq") &&
-    SessionLogSseValue10(value["seq"]) &&
-    Object.hasOwn(value, "version") &&
-    SessionLogSseValue628(value["version"])
-  )
-}
-
-function SessionLogSseValue629(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "sessionID") &&
-    SessionLogSseValue16(value["sessionID"]) &&
-    Object.hasOwn(value, "assistantMessageID") &&
-    SessionLogSseValue88(value["assistantMessageID"]) &&
-    Object.hasOwn(value, "id") &&
-    SessionLogSseValue6(value["id"]) &&
-    Object.hasOwn(value, "text") &&
-    SessionLogSseValue6(value["text"])
-  )
-}
-
-function SessionLogSseValue624(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    SessionLogSseValue3(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    SessionLogSseValue4(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || SessionLogSseValue625(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    SessionLogSseValue626(value["type"]) &&
-    Object.hasOwn(value, "durable") &&
-    SessionLogSseValue627(value["durable"]) &&
-    (!Object.hasOwn(value, "location") || SessionLogSseValue12(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    SessionLogSseValue629(value["data"])
-  )
-}
-
-function SessionLogSseValue631(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue7(item))
-  )
-}
-
-function SessionLogSseValue632(value: unknown): boolean {
-  return value === "session.tool.called"
-}
-
-function SessionLogSseValue634(value: unknown): boolean {
-  return value === 1
-}
-
-function SessionLogSseValue633(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "aggregateID") &&
-    SessionLogSseValue6(value["aggregateID"]) &&
-    Object.hasOwn(value, "seq") &&
-    SessionLogSseValue10(value["seq"]) &&
-    Object.hasOwn(value, "version") &&
-    SessionLogSseValue634(value["version"])
-  )
-}
-
-function SessionLogSseValue636(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue7(item))
-  )
-}
-
 function SessionLogSseValue635(value: unknown): boolean {
   return (
     isSseRecord(value) &&
-    Object.hasOwn(value, "sessionID") &&
-    SessionLogSseValue16(value["sessionID"]) &&
-    Object.hasOwn(value, "assistantMessageID") &&
-    SessionLogSseValue88(value["assistantMessageID"]) &&
-    Object.hasOwn(value, "id") &&
-    SessionLogSseValue6(value["id"]) &&
-    Object.hasOwn(value, "input") &&
-    SessionLogSseValue636(value["input"]) &&
-    Object.hasOwn(value, "executed") &&
-    SessionLogSseValue199(value["executed"]) &&
-    (!Object.hasOwn(value, "state") || SessionLogSseValue571(value["state"]))
-  )
-}
-
-function SessionLogSseValue630(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     SessionLogSseValue3(value["id"]) &&
     Object.hasOwn(value, "created") &&
     SessionLogSseValue4(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || SessionLogSseValue631(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || SessionLogSseValue636(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    SessionLogSseValue632(value["type"]) &&
+    SessionLogSseValue637(value["type"]) &&
     Object.hasOwn(value, "durable") &&
-    SessionLogSseValue633(value["durable"]) &&
+    SessionLogSseValue638(value["durable"]) &&
     (!Object.hasOwn(value, "location") || SessionLogSseValue12(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    SessionLogSseValue635(value["data"])
-  )
-}
-
-function SessionLogSseValue638(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue7(item))
-  )
-}
-
-function SessionLogSseValue639(value: unknown): boolean {
-  return value === "session.tool.success"
-}
-
-function SessionLogSseValue641(value: unknown): boolean {
-  return value === 2
-}
-
-function SessionLogSseValue640(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "aggregateID") &&
-    SessionLogSseValue6(value["aggregateID"]) &&
-    Object.hasOwn(value, "seq") &&
-    SessionLogSseValue10(value["seq"]) &&
-    Object.hasOwn(value, "version") &&
-    SessionLogSseValue641(value["version"])
-  )
-}
-
-function SessionLogSseValue646(value: unknown): boolean {
-  return value === "text"
-}
-
-function SessionLogSseValue645(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "type") &&
-    SessionLogSseValue646(value["type"]) &&
-    Object.hasOwn(value, "text") &&
-    SessionLogSseValue6(value["text"])
-  )
-}
-
-function SessionLogSseValue648(value: unknown): boolean {
-  return value === "file"
-}
-
-function SessionLogSseValue650(value: unknown): boolean {
-  return value === undefined
-}
-
-function SessionLogSseValue649(value: unknown): boolean {
-  return SessionLogSseValue6(value) || SessionLogSseValue650(value)
-}
-
-function SessionLogSseValue647(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "type") &&
-    SessionLogSseValue648(value["type"]) &&
-    Object.hasOwn(value, "uri") &&
-    SessionLogSseValue6(value["uri"]) &&
-    Object.hasOwn(value, "mime") &&
-    SessionLogSseValue6(value["mime"]) &&
-    (!Object.hasOwn(value, "name") || SessionLogSseValue649(value["name"]))
-  )
-}
-
-function SessionLogSseValue644(value: unknown): boolean {
-  return SessionLogSseValue645(value) || SessionLogSseValue647(value)
-}
-
-function SessionLogSseValue643(value: unknown): boolean {
-  return (
-    isSseArray(value) &&
-    value.length >= 1 &&
-    SessionLogSseValue644(value[0]) &&
-    value.slice(1).every(SessionLogSseValue644)
-  )
-}
-
-function SessionLogSseValue651(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue95(item))
+    SessionLogSseValue640(value["data"])
   )
 }
 
 function SessionLogSseValue642(value: unknown): boolean {
   return (
     isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue7(item))
+  )
+}
+
+function SessionLogSseValue643(value: unknown): boolean {
+  return value === "session.tool.input.ended"
+}
+
+function SessionLogSseValue645(value: unknown): boolean {
+  return value === 1
+}
+
+function SessionLogSseValue644(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "aggregateID") &&
+    SessionLogSseValue6(value["aggregateID"]) &&
+    Object.hasOwn(value, "seq") &&
+    SessionLogSseValue10(value["seq"]) &&
+    Object.hasOwn(value, "version") &&
+    SessionLogSseValue645(value["version"])
+  )
+}
+
+function SessionLogSseValue646(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
     SessionLogSseValue16(value["sessionID"]) &&
     Object.hasOwn(value, "assistantMessageID") &&
     SessionLogSseValue88(value["assistantMessageID"]) &&
     Object.hasOwn(value, "id") &&
     SessionLogSseValue6(value["id"]) &&
-    Object.hasOwn(value, "content") &&
-    SessionLogSseValue643(value["content"]) &&
-    (!Object.hasOwn(value, "metadata") || SessionLogSseValue651(value["metadata"])) &&
-    Object.hasOwn(value, "executed") &&
-    SessionLogSseValue199(value["executed"]) &&
-    (!Object.hasOwn(value, "resultState") || SessionLogSseValue571(value["resultState"]))
+    Object.hasOwn(value, "text") &&
+    SessionLogSseValue6(value["text"])
   )
 }
 
-function SessionLogSseValue637(value: unknown): boolean {
+function SessionLogSseValue641(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     SessionLogSseValue3(value["id"]) &&
     Object.hasOwn(value, "created") &&
     SessionLogSseValue4(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || SessionLogSseValue638(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || SessionLogSseValue642(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    SessionLogSseValue639(value["type"]) &&
+    SessionLogSseValue643(value["type"]) &&
     Object.hasOwn(value, "durable") &&
-    SessionLogSseValue640(value["durable"]) &&
+    SessionLogSseValue644(value["durable"]) &&
     (!Object.hasOwn(value, "location") || SessionLogSseValue12(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    SessionLogSseValue642(value["data"])
+    SessionLogSseValue646(value["data"])
+  )
+}
+
+function SessionLogSseValue648(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue7(item))
+  )
+}
+
+function SessionLogSseValue649(value: unknown): boolean {
+  return value === "session.tool.called"
+}
+
+function SessionLogSseValue651(value: unknown): boolean {
+  return value === 1
+}
+
+function SessionLogSseValue650(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "aggregateID") &&
+    SessionLogSseValue6(value["aggregateID"]) &&
+    Object.hasOwn(value, "seq") &&
+    SessionLogSseValue10(value["seq"]) &&
+    Object.hasOwn(value, "version") &&
+    SessionLogSseValue651(value["version"])
   )
 }
 
@@ -5720,15 +5649,57 @@ function SessionLogSseValue653(value: unknown): boolean {
   )
 }
 
-function SessionLogSseValue654(value: unknown): boolean {
-  return value === "session.tool.failed"
+function SessionLogSseValue652(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "sessionID") &&
+    SessionLogSseValue16(value["sessionID"]) &&
+    Object.hasOwn(value, "assistantMessageID") &&
+    SessionLogSseValue88(value["assistantMessageID"]) &&
+    Object.hasOwn(value, "id") &&
+    SessionLogSseValue6(value["id"]) &&
+    Object.hasOwn(value, "input") &&
+    SessionLogSseValue653(value["input"]) &&
+    Object.hasOwn(value, "executed") &&
+    SessionLogSseValue199(value["executed"]) &&
+    (!Object.hasOwn(value, "state") || SessionLogSseValue588(value["state"]))
+  )
 }
 
-function SessionLogSseValue656(value: unknown): boolean {
-  return value === 2
+function SessionLogSseValue647(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    SessionLogSseValue3(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    SessionLogSseValue4(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || SessionLogSseValue648(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    SessionLogSseValue649(value["type"]) &&
+    Object.hasOwn(value, "durable") &&
+    SessionLogSseValue650(value["durable"]) &&
+    (!Object.hasOwn(value, "location") || SessionLogSseValue12(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    SessionLogSseValue652(value["data"])
+  )
 }
 
 function SessionLogSseValue655(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue7(item))
+  )
+}
+
+function SessionLogSseValue656(value: unknown): boolean {
+  return value === "session.tool.success"
+}
+
+function SessionLogSseValue658(value: unknown): boolean {
+  return value === 2
+}
+
+function SessionLogSseValue657(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -5736,27 +5707,149 @@ function SessionLogSseValue655(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     SessionLogSseValue10(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    SessionLogSseValue656(value["version"])
+    SessionLogSseValue658(value["version"])
   )
 }
 
-function SessionLogSseValue658(value: unknown): boolean {
+function SessionLogSseValue663(value: unknown): boolean {
+  return value === "text"
+}
+
+function SessionLogSseValue662(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "type") &&
+    SessionLogSseValue663(value["type"]) &&
+    Object.hasOwn(value, "text") &&
+    SessionLogSseValue6(value["text"])
+  )
+}
+
+function SessionLogSseValue665(value: unknown): boolean {
+  return value === "file"
+}
+
+function SessionLogSseValue667(value: unknown): boolean {
+  return value === undefined
+}
+
+function SessionLogSseValue666(value: unknown): boolean {
+  return SessionLogSseValue6(value) || SessionLogSseValue667(value)
+}
+
+function SessionLogSseValue664(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "type") &&
+    SessionLogSseValue665(value["type"]) &&
+    Object.hasOwn(value, "uri") &&
+    SessionLogSseValue6(value["uri"]) &&
+    Object.hasOwn(value, "mime") &&
+    SessionLogSseValue6(value["mime"]) &&
+    (!Object.hasOwn(value, "name") || SessionLogSseValue666(value["name"]))
+  )
+}
+
+function SessionLogSseValue661(value: unknown): boolean {
+  return SessionLogSseValue662(value) || SessionLogSseValue664(value)
+}
+
+function SessionLogSseValue660(value: unknown): boolean {
   return (
     isSseArray(value) &&
     value.length >= 1 &&
-    SessionLogSseValue644(value[0]) &&
-    value.slice(1).every(SessionLogSseValue644)
+    SessionLogSseValue661(value[0]) &&
+    value.slice(1).every(SessionLogSseValue661)
   )
 }
 
-function SessionLogSseValue659(value: unknown): boolean {
+function SessionLogSseValue668(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue95(item))
   )
 }
 
-function SessionLogSseValue657(value: unknown): boolean {
+function SessionLogSseValue659(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "sessionID") &&
+    SessionLogSseValue16(value["sessionID"]) &&
+    Object.hasOwn(value, "assistantMessageID") &&
+    SessionLogSseValue88(value["assistantMessageID"]) &&
+    Object.hasOwn(value, "id") &&
+    SessionLogSseValue6(value["id"]) &&
+    Object.hasOwn(value, "content") &&
+    SessionLogSseValue660(value["content"]) &&
+    (!Object.hasOwn(value, "metadata") || SessionLogSseValue668(value["metadata"])) &&
+    Object.hasOwn(value, "executed") &&
+    SessionLogSseValue199(value["executed"]) &&
+    (!Object.hasOwn(value, "resultState") || SessionLogSseValue588(value["resultState"]))
+  )
+}
+
+function SessionLogSseValue654(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    SessionLogSseValue3(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    SessionLogSseValue4(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || SessionLogSseValue655(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    SessionLogSseValue656(value["type"]) &&
+    Object.hasOwn(value, "durable") &&
+    SessionLogSseValue657(value["durable"]) &&
+    (!Object.hasOwn(value, "location") || SessionLogSseValue12(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    SessionLogSseValue659(value["data"])
+  )
+}
+
+function SessionLogSseValue670(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue7(item))
+  )
+}
+
+function SessionLogSseValue671(value: unknown): boolean {
+  return value === "session.tool.failed"
+}
+
+function SessionLogSseValue673(value: unknown): boolean {
+  return value === 2
+}
+
+function SessionLogSseValue672(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "aggregateID") &&
+    SessionLogSseValue6(value["aggregateID"]) &&
+    Object.hasOwn(value, "seq") &&
+    SessionLogSseValue10(value["seq"]) &&
+    Object.hasOwn(value, "version") &&
+    SessionLogSseValue673(value["version"])
+  )
+}
+
+function SessionLogSseValue675(value: unknown): boolean {
+  return (
+    isSseArray(value) &&
+    value.length >= 1 &&
+    SessionLogSseValue661(value[0]) &&
+    value.slice(1).every(SessionLogSseValue661)
+  )
+}
+
+function SessionLogSseValue676(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue95(item))
+  )
+}
+
+function SessionLogSseValue674(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
@@ -5767,48 +5860,48 @@ function SessionLogSseValue657(value: unknown): boolean {
     SessionLogSseValue6(value["id"]) &&
     Object.hasOwn(value, "error") &&
     SessionLogSseValue315(value["error"]) &&
-    (!Object.hasOwn(value, "content") || SessionLogSseValue658(value["content"])) &&
-    (!Object.hasOwn(value, "metadata") || SessionLogSseValue659(value["metadata"])) &&
+    (!Object.hasOwn(value, "content") || SessionLogSseValue675(value["content"])) &&
+    (!Object.hasOwn(value, "metadata") || SessionLogSseValue676(value["metadata"])) &&
     Object.hasOwn(value, "executed") &&
     SessionLogSseValue199(value["executed"]) &&
-    (!Object.hasOwn(value, "resultState") || SessionLogSseValue571(value["resultState"]))
+    (!Object.hasOwn(value, "resultState") || SessionLogSseValue588(value["resultState"]))
   )
 }
 
-function SessionLogSseValue652(value: unknown): boolean {
+function SessionLogSseValue669(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     SessionLogSseValue3(value["id"]) &&
     Object.hasOwn(value, "created") &&
     SessionLogSseValue4(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || SessionLogSseValue653(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || SessionLogSseValue670(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    SessionLogSseValue654(value["type"]) &&
+    SessionLogSseValue671(value["type"]) &&
     Object.hasOwn(value, "durable") &&
-    SessionLogSseValue655(value["durable"]) &&
+    SessionLogSseValue672(value["durable"]) &&
     (!Object.hasOwn(value, "location") || SessionLogSseValue12(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    SessionLogSseValue657(value["data"])
+    SessionLogSseValue674(value["data"])
   )
 }
 
-function SessionLogSseValue661(value: unknown): boolean {
+function SessionLogSseValue678(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue7(item))
   )
 }
 
-function SessionLogSseValue662(value: unknown): boolean {
+function SessionLogSseValue679(value: unknown): boolean {
   return value === "session.retry.scheduled"
 }
 
-function SessionLogSseValue664(value: unknown): boolean {
+function SessionLogSseValue681(value: unknown): boolean {
   return value === 1
 }
 
-function SessionLogSseValue663(value: unknown): boolean {
+function SessionLogSseValue680(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -5816,11 +5909,11 @@ function SessionLogSseValue663(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     SessionLogSseValue10(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    SessionLogSseValue664(value["version"])
+    SessionLogSseValue681(value["version"])
   )
 }
 
-function SessionLogSseValue665(value: unknown): boolean {
+function SessionLogSseValue682(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
@@ -5836,40 +5929,40 @@ function SessionLogSseValue665(value: unknown): boolean {
   )
 }
 
-function SessionLogSseValue660(value: unknown): boolean {
+function SessionLogSseValue677(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     SessionLogSseValue3(value["id"]) &&
     Object.hasOwn(value, "created") &&
     SessionLogSseValue4(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || SessionLogSseValue661(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || SessionLogSseValue678(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    SessionLogSseValue662(value["type"]) &&
+    SessionLogSseValue679(value["type"]) &&
     Object.hasOwn(value, "durable") &&
-    SessionLogSseValue663(value["durable"]) &&
+    SessionLogSseValue680(value["durable"]) &&
     (!Object.hasOwn(value, "location") || SessionLogSseValue12(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    SessionLogSseValue665(value["data"])
+    SessionLogSseValue682(value["data"])
   )
 }
 
-function SessionLogSseValue667(value: unknown): boolean {
+function SessionLogSseValue684(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue7(item))
   )
 }
 
-function SessionLogSseValue668(value: unknown): boolean {
+function SessionLogSseValue685(value: unknown): boolean {
   return value === "session.compaction.started"
 }
 
-function SessionLogSseValue670(value: unknown): boolean {
+function SessionLogSseValue687(value: unknown): boolean {
   return value === 1
 }
 
-function SessionLogSseValue669(value: unknown): boolean {
+function SessionLogSseValue686(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -5877,69 +5970,69 @@ function SessionLogSseValue669(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     SessionLogSseValue10(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    SessionLogSseValue670(value["version"])
+    SessionLogSseValue687(value["version"])
   )
 }
 
-function SessionLogSseValue673(value: unknown): boolean {
+function SessionLogSseValue690(value: unknown): boolean {
   return value === "auto"
 }
 
-function SessionLogSseValue674(value: unknown): boolean {
+function SessionLogSseValue691(value: unknown): boolean {
   return value === "manual"
 }
 
-function SessionLogSseValue672(value: unknown): boolean {
-  return SessionLogSseValue673(value) || SessionLogSseValue674(value)
+function SessionLogSseValue689(value: unknown): boolean {
+  return SessionLogSseValue690(value) || SessionLogSseValue691(value)
 }
 
-function SessionLogSseValue671(value: unknown): boolean {
+function SessionLogSseValue688(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
     SessionLogSseValue16(value["sessionID"]) &&
     Object.hasOwn(value, "reason") &&
-    SessionLogSseValue672(value["reason"]) &&
+    SessionLogSseValue689(value["reason"]) &&
     Object.hasOwn(value, "recent") &&
     SessionLogSseValue6(value["recent"]) &&
     (!Object.hasOwn(value, "inputID") || SessionLogSseValue308(value["inputID"]))
   )
 }
 
-function SessionLogSseValue666(value: unknown): boolean {
+function SessionLogSseValue683(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     SessionLogSseValue3(value["id"]) &&
     Object.hasOwn(value, "created") &&
     SessionLogSseValue4(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || SessionLogSseValue667(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || SessionLogSseValue684(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    SessionLogSseValue668(value["type"]) &&
+    SessionLogSseValue685(value["type"]) &&
     Object.hasOwn(value, "durable") &&
-    SessionLogSseValue669(value["durable"]) &&
+    SessionLogSseValue686(value["durable"]) &&
     (!Object.hasOwn(value, "location") || SessionLogSseValue12(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    SessionLogSseValue671(value["data"])
+    SessionLogSseValue688(value["data"])
   )
 }
 
-function SessionLogSseValue676(value: unknown): boolean {
+function SessionLogSseValue693(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue7(item))
   )
 }
 
-function SessionLogSseValue677(value: unknown): boolean {
+function SessionLogSseValue694(value: unknown): boolean {
   return value === "session.compaction.ended"
 }
 
-function SessionLogSseValue679(value: unknown): boolean {
+function SessionLogSseValue696(value: unknown): boolean {
   return value === 1
 }
 
-function SessionLogSseValue678(value: unknown): boolean {
+function SessionLogSseValue695(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -5947,11 +6040,11 @@ function SessionLogSseValue678(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     SessionLogSseValue10(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    SessionLogSseValue679(value["version"])
+    SessionLogSseValue696(value["version"])
   )
 }
 
-function SessionLogSseValue681(value: unknown): boolean {
+function SessionLogSseValue698(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
@@ -5962,11 +6055,11 @@ function SessionLogSseValue681(value: unknown): boolean {
   )
 }
 
-function SessionLogSseValue683(value: unknown): boolean {
+function SessionLogSseValue700(value: unknown): boolean {
   return value === 1
 }
 
-function SessionLogSseValue684(value: unknown): boolean {
+function SessionLogSseValue701(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "providerID") &&
@@ -5986,131 +6079,71 @@ function SessionLogSseValue684(value: unknown): boolean {
   )
 }
 
-function SessionLogSseValue682(value: unknown): boolean {
+function SessionLogSseValue699(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "version") &&
-    SessionLogSseValue683(value["version"]) &&
+    SessionLogSseValue700(value["version"]) &&
     Object.hasOwn(value, "provenance") &&
-    SessionLogSseValue684(value["provenance"]) &&
+    SessionLogSseValue701(value["provenance"]) &&
     Object.hasOwn(value, "messages") &&
     SessionLogSseValue95(value["messages"])
   )
 }
 
-function SessionLogSseValue680(value: unknown): boolean {
+function SessionLogSseValue697(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
     SessionLogSseValue16(value["sessionID"]) &&
     Object.hasOwn(value, "reason") &&
-    SessionLogSseValue672(value["reason"]) &&
-    (!Object.hasOwn(value, "model") || SessionLogSseValue681(value["model"])) &&
-    (!Object.hasOwn(value, "providerState") || SessionLogSseValue571(value["providerState"])) &&
-    (!Object.hasOwn(value, "providerContext") || SessionLogSseValue682(value["providerContext"])) &&
+    SessionLogSseValue689(value["reason"]) &&
+    (!Object.hasOwn(value, "model") || SessionLogSseValue698(value["model"])) &&
+    (!Object.hasOwn(value, "providerState") || SessionLogSseValue588(value["providerState"])) &&
+    (!Object.hasOwn(value, "providerContext") || SessionLogSseValue699(value["providerContext"])) &&
     Object.hasOwn(value, "text") &&
     SessionLogSseValue6(value["text"]) &&
     Object.hasOwn(value, "recent") &&
     SessionLogSseValue6(value["recent"]) &&
-    (!Object.hasOwn(value, "cost") || SessionLogSseValue547(value["cost"])) &&
-    (!Object.hasOwn(value, "tokens") || SessionLogSseValue545(value["tokens"]))
-  )
-}
-
-function SessionLogSseValue675(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    SessionLogSseValue3(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    SessionLogSseValue4(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || SessionLogSseValue676(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    SessionLogSseValue677(value["type"]) &&
-    Object.hasOwn(value, "durable") &&
-    SessionLogSseValue678(value["durable"]) &&
-    (!Object.hasOwn(value, "location") || SessionLogSseValue12(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    SessionLogSseValue680(value["data"])
-  )
-}
-
-function SessionLogSseValue686(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue7(item))
-  )
-}
-
-function SessionLogSseValue687(value: unknown): boolean {
-  return value === "session.compaction.failed"
-}
-
-function SessionLogSseValue689(value: unknown): boolean {
-  return value === 1
-}
-
-function SessionLogSseValue688(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "aggregateID") &&
-    SessionLogSseValue6(value["aggregateID"]) &&
-    Object.hasOwn(value, "seq") &&
-    SessionLogSseValue10(value["seq"]) &&
-    Object.hasOwn(value, "version") &&
-    SessionLogSseValue689(value["version"])
-  )
-}
-
-function SessionLogSseValue690(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "sessionID") &&
-    SessionLogSseValue16(value["sessionID"]) &&
-    Object.hasOwn(value, "reason") &&
-    SessionLogSseValue672(value["reason"]) &&
-    Object.hasOwn(value, "error") &&
-    SessionLogSseValue315(value["error"]) &&
-    (!Object.hasOwn(value, "inputID") || SessionLogSseValue308(value["inputID"])) &&
-    (!Object.hasOwn(value, "cost") || SessionLogSseValue547(value["cost"])) &&
-    (!Object.hasOwn(value, "tokens") || SessionLogSseValue545(value["tokens"]))
-  )
-}
-
-function SessionLogSseValue685(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    SessionLogSseValue3(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    SessionLogSseValue4(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || SessionLogSseValue686(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    SessionLogSseValue687(value["type"]) &&
-    Object.hasOwn(value, "durable") &&
-    SessionLogSseValue688(value["durable"]) &&
-    (!Object.hasOwn(value, "location") || SessionLogSseValue12(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    SessionLogSseValue690(value["data"])
+    (!Object.hasOwn(value, "cost") || SessionLogSseValue553(value["cost"])) &&
+    (!Object.hasOwn(value, "tokens") || SessionLogSseValue551(value["tokens"]))
   )
 }
 
 function SessionLogSseValue692(value: unknown): boolean {
   return (
     isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    SessionLogSseValue3(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    SessionLogSseValue4(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || SessionLogSseValue693(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    SessionLogSseValue694(value["type"]) &&
+    Object.hasOwn(value, "durable") &&
+    SessionLogSseValue695(value["durable"]) &&
+    (!Object.hasOwn(value, "location") || SessionLogSseValue12(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    SessionLogSseValue697(value["data"])
+  )
+}
+
+function SessionLogSseValue703(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue7(item))
   )
 }
 
-function SessionLogSseValue693(value: unknown): boolean {
-  return value === "session.revert.staged"
+function SessionLogSseValue704(value: unknown): boolean {
+  return value === "session.compaction.failed"
 }
 
-function SessionLogSseValue695(value: unknown): boolean {
+function SessionLogSseValue706(value: unknown): boolean {
   return value === 1
 }
 
-function SessionLogSseValue694(value: unknown): boolean {
+function SessionLogSseValue705(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -6118,31 +6151,91 @@ function SessionLogSseValue694(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     SessionLogSseValue10(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    SessionLogSseValue695(value["version"])
+    SessionLogSseValue706(value["version"])
   )
 }
 
-function SessionLogSseValue698(value: unknown): boolean {
-  return typeof value === "string"
+function SessionLogSseValue707(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "sessionID") &&
+    SessionLogSseValue16(value["sessionID"]) &&
+    Object.hasOwn(value, "reason") &&
+    SessionLogSseValue689(value["reason"]) &&
+    Object.hasOwn(value, "error") &&
+    SessionLogSseValue315(value["error"]) &&
+    (!Object.hasOwn(value, "inputID") || SessionLogSseValue308(value["inputID"])) &&
+    (!Object.hasOwn(value, "cost") || SessionLogSseValue553(value["cost"])) &&
+    (!Object.hasOwn(value, "tokens") || SessionLogSseValue551(value["tokens"]))
+  )
 }
 
 function SessionLogSseValue702(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    SessionLogSseValue3(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    SessionLogSseValue4(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || SessionLogSseValue703(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    SessionLogSseValue704(value["type"]) &&
+    Object.hasOwn(value, "durable") &&
+    SessionLogSseValue705(value["durable"]) &&
+    (!Object.hasOwn(value, "location") || SessionLogSseValue12(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    SessionLogSseValue707(value["data"])
+  )
+}
+
+function SessionLogSseValue709(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue7(item))
+  )
+}
+
+function SessionLogSseValue710(value: unknown): boolean {
+  return value === "session.revert.staged"
+}
+
+function SessionLogSseValue712(value: unknown): boolean {
+  return value === 1
+}
+
+function SessionLogSseValue711(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "aggregateID") &&
+    SessionLogSseValue6(value["aggregateID"]) &&
+    Object.hasOwn(value, "seq") &&
+    SessionLogSseValue10(value["seq"]) &&
+    Object.hasOwn(value, "version") &&
+    SessionLogSseValue712(value["version"])
+  )
+}
+
+function SessionLogSseValue715(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function SessionLogSseValue719(value: unknown): boolean {
   return value === "added"
 }
 
-function SessionLogSseValue703(value: unknown): boolean {
+function SessionLogSseValue720(value: unknown): boolean {
   return value === "deleted"
 }
 
-function SessionLogSseValue704(value: unknown): boolean {
+function SessionLogSseValue721(value: unknown): boolean {
   return value === "modified"
 }
 
-function SessionLogSseValue701(value: unknown): boolean {
-  return SessionLogSseValue702(value) || SessionLogSseValue703(value) || SessionLogSseValue704(value)
+function SessionLogSseValue718(value: unknown): boolean {
+  return SessionLogSseValue719(value) || SessionLogSseValue720(value) || SessionLogSseValue721(value)
 }
 
-function SessionLogSseValue700(value: unknown): boolean {
+function SessionLogSseValue717(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "file") &&
@@ -6154,178 +6247,178 @@ function SessionLogSseValue700(value: unknown): boolean {
     Object.hasOwn(value, "deletions") &&
     SessionLogSseValue380(value["deletions"]) &&
     Object.hasOwn(value, "status") &&
-    SessionLogSseValue701(value["status"])
+    SessionLogSseValue718(value["status"])
   )
 }
 
-function SessionLogSseValue699(value: unknown): boolean {
-  return isSseArray(value) && value.length >= 0 && value.slice(0).every(SessionLogSseValue700)
-}
-
-function SessionLogSseValue697(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "messageID") &&
-    SessionLogSseValue88(value["messageID"]) &&
-    (!Object.hasOwn(value, "partID") || SessionLogSseValue698(value["partID"])) &&
-    (!Object.hasOwn(value, "snapshot") || SessionLogSseValue555(value["snapshot"])) &&
-    (!Object.hasOwn(value, "files") || SessionLogSseValue699(value["files"]))
-  )
-}
-
-function SessionLogSseValue696(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "sessionID") &&
-    SessionLogSseValue16(value["sessionID"]) &&
-    Object.hasOwn(value, "revert") &&
-    SessionLogSseValue697(value["revert"])
-  )
-}
-
-function SessionLogSseValue691(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    SessionLogSseValue3(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    SessionLogSseValue4(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || SessionLogSseValue692(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    SessionLogSseValue693(value["type"]) &&
-    Object.hasOwn(value, "durable") &&
-    SessionLogSseValue694(value["durable"]) &&
-    (!Object.hasOwn(value, "location") || SessionLogSseValue12(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    SessionLogSseValue696(value["data"])
-  )
-}
-
-function SessionLogSseValue706(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue7(item))
-  )
-}
-
-function SessionLogSseValue707(value: unknown): boolean {
-  return value === "session.revert.cleared"
-}
-
-function SessionLogSseValue709(value: unknown): boolean {
-  return value === 1
-}
-
-function SessionLogSseValue708(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "aggregateID") &&
-    SessionLogSseValue6(value["aggregateID"]) &&
-    Object.hasOwn(value, "seq") &&
-    SessionLogSseValue10(value["seq"]) &&
-    Object.hasOwn(value, "version") &&
-    SessionLogSseValue709(value["version"])
-  )
-}
-
-function SessionLogSseValue710(value: unknown): boolean {
-  return isSseRecord(value) && Object.hasOwn(value, "sessionID") && SessionLogSseValue16(value["sessionID"])
-}
-
-function SessionLogSseValue705(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    SessionLogSseValue3(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    SessionLogSseValue4(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || SessionLogSseValue706(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    SessionLogSseValue707(value["type"]) &&
-    Object.hasOwn(value, "durable") &&
-    SessionLogSseValue708(value["durable"]) &&
-    (!Object.hasOwn(value, "location") || SessionLogSseValue12(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    SessionLogSseValue710(value["data"])
-  )
-}
-
-function SessionLogSseValue712(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue7(item))
-  )
-}
-
-function SessionLogSseValue713(value: unknown): boolean {
-  return value === "session.revert.committed"
-}
-
-function SessionLogSseValue715(value: unknown): boolean {
-  return value === 1
+function SessionLogSseValue716(value: unknown): boolean {
+  return isSseArray(value) && value.length >= 0 && value.slice(0).every(SessionLogSseValue717)
 }
 
 function SessionLogSseValue714(value: unknown): boolean {
   return (
     isSseRecord(value) &&
+    Object.hasOwn(value, "messageID") &&
+    SessionLogSseValue88(value["messageID"]) &&
+    (!Object.hasOwn(value, "partID") || SessionLogSseValue715(value["partID"])) &&
+    (!Object.hasOwn(value, "snapshot") || SessionLogSseValue572(value["snapshot"])) &&
+    (!Object.hasOwn(value, "files") || SessionLogSseValue716(value["files"]))
+  )
+}
+
+function SessionLogSseValue713(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "sessionID") &&
+    SessionLogSseValue16(value["sessionID"]) &&
+    Object.hasOwn(value, "revert") &&
+    SessionLogSseValue714(value["revert"])
+  )
+}
+
+function SessionLogSseValue708(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    SessionLogSseValue3(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    SessionLogSseValue4(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || SessionLogSseValue709(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    SessionLogSseValue710(value["type"]) &&
+    Object.hasOwn(value, "durable") &&
+    SessionLogSseValue711(value["durable"]) &&
+    (!Object.hasOwn(value, "location") || SessionLogSseValue12(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    SessionLogSseValue713(value["data"])
+  )
+}
+
+function SessionLogSseValue723(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue7(item))
+  )
+}
+
+function SessionLogSseValue724(value: unknown): boolean {
+  return value === "session.revert.cleared"
+}
+
+function SessionLogSseValue726(value: unknown): boolean {
+  return value === 1
+}
+
+function SessionLogSseValue725(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
     SessionLogSseValue6(value["aggregateID"]) &&
     Object.hasOwn(value, "seq") &&
     SessionLogSseValue10(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    SessionLogSseValue715(value["version"])
+    SessionLogSseValue726(value["version"])
   )
 }
 
-function SessionLogSseValue717(value: unknown): boolean {
+function SessionLogSseValue727(value: unknown): boolean {
+  return isSseRecord(value) && Object.hasOwn(value, "sessionID") && SessionLogSseValue16(value["sessionID"])
+}
+
+function SessionLogSseValue722(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    SessionLogSseValue3(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    SessionLogSseValue4(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || SessionLogSseValue723(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    SessionLogSseValue724(value["type"]) &&
+    Object.hasOwn(value, "durable") &&
+    SessionLogSseValue725(value["durable"]) &&
+    (!Object.hasOwn(value, "location") || SessionLogSseValue12(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    SessionLogSseValue727(value["data"])
+  )
+}
+
+function SessionLogSseValue729(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue7(item))
+  )
+}
+
+function SessionLogSseValue730(value: unknown): boolean {
+  return value === "session.revert.committed"
+}
+
+function SessionLogSseValue732(value: unknown): boolean {
+  return value === 1
+}
+
+function SessionLogSseValue731(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "aggregateID") &&
+    SessionLogSseValue6(value["aggregateID"]) &&
+    Object.hasOwn(value, "seq") &&
+    SessionLogSseValue10(value["seq"]) &&
+    Object.hasOwn(value, "version") &&
+    SessionLogSseValue732(value["version"])
+  )
+}
+
+function SessionLogSseValue734(value: unknown): boolean {
   return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value >= 0
 }
 
-function SessionLogSseValue716(value: unknown): boolean {
+function SessionLogSseValue733(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
     SessionLogSseValue16(value["sessionID"]) &&
     Object.hasOwn(value, "to") &&
     SessionLogSseValue88(value["to"]) &&
-    (!Object.hasOwn(value, "boundarySeq") || SessionLogSseValue717(value["boundarySeq"]))
+    (!Object.hasOwn(value, "boundarySeq") || SessionLogSseValue734(value["boundarySeq"]))
   )
 }
 
-function SessionLogSseValue711(value: unknown): boolean {
+function SessionLogSseValue728(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     SessionLogSseValue3(value["id"]) &&
     Object.hasOwn(value, "created") &&
     SessionLogSseValue4(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || SessionLogSseValue712(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || SessionLogSseValue729(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    SessionLogSseValue713(value["type"]) &&
+    SessionLogSseValue730(value["type"]) &&
     Object.hasOwn(value, "durable") &&
-    SessionLogSseValue714(value["durable"]) &&
+    SessionLogSseValue731(value["durable"]) &&
     (!Object.hasOwn(value, "location") || SessionLogSseValue12(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    SessionLogSseValue716(value["data"])
+    SessionLogSseValue733(value["data"])
   )
 }
 
-function SessionLogSseValue719(value: unknown): boolean {
+function SessionLogSseValue736(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue7(item))
   )
 }
 
-function SessionLogSseValue720(value: unknown): boolean {
+function SessionLogSseValue737(value: unknown): boolean {
   return value === "session.next.verify.started"
 }
 
-function SessionLogSseValue722(value: unknown): boolean {
+function SessionLogSseValue739(value: unknown): boolean {
   return value === 1
 }
 
-function SessionLogSseValue721(value: unknown): boolean {
+function SessionLogSseValue738(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -6333,11 +6426,11 @@ function SessionLogSseValue721(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     SessionLogSseValue10(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    SessionLogSseValue722(value["version"])
+    SessionLogSseValue739(value["version"])
   )
 }
 
-function SessionLogSseValue723(value: unknown): boolean {
+function SessionLogSseValue740(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
@@ -6349,40 +6442,40 @@ function SessionLogSseValue723(value: unknown): boolean {
   )
 }
 
-function SessionLogSseValue718(value: unknown): boolean {
+function SessionLogSseValue735(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     SessionLogSseValue3(value["id"]) &&
     Object.hasOwn(value, "created") &&
     SessionLogSseValue4(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || SessionLogSseValue719(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || SessionLogSseValue736(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    SessionLogSseValue720(value["type"]) &&
+    SessionLogSseValue737(value["type"]) &&
     Object.hasOwn(value, "durable") &&
-    SessionLogSseValue721(value["durable"]) &&
+    SessionLogSseValue738(value["durable"]) &&
     (!Object.hasOwn(value, "location") || SessionLogSseValue12(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    SessionLogSseValue723(value["data"])
+    SessionLogSseValue740(value["data"])
   )
 }
 
-function SessionLogSseValue725(value: unknown): boolean {
+function SessionLogSseValue742(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue7(item))
   )
 }
 
-function SessionLogSseValue726(value: unknown): boolean {
+function SessionLogSseValue743(value: unknown): boolean {
   return value === "session.next.verify.passed"
 }
 
-function SessionLogSseValue728(value: unknown): boolean {
+function SessionLogSseValue745(value: unknown): boolean {
   return value === 1
 }
 
-function SessionLogSseValue727(value: unknown): boolean {
+function SessionLogSseValue744(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -6390,11 +6483,11 @@ function SessionLogSseValue727(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     SessionLogSseValue10(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    SessionLogSseValue728(value["version"])
+    SessionLogSseValue745(value["version"])
   )
 }
 
-function SessionLogSseValue729(value: unknown): boolean {
+function SessionLogSseValue746(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
@@ -6408,40 +6501,40 @@ function SessionLogSseValue729(value: unknown): boolean {
   )
 }
 
-function SessionLogSseValue724(value: unknown): boolean {
+function SessionLogSseValue741(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     SessionLogSseValue3(value["id"]) &&
     Object.hasOwn(value, "created") &&
     SessionLogSseValue4(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || SessionLogSseValue725(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || SessionLogSseValue742(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    SessionLogSseValue726(value["type"]) &&
+    SessionLogSseValue743(value["type"]) &&
     Object.hasOwn(value, "durable") &&
-    SessionLogSseValue727(value["durable"]) &&
+    SessionLogSseValue744(value["durable"]) &&
     (!Object.hasOwn(value, "location") || SessionLogSseValue12(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    SessionLogSseValue729(value["data"])
+    SessionLogSseValue746(value["data"])
   )
 }
 
-function SessionLogSseValue731(value: unknown): boolean {
+function SessionLogSseValue748(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue7(item))
   )
 }
 
-function SessionLogSseValue732(value: unknown): boolean {
+function SessionLogSseValue749(value: unknown): boolean {
   return value === "session.next.verify.failed"
 }
 
-function SessionLogSseValue734(value: unknown): boolean {
+function SessionLogSseValue751(value: unknown): boolean {
   return value === 1
 }
 
-function SessionLogSseValue733(value: unknown): boolean {
+function SessionLogSseValue750(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -6449,11 +6542,11 @@ function SessionLogSseValue733(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     SessionLogSseValue10(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    SessionLogSseValue734(value["version"])
+    SessionLogSseValue751(value["version"])
   )
 }
 
-function SessionLogSseValue735(value: unknown): boolean {
+function SessionLogSseValue752(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
@@ -6469,40 +6562,40 @@ function SessionLogSseValue735(value: unknown): boolean {
   )
 }
 
-function SessionLogSseValue730(value: unknown): boolean {
+function SessionLogSseValue747(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     SessionLogSseValue3(value["id"]) &&
     Object.hasOwn(value, "created") &&
     SessionLogSseValue4(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || SessionLogSseValue731(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || SessionLogSseValue748(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    SessionLogSseValue732(value["type"]) &&
+    SessionLogSseValue749(value["type"]) &&
     Object.hasOwn(value, "durable") &&
-    SessionLogSseValue733(value["durable"]) &&
+    SessionLogSseValue750(value["durable"]) &&
     (!Object.hasOwn(value, "location") || SessionLogSseValue12(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    SessionLogSseValue735(value["data"])
+    SessionLogSseValue752(value["data"])
   )
 }
 
-function SessionLogSseValue737(value: unknown): boolean {
+function SessionLogSseValue754(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue7(item))
   )
 }
 
-function SessionLogSseValue738(value: unknown): boolean {
+function SessionLogSseValue755(value: unknown): boolean {
   return value === "session.usage.recorded"
 }
 
-function SessionLogSseValue740(value: unknown): boolean {
+function SessionLogSseValue757(value: unknown): boolean {
   return value === 1
 }
 
-function SessionLogSseValue739(value: unknown): boolean {
+function SessionLogSseValue756(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -6510,70 +6603,70 @@ function SessionLogSseValue739(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     SessionLogSseValue10(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    SessionLogSseValue740(value["version"])
+    SessionLogSseValue757(value["version"])
   )
 }
 
-function SessionLogSseValue743(value: unknown): boolean {
+function SessionLogSseValue760(value: unknown): boolean {
   return value === "title"
 }
 
-function SessionLogSseValue744(value: unknown): boolean {
+function SessionLogSseValue761(value: unknown): boolean {
   return value === "compaction"
 }
 
-function SessionLogSseValue742(value: unknown): boolean {
-  return SessionLogSseValue743(value) || SessionLogSseValue744(value)
+function SessionLogSseValue759(value: unknown): boolean {
+  return SessionLogSseValue760(value) || SessionLogSseValue761(value)
 }
 
-function SessionLogSseValue741(value: unknown): boolean {
+function SessionLogSseValue758(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
     SessionLogSseValue16(value["sessionID"]) &&
     Object.hasOwn(value, "source") &&
-    SessionLogSseValue742(value["source"]) &&
+    SessionLogSseValue759(value["source"]) &&
     Object.hasOwn(value, "cost") &&
-    SessionLogSseValue572(value["cost"]) &&
+    SessionLogSseValue589(value["cost"]) &&
     Object.hasOwn(value, "tokens") &&
-    SessionLogSseValue573(value["tokens"])
+    SessionLogSseValue590(value["tokens"])
   )
 }
 
-function SessionLogSseValue736(value: unknown): boolean {
+function SessionLogSseValue753(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     SessionLogSseValue3(value["id"]) &&
     Object.hasOwn(value, "created") &&
     SessionLogSseValue4(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || SessionLogSseValue737(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || SessionLogSseValue754(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    SessionLogSseValue738(value["type"]) &&
+    SessionLogSseValue755(value["type"]) &&
     Object.hasOwn(value, "durable") &&
-    SessionLogSseValue739(value["durable"]) &&
+    SessionLogSseValue756(value["durable"]) &&
     (!Object.hasOwn(value, "location") || SessionLogSseValue12(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    SessionLogSseValue741(value["data"])
+    SessionLogSseValue758(value["data"])
   )
 }
 
-function SessionLogSseValue746(value: unknown): boolean {
+function SessionLogSseValue763(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue7(item))
   )
 }
 
-function SessionLogSseValue747(value: unknown): boolean {
+function SessionLogSseValue764(value: unknown): boolean {
   return value === "session.message.content.updated"
 }
 
-function SessionLogSseValue749(value: unknown): boolean {
+function SessionLogSseValue766(value: unknown): boolean {
   return value === 1
 }
 
-function SessionLogSseValue748(value: unknown): boolean {
+function SessionLogSseValue765(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -6581,242 +6674,242 @@ function SessionLogSseValue748(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     SessionLogSseValue10(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    SessionLogSseValue749(value["version"])
+    SessionLogSseValue766(value["version"])
   )
-}
-
-function SessionLogSseValue754(value: unknown): boolean {
-  return value === "text"
-}
-
-function SessionLogSseValue753(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "type") &&
-    SessionLogSseValue754(value["type"]) &&
-    Object.hasOwn(value, "text") &&
-    SessionLogSseValue6(value["text"]) &&
-    (!Object.hasOwn(value, "state") || SessionLogSseValue571(value["state"]))
-  )
-}
-
-function SessionLogSseValue756(value: unknown): boolean {
-  return value === "reasoning"
-}
-
-function SessionLogSseValue758(value: unknown): boolean {
-  return typeof value === "number" && Number.isFinite(value)
-}
-
-function SessionLogSseValue757(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "created") &&
-    SessionLogSseValue4(value["created"]) &&
-    (!Object.hasOwn(value, "completed") || SessionLogSseValue758(value["completed"]))
-  )
-}
-
-function SessionLogSseValue755(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "type") &&
-    SessionLogSseValue756(value["type"]) &&
-    Object.hasOwn(value, "text") &&
-    SessionLogSseValue6(value["text"]) &&
-    (!Object.hasOwn(value, "state") || SessionLogSseValue571(value["state"])) &&
-    (!Object.hasOwn(value, "time") || SessionLogSseValue757(value["time"]))
-  )
-}
-
-function SessionLogSseValue760(value: unknown): boolean {
-  return value === "tool"
-}
-
-function SessionLogSseValue761(value: unknown): boolean {
-  return typeof value === "boolean"
-}
-
-function SessionLogSseValue764(value: unknown): boolean {
-  return value === "streaming"
-}
-
-function SessionLogSseValue763(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "status") &&
-    SessionLogSseValue764(value["status"]) &&
-    Object.hasOwn(value, "input") &&
-    SessionLogSseValue6(value["input"])
-  )
-}
-
-function SessionLogSseValue766(value: unknown): boolean {
-  return value === "running"
-}
-
-function SessionLogSseValue767(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue7(item))
-  )
-}
-
-function SessionLogSseValue768(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue95(item))
-  )
-}
-
-function SessionLogSseValue765(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "status") &&
-    SessionLogSseValue766(value["status"]) &&
-    Object.hasOwn(value, "input") &&
-    SessionLogSseValue767(value["input"]) &&
-    Object.hasOwn(value, "metadata") &&
-    SessionLogSseValue768(value["metadata"])
-  )
-}
-
-function SessionLogSseValue770(value: unknown): boolean {
-  return value === "completed"
 }
 
 function SessionLogSseValue771(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue7(item))
-  )
+  return value === "text"
 }
 
-function SessionLogSseValue772(value: unknown): boolean {
+function SessionLogSseValue770(value: unknown): boolean {
   return (
-    isSseArray(value) &&
-    value.length >= 1 &&
-    SessionLogSseValue644(value[0]) &&
-    value.slice(1).every(SessionLogSseValue644)
+    isSseRecord(value) &&
+    Object.hasOwn(value, "type") &&
+    SessionLogSseValue771(value["type"]) &&
+    Object.hasOwn(value, "text") &&
+    SessionLogSseValue6(value["text"]) &&
+    (!Object.hasOwn(value, "state") || SessionLogSseValue588(value["state"]))
   )
 }
 
 function SessionLogSseValue773(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue95(item))
-  )
-}
-
-function SessionLogSseValue769(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "status") &&
-    SessionLogSseValue770(value["status"]) &&
-    Object.hasOwn(value, "input") &&
-    SessionLogSseValue771(value["input"]) &&
-    Object.hasOwn(value, "content") &&
-    SessionLogSseValue772(value["content"]) &&
-    (!Object.hasOwn(value, "metadata") || SessionLogSseValue773(value["metadata"]))
-  )
+  return value === "reasoning"
 }
 
 function SessionLogSseValue775(value: unknown): boolean {
-  return value === "error"
-}
-
-function SessionLogSseValue776(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue7(item))
-  )
-}
-
-function SessionLogSseValue777(value: unknown): boolean {
-  return (
-    isSseArray(value) &&
-    value.length >= 1 &&
-    SessionLogSseValue644(value[0]) &&
-    value.slice(1).every(SessionLogSseValue644)
-  )
-}
-
-function SessionLogSseValue778(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue95(item))
-  )
+  return typeof value === "number" && Number.isFinite(value)
 }
 
 function SessionLogSseValue774(value: unknown): boolean {
   return (
     isSseRecord(value) &&
-    Object.hasOwn(value, "status") &&
-    SessionLogSseValue775(value["status"]) &&
-    Object.hasOwn(value, "input") &&
-    SessionLogSseValue776(value["input"]) &&
-    Object.hasOwn(value, "error") &&
-    SessionLogSseValue315(value["error"]) &&
-    (!Object.hasOwn(value, "content") || SessionLogSseValue777(value["content"])) &&
-    (!Object.hasOwn(value, "metadata") || SessionLogSseValue778(value["metadata"]))
+    Object.hasOwn(value, "created") &&
+    SessionLogSseValue4(value["created"]) &&
+    (!Object.hasOwn(value, "completed") || SessionLogSseValue775(value["completed"]))
   )
 }
 
-function SessionLogSseValue762(value: unknown): boolean {
+function SessionLogSseValue772(value: unknown): boolean {
   return (
-    SessionLogSseValue763(value) ||
-    SessionLogSseValue765(value) ||
-    SessionLogSseValue769(value) ||
-    SessionLogSseValue774(value)
+    isSseRecord(value) &&
+    Object.hasOwn(value, "type") &&
+    SessionLogSseValue773(value["type"]) &&
+    Object.hasOwn(value, "text") &&
+    SessionLogSseValue6(value["text"]) &&
+    (!Object.hasOwn(value, "state") || SessionLogSseValue588(value["state"])) &&
+    (!Object.hasOwn(value, "time") || SessionLogSseValue774(value["time"]))
   )
 }
 
-function SessionLogSseValue780(value: unknown): boolean {
-  return typeof value === "number" && Number.isFinite(value)
+function SessionLogSseValue777(value: unknown): boolean {
+  return value === "tool"
+}
+
+function SessionLogSseValue778(value: unknown): boolean {
+  return typeof value === "boolean"
 }
 
 function SessionLogSseValue781(value: unknown): boolean {
-  return typeof value === "number" && Number.isFinite(value)
+  return value === "streaming"
+}
+
+function SessionLogSseValue780(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "status") &&
+    SessionLogSseValue781(value["status"]) &&
+    Object.hasOwn(value, "input") &&
+    SessionLogSseValue6(value["input"])
+  )
+}
+
+function SessionLogSseValue783(value: unknown): boolean {
+  return value === "running"
+}
+
+function SessionLogSseValue784(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue7(item))
+  )
+}
+
+function SessionLogSseValue785(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue95(item))
+  )
+}
+
+function SessionLogSseValue782(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "status") &&
+    SessionLogSseValue783(value["status"]) &&
+    Object.hasOwn(value, "input") &&
+    SessionLogSseValue784(value["input"]) &&
+    Object.hasOwn(value, "metadata") &&
+    SessionLogSseValue785(value["metadata"])
+  )
+}
+
+function SessionLogSseValue787(value: unknown): boolean {
+  return value === "completed"
+}
+
+function SessionLogSseValue788(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue7(item))
+  )
+}
+
+function SessionLogSseValue789(value: unknown): boolean {
+  return (
+    isSseArray(value) &&
+    value.length >= 1 &&
+    SessionLogSseValue661(value[0]) &&
+    value.slice(1).every(SessionLogSseValue661)
+  )
+}
+
+function SessionLogSseValue790(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue95(item))
+  )
+}
+
+function SessionLogSseValue786(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "status") &&
+    SessionLogSseValue787(value["status"]) &&
+    Object.hasOwn(value, "input") &&
+    SessionLogSseValue788(value["input"]) &&
+    Object.hasOwn(value, "content") &&
+    SessionLogSseValue789(value["content"]) &&
+    (!Object.hasOwn(value, "metadata") || SessionLogSseValue790(value["metadata"]))
+  )
+}
+
+function SessionLogSseValue792(value: unknown): boolean {
+  return value === "error"
+}
+
+function SessionLogSseValue793(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue7(item))
+  )
+}
+
+function SessionLogSseValue794(value: unknown): boolean {
+  return (
+    isSseArray(value) &&
+    value.length >= 1 &&
+    SessionLogSseValue661(value[0]) &&
+    value.slice(1).every(SessionLogSseValue661)
+  )
+}
+
+function SessionLogSseValue795(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue95(item))
+  )
+}
+
+function SessionLogSseValue791(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "status") &&
+    SessionLogSseValue792(value["status"]) &&
+    Object.hasOwn(value, "input") &&
+    SessionLogSseValue793(value["input"]) &&
+    Object.hasOwn(value, "error") &&
+    SessionLogSseValue315(value["error"]) &&
+    (!Object.hasOwn(value, "content") || SessionLogSseValue794(value["content"])) &&
+    (!Object.hasOwn(value, "metadata") || SessionLogSseValue795(value["metadata"]))
+  )
 }
 
 function SessionLogSseValue779(value: unknown): boolean {
   return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "created") &&
-    SessionLogSseValue4(value["created"]) &&
-    (!Object.hasOwn(value, "ran") || SessionLogSseValue780(value["ran"])) &&
-    (!Object.hasOwn(value, "completed") || SessionLogSseValue781(value["completed"]))
+    SessionLogSseValue780(value) ||
+    SessionLogSseValue782(value) ||
+    SessionLogSseValue786(value) ||
+    SessionLogSseValue791(value)
   )
 }
 
-function SessionLogSseValue759(value: unknown): boolean {
+function SessionLogSseValue797(value: unknown): boolean {
+  return typeof value === "number" && Number.isFinite(value)
+}
+
+function SessionLogSseValue798(value: unknown): boolean {
+  return typeof value === "number" && Number.isFinite(value)
+}
+
+function SessionLogSseValue796(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "created") &&
+    SessionLogSseValue4(value["created"]) &&
+    (!Object.hasOwn(value, "ran") || SessionLogSseValue797(value["ran"])) &&
+    (!Object.hasOwn(value, "completed") || SessionLogSseValue798(value["completed"]))
+  )
+}
+
+function SessionLogSseValue776(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "type") &&
-    SessionLogSseValue760(value["type"]) &&
+    SessionLogSseValue777(value["type"]) &&
     Object.hasOwn(value, "id") &&
     SessionLogSseValue6(value["id"]) &&
     Object.hasOwn(value, "name") &&
     SessionLogSseValue6(value["name"]) &&
-    (!Object.hasOwn(value, "executed") || SessionLogSseValue761(value["executed"])) &&
-    (!Object.hasOwn(value, "providerState") || SessionLogSseValue571(value["providerState"])) &&
-    (!Object.hasOwn(value, "providerResultState") || SessionLogSseValue571(value["providerResultState"])) &&
+    (!Object.hasOwn(value, "executed") || SessionLogSseValue778(value["executed"])) &&
+    (!Object.hasOwn(value, "providerState") || SessionLogSseValue588(value["providerState"])) &&
+    (!Object.hasOwn(value, "providerResultState") || SessionLogSseValue588(value["providerResultState"])) &&
     Object.hasOwn(value, "state") &&
-    SessionLogSseValue762(value["state"]) &&
+    SessionLogSseValue779(value["state"]) &&
     Object.hasOwn(value, "time") &&
-    SessionLogSseValue779(value["time"])
+    SessionLogSseValue796(value["time"])
   )
 }
 
-function SessionLogSseValue752(value: unknown): boolean {
-  return SessionLogSseValue753(value) || SessionLogSseValue755(value) || SessionLogSseValue759(value)
+function SessionLogSseValue769(value: unknown): boolean {
+  return SessionLogSseValue770(value) || SessionLogSseValue772(value) || SessionLogSseValue776(value)
 }
 
-function SessionLogSseValue751(value: unknown): boolean {
-  return isSseArray(value) && value.length >= 0 && value.slice(0).every(SessionLogSseValue752)
+function SessionLogSseValue768(value: unknown): boolean {
+  return isSseArray(value) && value.length >= 0 && value.slice(0).every(SessionLogSseValue769)
 }
 
-function SessionLogSseValue750(value: unknown): boolean {
+function SessionLogSseValue767(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
@@ -6824,25 +6917,25 @@ function SessionLogSseValue750(value: unknown): boolean {
     Object.hasOwn(value, "messageID") &&
     SessionLogSseValue88(value["messageID"]) &&
     Object.hasOwn(value, "content") &&
-    SessionLogSseValue751(value["content"])
+    SessionLogSseValue768(value["content"])
   )
 }
 
-function SessionLogSseValue745(value: unknown): boolean {
+function SessionLogSseValue762(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     SessionLogSseValue3(value["id"]) &&
     Object.hasOwn(value, "created") &&
     SessionLogSseValue4(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || SessionLogSseValue746(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || SessionLogSseValue763(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    SessionLogSseValue747(value["type"]) &&
+    SessionLogSseValue764(value["type"]) &&
     Object.hasOwn(value, "durable") &&
-    SessionLogSseValue748(value["durable"]) &&
+    SessionLogSseValue765(value["durable"]) &&
     (!Object.hasOwn(value, "location") || SessionLogSseValue12(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    SessionLogSseValue750(value["data"])
+    SessionLogSseValue767(value["data"])
   )
 }
 
@@ -6874,53 +6967,53 @@ function SessionLogSseValue1(value: unknown): boolean {
       Number(SessionLogSseValue373(value)) +
       Number(SessionLogSseValue381(value)) +
       Number(SessionLogSseValue507(value)) +
-      Number(SessionLogSseValue524(value)) +
-      Number(SessionLogSseValue549(value)) +
-      Number(SessionLogSseValue556(value)) +
-      Number(SessionLogSseValue562(value)) +
-      Number(SessionLogSseValue578(value)) +
-      Number(SessionLogSseValue584(value)) +
-      Number(SessionLogSseValue594(value)) +
-      Number(SessionLogSseValue600(value)) +
-      Number(SessionLogSseValue606(value)) +
-      Number(SessionLogSseValue612(value)) +
-      Number(SessionLogSseValue618(value)) +
-      Number(SessionLogSseValue624(value)) +
-      Number(SessionLogSseValue630(value)) +
-      Number(SessionLogSseValue637(value)) +
-      Number(SessionLogSseValue652(value)) +
-      Number(SessionLogSseValue660(value)) +
-      Number(SessionLogSseValue666(value)) +
-      Number(SessionLogSseValue675(value)) +
-      Number(SessionLogSseValue685(value)) +
-      Number(SessionLogSseValue691(value)) +
-      Number(SessionLogSseValue705(value)) +
-      Number(SessionLogSseValue711(value)) +
-      Number(SessionLogSseValue718(value)) +
-      Number(SessionLogSseValue724(value)) +
-      Number(SessionLogSseValue730(value)) +
-      Number(SessionLogSseValue736(value)) +
-      Number(SessionLogSseValue745(value)) ===
+      Number(SessionLogSseValue530(value)) +
+      Number(SessionLogSseValue566(value)) +
+      Number(SessionLogSseValue573(value)) +
+      Number(SessionLogSseValue579(value)) +
+      Number(SessionLogSseValue595(value)) +
+      Number(SessionLogSseValue601(value)) +
+      Number(SessionLogSseValue611(value)) +
+      Number(SessionLogSseValue617(value)) +
+      Number(SessionLogSseValue623(value)) +
+      Number(SessionLogSseValue629(value)) +
+      Number(SessionLogSseValue635(value)) +
+      Number(SessionLogSseValue641(value)) +
+      Number(SessionLogSseValue647(value)) +
+      Number(SessionLogSseValue654(value)) +
+      Number(SessionLogSseValue669(value)) +
+      Number(SessionLogSseValue677(value)) +
+      Number(SessionLogSseValue683(value)) +
+      Number(SessionLogSseValue692(value)) +
+      Number(SessionLogSseValue702(value)) +
+      Number(SessionLogSseValue708(value)) +
+      Number(SessionLogSseValue722(value)) +
+      Number(SessionLogSseValue728(value)) +
+      Number(SessionLogSseValue735(value)) +
+      Number(SessionLogSseValue741(value)) +
+      Number(SessionLogSseValue747(value)) +
+      Number(SessionLogSseValue753(value)) +
+      Number(SessionLogSseValue762(value)) ===
     1
   )
 }
 
-function SessionLogSseValue784(value: unknown): boolean {
+function SessionLogSseValue801(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue7(item))
   )
 }
 
-function SessionLogSseValue785(value: unknown): boolean {
+function SessionLogSseValue802(value: unknown): boolean {
   return value === "task.operation.reserved"
 }
 
-function SessionLogSseValue787(value: unknown): boolean {
+function SessionLogSseValue804(value: unknown): boolean {
   return value === 1
 }
 
-function SessionLogSseValue786(value: unknown): boolean {
+function SessionLogSseValue803(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -6928,27 +7021,27 @@ function SessionLogSseValue786(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     SessionLogSseValue10(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    SessionLogSseValue787(value["version"])
+    SessionLogSseValue804(value["version"])
   )
 }
 
-function SessionLogSseValue790(value: unknown): boolean {
+function SessionLogSseValue807(value: unknown): boolean {
   return typeof value === "string" && typeof value === "string" && new RegExp("^top_[A-Za-z0-9_-]+$", "").test(value)
 }
 
-function SessionLogSseValue791(value: unknown): boolean {
+function SessionLogSseValue808(value: unknown): boolean {
   return typeof value === "string"
 }
 
-function SessionLogSseValue792(value: unknown): boolean {
+function SessionLogSseValue809(value: unknown): boolean {
   return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value > 0
 }
 
-function SessionLogSseValue795(value: unknown): boolean {
+function SessionLogSseValue812(value: unknown): boolean {
   return value === "new_root"
 }
 
-function SessionLogSseValue796(value: unknown): boolean {
+function SessionLogSseValue813(value: unknown): boolean {
   return (
     SessionLogSseValue22(value) ||
     SessionLogSseValue23(value) ||
@@ -6958,11 +7051,11 @@ function SessionLogSseValue796(value: unknown): boolean {
   )
 }
 
-function SessionLogSseValue799(value: unknown): boolean {
+function SessionLogSseValue816(value: unknown): boolean {
   return value === "temporary"
 }
 
-function SessionLogSseValue801(value: unknown): boolean {
+function SessionLogSseValue818(value: unknown): boolean {
   return (
     typeof value === "string" &&
     (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
@@ -6976,31 +7069,31 @@ function SessionLogSseValue801(value: unknown): boolean {
   )
 }
 
-function SessionLogSseValue800(value: unknown): boolean {
-  return SessionLogSseValue801(value) || SessionLogSseValue650(value)
+function SessionLogSseValue817(value: unknown): boolean {
+  return SessionLogSseValue818(value) || SessionLogSseValue667(value)
 }
 
-function SessionLogSseValue804(value: unknown): boolean {
+function SessionLogSseValue821(value: unknown): boolean {
   return value === "builtin"
 }
 
-function SessionLogSseValue806(value: unknown): boolean {
+function SessionLogSseValue823(value: unknown): boolean {
   return value === "build"
 }
 
-function SessionLogSseValue807(value: unknown): boolean {
+function SessionLogSseValue824(value: unknown): boolean {
   return value === "plan"
 }
 
-function SessionLogSseValue808(value: unknown): boolean {
+function SessionLogSseValue825(value: unknown): boolean {
   return value === "meta"
 }
 
-function SessionLogSseValue805(value: unknown): boolean {
-  return SessionLogSseValue806(value) || SessionLogSseValue807(value) || SessionLogSseValue808(value)
+function SessionLogSseValue822(value: unknown): boolean {
+  return SessionLogSseValue823(value) || SessionLogSseValue824(value) || SessionLogSseValue825(value)
 }
 
-function SessionLogSseValue809(value: unknown): boolean {
+function SessionLogSseValue826(value: unknown): boolean {
   return (
     typeof value === "string" &&
     (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
@@ -7014,162 +7107,73 @@ function SessionLogSseValue809(value: unknown): boolean {
   )
 }
 
-function SessionLogSseValue803(value: unknown): boolean {
+function SessionLogSseValue820(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "source") &&
-    SessionLogSseValue804(value["source"]) &&
+    SessionLogSseValue821(value["source"]) &&
     Object.hasOwn(value, "id") &&
-    SessionLogSseValue805(value["id"]) &&
-    (!Object.hasOwn(value, "revision") || SessionLogSseValue809(value["revision"]))
+    SessionLogSseValue822(value["id"]) &&
+    (!Object.hasOwn(value, "revision") || SessionLogSseValue826(value["revision"]))
   )
 }
 
-function SessionLogSseValue811(value: unknown): boolean {
+function SessionLogSseValue828(value: unknown): boolean {
   return value === "agent"
 }
 
-function SessionLogSseValue812(value: unknown): boolean {
+function SessionLogSseValue829(value: unknown): boolean {
   return false
 }
 
-function SessionLogSseValue813(value: unknown): boolean {
+function SessionLogSseValue830(value: unknown): boolean {
   return value === "asset"
 }
 
-function SessionLogSseValue810(value: unknown): boolean {
+function SessionLogSseValue827(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "kind") &&
-    SessionLogSseValue811(value["kind"]) &&
+    SessionLogSseValue828(value["kind"]) &&
     Object.hasOwn(value, "relativePath") &&
     SessionLogSseValue6(value["relativePath"]) &&
     Object.hasOwn(value, "revision") &&
-    SessionLogSseValue801(value["revision"]) &&
-    (!Object.hasOwn(value, "target") || SessionLogSseValue812(value["target"])) &&
+    SessionLogSseValue818(value["revision"]) &&
+    (!Object.hasOwn(value, "target") || SessionLogSseValue829(value["target"])) &&
     Object.hasOwn(value, "source") &&
-    SessionLogSseValue813(value["source"]) &&
+    SessionLogSseValue830(value["source"]) &&
     Object.hasOwn(value, "id") &&
     SessionLogSseValue73(value["id"])
   )
 }
 
-function SessionLogSseValue802(value: unknown): boolean {
-  return SessionLogSseValue803(value) || SessionLogSseValue810(value)
-}
-
-function SessionLogSseValue815(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "kind") &&
-    SessionLogSseValue811(value["kind"]) &&
-    Object.hasOwn(value, "relativePath") &&
-    SessionLogSseValue6(value["relativePath"]) &&
-    Object.hasOwn(value, "revision") &&
-    SessionLogSseValue801(value["revision"]) &&
-    (!Object.hasOwn(value, "target") || SessionLogSseValue812(value["target"]))
-  )
-}
-
-function SessionLogSseValue814(value: unknown): boolean {
-  return isSseArray(value) && value.length >= 0 && value.slice(0).every(SessionLogSseValue815)
-}
-
-function SessionLogSseValue818(value: unknown): boolean {
-  return value === "workflow"
-}
-
 function SessionLogSseValue819(value: unknown): boolean {
-  return false
-}
-
-function SessionLogSseValue817(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "kind") &&
-    SessionLogSseValue818(value["kind"]) &&
-    Object.hasOwn(value, "relativePath") &&
-    SessionLogSseValue6(value["relativePath"]) &&
-    Object.hasOwn(value, "revision") &&
-    SessionLogSseValue801(value["revision"]) &&
-    (!Object.hasOwn(value, "target") || SessionLogSseValue819(value["target"]))
-  )
-}
-
-function SessionLogSseValue816(value: unknown): boolean {
-  return SessionLogSseValue817(value) || SessionLogSseValue650(value)
-}
-
-function SessionLogSseValue824(value: unknown): boolean {
-  return value === "prompt"
-}
-
-function SessionLogSseValue827(value: unknown): boolean {
-  return value === "project"
-}
-
-function SessionLogSseValue828(value: unknown): boolean {
-  return value === "global"
-}
-
-function SessionLogSseValue829(value: unknown): boolean {
-  return value === "location"
-}
-
-function SessionLogSseValue826(value: unknown): boolean {
-  return SessionLogSseValue827(value) || SessionLogSseValue828(value) || SessionLogSseValue829(value)
-}
-
-function SessionLogSseValue825(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "scope") &&
-    SessionLogSseValue826(value["scope"]) &&
-    Object.hasOwn(value, "root") &&
-    SessionLogSseValue13(value["root"])
-  )
-}
-
-function SessionLogSseValue823(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "kind") &&
-    SessionLogSseValue824(value["kind"]) &&
-    Object.hasOwn(value, "relativePath") &&
-    SessionLogSseValue6(value["relativePath"]) &&
-    Object.hasOwn(value, "revision") &&
-    SessionLogSseValue801(value["revision"]) &&
-    (!Object.hasOwn(value, "target") || SessionLogSseValue825(value["target"]))
-  )
-}
-
-function SessionLogSseValue822(value: unknown): boolean {
-  return isSseArray(value) && value.length >= 0 && value.slice(0).every(SessionLogSseValue823)
+  return SessionLogSseValue820(value) || SessionLogSseValue827(value)
 }
 
 function SessionLogSseValue832(value: unknown): boolean {
-  return value === "skill"
-}
-
-function SessionLogSseValue831(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "kind") &&
-    SessionLogSseValue832(value["kind"]) &&
+    SessionLogSseValue828(value["kind"]) &&
     Object.hasOwn(value, "relativePath") &&
     SessionLogSseValue6(value["relativePath"]) &&
     Object.hasOwn(value, "revision") &&
-    SessionLogSseValue801(value["revision"]) &&
-    (!Object.hasOwn(value, "target") || SessionLogSseValue825(value["target"]))
+    SessionLogSseValue818(value["revision"]) &&
+    (!Object.hasOwn(value, "target") || SessionLogSseValue829(value["target"]))
   )
 }
 
-function SessionLogSseValue830(value: unknown): boolean {
-  return isSseArray(value) && value.length >= 0 && value.slice(0).every(SessionLogSseValue831)
+function SessionLogSseValue831(value: unknown): boolean {
+  return isSseArray(value) && value.length >= 0 && value.slice(0).every(SessionLogSseValue832)
 }
 
 function SessionLogSseValue835(value: unknown): boolean {
-  return value === "command"
+  return value === "workflow"
+}
+
+function SessionLogSseValue836(value: unknown): boolean {
+  return false
 }
 
 function SessionLogSseValue834(value: unknown): boolean {
@@ -7180,82 +7184,171 @@ function SessionLogSseValue834(value: unknown): boolean {
     Object.hasOwn(value, "relativePath") &&
     SessionLogSseValue6(value["relativePath"]) &&
     Object.hasOwn(value, "revision") &&
-    SessionLogSseValue801(value["revision"]) &&
-    (!Object.hasOwn(value, "target") || SessionLogSseValue825(value["target"]))
+    SessionLogSseValue818(value["revision"]) &&
+    (!Object.hasOwn(value, "target") || SessionLogSseValue836(value["target"]))
   )
 }
 
 function SessionLogSseValue833(value: unknown): boolean {
-  return isSseArray(value) && value.length >= 0 && value.slice(0).every(SessionLogSseValue834)
+  return SessionLogSseValue834(value) || SessionLogSseValue667(value)
 }
 
-function SessionLogSseValue821(value: unknown): boolean {
+function SessionLogSseValue841(value: unknown): boolean {
+  return value === "prompt"
+}
+
+function SessionLogSseValue844(value: unknown): boolean {
+  return value === "project"
+}
+
+function SessionLogSseValue845(value: unknown): boolean {
+  return value === "global"
+}
+
+function SessionLogSseValue846(value: unknown): boolean {
+  return value === "location"
+}
+
+function SessionLogSseValue843(value: unknown): boolean {
+  return SessionLogSseValue844(value) || SessionLogSseValue845(value) || SessionLogSseValue846(value)
+}
+
+function SessionLogSseValue842(value: unknown): boolean {
   return (
     isSseRecord(value) &&
-    Object.hasOwn(value, "prompts") &&
-    SessionLogSseValue822(value["prompts"]) &&
-    Object.hasOwn(value, "skills") &&
-    SessionLogSseValue830(value["skills"]) &&
-    (!Object.hasOwn(value, "commands") || SessionLogSseValue833(value["commands"]))
+    Object.hasOwn(value, "scope") &&
+    SessionLogSseValue843(value["scope"]) &&
+    Object.hasOwn(value, "root") &&
+    SessionLogSseValue13(value["root"])
   )
 }
 
-function SessionLogSseValue820(value: unknown): boolean {
+function SessionLogSseValue840(value: unknown): boolean {
   return (
     isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue821(item))
-  )
-}
-
-function SessionLogSseValue836(value: unknown): boolean {
-  return value === "native"
-}
-
-function SessionLogSseValue837(value: unknown): boolean {
-  return isSseArray(value) && value.length >= 0 && value.slice(0).every(SessionLogSseValue6)
-}
-
-function SessionLogSseValue798(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "source") &&
-    SessionLogSseValue799(value["source"]) &&
-    (!Object.hasOwn(value, "profilePath") || SessionLogSseValue649(value["profilePath"])) &&
-    (!Object.hasOwn(value, "profileRevision") || SessionLogSseValue800(value["profileRevision"])) &&
-    (!Object.hasOwn(value, "root") || SessionLogSseValue802(value["root"])) &&
-    Object.hasOwn(value, "agents") &&
-    SessionLogSseValue814(value["agents"]) &&
-    (!Object.hasOwn(value, "workflow") || SessionLogSseValue816(value["workflow"])) &&
-    Object.hasOwn(value, "bindings") &&
-    SessionLogSseValue820(value["bindings"]) &&
-    Object.hasOwn(value, "presentation") &&
-    SessionLogSseValue836(value["presentation"]) &&
-    Object.hasOwn(value, "requestedCapabilities") &&
-    SessionLogSseValue837(value["requestedCapabilities"])
+    Object.hasOwn(value, "kind") &&
+    SessionLogSseValue841(value["kind"]) &&
+    Object.hasOwn(value, "relativePath") &&
+    SessionLogSseValue6(value["relativePath"]) &&
+    Object.hasOwn(value, "revision") &&
+    SessionLogSseValue818(value["revision"]) &&
+    (!Object.hasOwn(value, "target") || SessionLogSseValue842(value["target"]))
   )
 }
 
 function SessionLogSseValue839(value: unknown): boolean {
-  return value === "profile"
+  return isSseArray(value) && value.length >= 0 && value.slice(0).every(SessionLogSseValue840)
+}
+
+function SessionLogSseValue849(value: unknown): boolean {
+  return value === "skill"
+}
+
+function SessionLogSseValue848(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "kind") &&
+    SessionLogSseValue849(value["kind"]) &&
+    Object.hasOwn(value, "relativePath") &&
+    SessionLogSseValue6(value["relativePath"]) &&
+    Object.hasOwn(value, "revision") &&
+    SessionLogSseValue818(value["revision"]) &&
+    (!Object.hasOwn(value, "target") || SessionLogSseValue842(value["target"]))
+  )
+}
+
+function SessionLogSseValue847(value: unknown): boolean {
+  return isSseArray(value) && value.length >= 0 && value.slice(0).every(SessionLogSseValue848)
+}
+
+function SessionLogSseValue852(value: unknown): boolean {
+  return value === "command"
+}
+
+function SessionLogSseValue851(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "kind") &&
+    SessionLogSseValue852(value["kind"]) &&
+    Object.hasOwn(value, "relativePath") &&
+    SessionLogSseValue6(value["relativePath"]) &&
+    Object.hasOwn(value, "revision") &&
+    SessionLogSseValue818(value["revision"]) &&
+    (!Object.hasOwn(value, "target") || SessionLogSseValue842(value["target"]))
+  )
+}
+
+function SessionLogSseValue850(value: unknown): boolean {
+  return isSseArray(value) && value.length >= 0 && value.slice(0).every(SessionLogSseValue851)
 }
 
 function SessionLogSseValue838(value: unknown): boolean {
   return (
     isSseRecord(value) &&
-    Object.hasOwn(value, "source") &&
-    SessionLogSseValue839(value["source"]) &&
-    Object.hasOwn(value, "profilePath") &&
-    SessionLogSseValue6(value["profilePath"]) &&
-    Object.hasOwn(value, "profileRevision") &&
-    SessionLogSseValue801(value["profileRevision"])
+    Object.hasOwn(value, "prompts") &&
+    SessionLogSseValue839(value["prompts"]) &&
+    Object.hasOwn(value, "skills") &&
+    SessionLogSseValue847(value["skills"]) &&
+    (!Object.hasOwn(value, "commands") || SessionLogSseValue850(value["commands"]))
   )
 }
 
-function SessionLogSseValue797(value: unknown): boolean {
-  return SessionLogSseValue798(value) || SessionLogSseValue838(value)
+function SessionLogSseValue837(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue838(item))
+  )
 }
 
-function SessionLogSseValue840(value: unknown): boolean {
+function SessionLogSseValue853(value: unknown): boolean {
+  return value === "native"
+}
+
+function SessionLogSseValue854(value: unknown): boolean {
+  return isSseArray(value) && value.length >= 0 && value.slice(0).every(SessionLogSseValue6)
+}
+
+function SessionLogSseValue815(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "source") &&
+    SessionLogSseValue816(value["source"]) &&
+    (!Object.hasOwn(value, "profilePath") || SessionLogSseValue666(value["profilePath"])) &&
+    (!Object.hasOwn(value, "profileRevision") || SessionLogSseValue817(value["profileRevision"])) &&
+    (!Object.hasOwn(value, "root") || SessionLogSseValue819(value["root"])) &&
+    Object.hasOwn(value, "agents") &&
+    SessionLogSseValue831(value["agents"]) &&
+    (!Object.hasOwn(value, "workflow") || SessionLogSseValue833(value["workflow"])) &&
+    Object.hasOwn(value, "bindings") &&
+    SessionLogSseValue837(value["bindings"]) &&
+    Object.hasOwn(value, "presentation") &&
+    SessionLogSseValue853(value["presentation"]) &&
+    Object.hasOwn(value, "requestedCapabilities") &&
+    SessionLogSseValue854(value["requestedCapabilities"])
+  )
+}
+
+function SessionLogSseValue856(value: unknown): boolean {
+  return value === "profile"
+}
+
+function SessionLogSseValue855(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "source") &&
+    SessionLogSseValue856(value["source"]) &&
+    Object.hasOwn(value, "profilePath") &&
+    SessionLogSseValue6(value["profilePath"]) &&
+    Object.hasOwn(value, "profileRevision") &&
+    SessionLogSseValue818(value["profileRevision"])
+  )
+}
+
+function SessionLogSseValue814(value: unknown): boolean {
+  return SessionLogSseValue815(value) || SessionLogSseValue855(value)
+}
+
+function SessionLogSseValue857(value: unknown): boolean {
   return (
     typeof value === "string" &&
     (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
@@ -7269,73 +7362,73 @@ function SessionLogSseValue840(value: unknown): boolean {
   )
 }
 
-function SessionLogSseValue841(value: unknown): boolean {
+function SessionLogSseValue858(value: unknown): boolean {
   return typeof value === "string"
 }
 
-function SessionLogSseValue794(value: unknown): boolean {
+function SessionLogSseValue811(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "type") &&
-    SessionLogSseValue795(value["type"]) &&
+    SessionLogSseValue812(value["type"]) &&
     Object.hasOwn(value, "mode") &&
-    SessionLogSseValue796(value["mode"]) &&
+    SessionLogSseValue813(value["mode"]) &&
     (!Object.hasOwn(value, "location") || SessionLogSseValue12(value["location"])) &&
     (!Object.hasOwn(value, "agent") || SessionLogSseValue28(value["agent"])) &&
     (!Object.hasOwn(value, "model") || SessionLogSseValue29(value["model"])) &&
     (!Object.hasOwn(value, "executorPreference") || SessionLogSseValue93(value["executorPreference"])) &&
-    (!Object.hasOwn(value, "composition") || SessionLogSseValue797(value["composition"])) &&
-    (!Object.hasOwn(value, "expectedPlanDigest") || SessionLogSseValue840(value["expectedPlanDigest"])) &&
-    (!Object.hasOwn(value, "title") || SessionLogSseValue841(value["title"]))
+    (!Object.hasOwn(value, "composition") || SessionLogSseValue814(value["composition"])) &&
+    (!Object.hasOwn(value, "expectedPlanDigest") || SessionLogSseValue857(value["expectedPlanDigest"])) &&
+    (!Object.hasOwn(value, "title") || SessionLogSseValue858(value["title"]))
   )
 }
 
-function SessionLogSseValue843(value: unknown): boolean {
+function SessionLogSseValue860(value: unknown): boolean {
   return value === "existing_root"
 }
 
-function SessionLogSseValue842(value: unknown): boolean {
+function SessionLogSseValue859(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "type") &&
-    SessionLogSseValue843(value["type"]) &&
+    SessionLogSseValue860(value["type"]) &&
     Object.hasOwn(value, "sessionID") &&
     SessionLogSseValue16(value["sessionID"])
   )
 }
 
-function SessionLogSseValue793(value: unknown): boolean {
-  return SessionLogSseValue794(value) || SessionLogSseValue842(value)
+function SessionLogSseValue810(value: unknown): boolean {
+  return SessionLogSseValue811(value) || SessionLogSseValue859(value)
 }
 
-function SessionLogSseValue844(value: unknown): boolean {
+function SessionLogSseValue861(value: unknown): boolean {
   return typeof value === "string"
 }
 
-function SessionLogSseValue847(value: unknown): boolean {
+function SessionLogSseValue864(value: unknown): boolean {
   return typeof value === "string"
 }
 
-function SessionLogSseValue848(value: unknown): boolean {
+function SessionLogSseValue865(value: unknown): boolean {
   return typeof value === "string"
 }
 
-function SessionLogSseValue846(value: unknown): boolean {
+function SessionLogSseValue863(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "uri") &&
     SessionLogSseValue6(value["uri"]) &&
-    (!Object.hasOwn(value, "name") || SessionLogSseValue847(value["name"])) &&
-    (!Object.hasOwn(value, "description") || SessionLogSseValue848(value["description"])) &&
+    (!Object.hasOwn(value, "name") || SessionLogSseValue864(value["name"])) &&
+    (!Object.hasOwn(value, "description") || SessionLogSseValue865(value["description"])) &&
     (!Object.hasOwn(value, "mention") || SessionLogSseValue124(value["mention"]))
   )
 }
 
-function SessionLogSseValue845(value: unknown): boolean {
-  return isSseArray(value) && value.length >= 0 && value.slice(0).every(SessionLogSseValue846)
+function SessionLogSseValue862(value: unknown): boolean {
+  return isSseArray(value) && value.length >= 0 && value.slice(0).every(SessionLogSseValue863)
 }
 
-function SessionLogSseValue849(value: unknown): boolean {
+function SessionLogSseValue866(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sourceSessionID") &&
@@ -7345,44 +7438,44 @@ function SessionLogSseValue849(value: unknown): boolean {
   )
 }
 
-function SessionLogSseValue850(value: unknown): boolean {
+function SessionLogSseValue867(value: unknown): boolean {
   return typeof value === "boolean"
 }
 
-function SessionLogSseValue789(value: unknown): boolean {
+function SessionLogSseValue806(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "operationID") &&
     SessionLogSseValue208(value["operationID"]) &&
     Object.hasOwn(value, "inputID") &&
     SessionLogSseValue88(value["inputID"]) &&
-    (!Object.hasOwn(value, "replacesOperationID") || SessionLogSseValue790(value["replacesOperationID"])) &&
-    (!Object.hasOwn(value, "taskID") || SessionLogSseValue791(value["taskID"])) &&
-    (!Object.hasOwn(value, "expectedRevision") || SessionLogSseValue792(value["expectedRevision"])) &&
+    (!Object.hasOwn(value, "replacesOperationID") || SessionLogSseValue807(value["replacesOperationID"])) &&
+    (!Object.hasOwn(value, "taskID") || SessionLogSseValue808(value["taskID"])) &&
+    (!Object.hasOwn(value, "expectedRevision") || SessionLogSseValue809(value["expectedRevision"])) &&
     Object.hasOwn(value, "target") &&
-    SessionLogSseValue793(value["target"]) &&
-    (!Object.hasOwn(value, "description") || SessionLogSseValue844(value["description"])) &&
+    SessionLogSseValue810(value["target"]) &&
+    (!Object.hasOwn(value, "description") || SessionLogSseValue861(value["description"])) &&
     Object.hasOwn(value, "prompt") &&
     SessionLogSseValue6(value["prompt"]) &&
-    (!Object.hasOwn(value, "files") || SessionLogSseValue845(value["files"])) &&
-    (!Object.hasOwn(value, "reference") || SessionLogSseValue849(value["reference"])) &&
+    (!Object.hasOwn(value, "files") || SessionLogSseValue862(value["files"])) &&
+    (!Object.hasOwn(value, "reference") || SessionLogSseValue866(value["reference"])) &&
     Object.hasOwn(value, "delivery") &&
     SessionLogSseValue229(value["delivery"]) &&
     Object.hasOwn(value, "resume") &&
     SessionLogSseValue199(value["resume"]) &&
-    (!Object.hasOwn(value, "background") || SessionLogSseValue850(value["background"]))
+    (!Object.hasOwn(value, "background") || SessionLogSseValue867(value["background"]))
   )
 }
 
-function SessionLogSseValue853(value: unknown): boolean {
+function SessionLogSseValue870(value: unknown): boolean {
   return value === "model_tool"
 }
 
-function SessionLogSseValue852(value: unknown): boolean {
+function SessionLogSseValue869(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "type") &&
-    SessionLogSseValue853(value["type"]) &&
+    SessionLogSseValue870(value["type"]) &&
     Object.hasOwn(value, "sessionID") &&
     SessionLogSseValue16(value["sessionID"]) &&
     Object.hasOwn(value, "agent") &&
@@ -7394,15 +7487,15 @@ function SessionLogSseValue852(value: unknown): boolean {
   )
 }
 
-function SessionLogSseValue855(value: unknown): boolean {
+function SessionLogSseValue872(value: unknown): boolean {
   return value === "user_coordination"
 }
 
-function SessionLogSseValue854(value: unknown): boolean {
+function SessionLogSseValue871(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "type") &&
-    SessionLogSseValue855(value["type"]) &&
+    SessionLogSseValue872(value["type"]) &&
     Object.hasOwn(value, "sessionID") &&
     SessionLogSseValue16(value["sessionID"]) &&
     Object.hasOwn(value, "agent") &&
@@ -7410,15 +7503,15 @@ function SessionLogSseValue854(value: unknown): boolean {
   )
 }
 
-function SessionLogSseValue857(value: unknown): boolean {
+function SessionLogSseValue874(value: unknown): boolean {
   return value === "goal_round"
 }
 
-function SessionLogSseValue856(value: unknown): boolean {
+function SessionLogSseValue873(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "type") &&
-    SessionLogSseValue857(value["type"]) &&
+    SessionLogSseValue874(value["type"]) &&
     Object.hasOwn(value, "sessionID") &&
     SessionLogSseValue16(value["sessionID"]) &&
     Object.hasOwn(value, "agent") &&
@@ -7432,15 +7525,15 @@ function SessionLogSseValue856(value: unknown): boolean {
   )
 }
 
-function SessionLogSseValue859(value: unknown): boolean {
+function SessionLogSseValue876(value: unknown): boolean {
   return value === "schedule_occurrence"
 }
 
-function SessionLogSseValue858(value: unknown): boolean {
+function SessionLogSseValue875(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "type") &&
-    SessionLogSseValue859(value["type"]) &&
+    SessionLogSseValue876(value["type"]) &&
     Object.hasOwn(value, "sessionID") &&
     SessionLogSseValue16(value["sessionID"]) &&
     Object.hasOwn(value, "agent") &&
@@ -7454,96 +7547,96 @@ function SessionLogSseValue858(value: unknown): boolean {
   )
 }
 
-function SessionLogSseValue851(value: unknown): boolean {
+function SessionLogSseValue868(value: unknown): boolean {
   return (
-    SessionLogSseValue852(value) ||
-    SessionLogSseValue854(value) ||
-    SessionLogSseValue856(value) ||
-    SessionLogSseValue858(value)
+    SessionLogSseValue869(value) ||
+    SessionLogSseValue871(value) ||
+    SessionLogSseValue873(value) ||
+    SessionLogSseValue875(value)
   )
 }
 
-function SessionLogSseValue861(value: unknown): boolean {
+function SessionLogSseValue878(value: unknown): boolean {
   return typeof value === "string" && typeof value === "string" && value.startsWith("evt_")
 }
 
-function SessionLogSseValue860(value: unknown): boolean {
+function SessionLogSseValue877(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "agent") &&
     SessionLogSseValue73(value["agent"]) &&
-    (!Object.hasOwn(value, "eventID") || SessionLogSseValue861(value["eventID"])) &&
+    (!Object.hasOwn(value, "eventID") || SessionLogSseValue878(value["eventID"])) &&
     Object.hasOwn(value, "seq") &&
     SessionLogSseValue10(value["seq"]) &&
-    (!Object.hasOwn(value, "compositionDigest") || SessionLogSseValue840(value["compositionDigest"]))
+    (!Object.hasOwn(value, "compositionDigest") || SessionLogSseValue857(value["compositionDigest"]))
   )
 }
 
-function SessionLogSseValue862(value: unknown): boolean {
+function SessionLogSseValue879(value: unknown): boolean {
   return typeof value === "number" && Number.isSafeInteger(value)
 }
 
-function SessionLogSseValue863(value: unknown): boolean {
+function SessionLogSseValue880(value: unknown): boolean {
   return isSseArray(value) && value.length >= 0 && value.slice(0).every(SessionLogSseValue259)
 }
 
-function SessionLogSseValue788(value: unknown): boolean {
+function SessionLogSseValue805(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
     SessionLogSseValue16(value["sessionID"]) &&
     Object.hasOwn(value, "request") &&
-    SessionLogSseValue789(value["request"]) &&
+    SessionLogSseValue806(value["request"]) &&
     Object.hasOwn(value, "source") &&
-    SessionLogSseValue851(value["source"]) &&
+    SessionLogSseValue868(value["source"]) &&
     Object.hasOwn(value, "selection") &&
-    SessionLogSseValue860(value["selection"]) &&
+    SessionLogSseValue877(value["selection"]) &&
     Object.hasOwn(value, "sourceLocation") &&
     SessionLogSseValue18(value["sourceLocation"]) &&
     Object.hasOwn(value, "sourceMode") &&
-    SessionLogSseValue796(value["sourceMode"]) &&
+    SessionLogSseValue813(value["sourceMode"]) &&
     Object.hasOwn(value, "targetSessionID") &&
     SessionLogSseValue16(value["targetSessionID"]) &&
-    (!Object.hasOwn(value, "taskRevision") || SessionLogSseValue862(value["taskRevision"])) &&
-    (!Object.hasOwn(value, "predecessorID") || SessionLogSseValue790(value["predecessorID"])) &&
-    (!Object.hasOwn(value, "goalRounds") || SessionLogSseValue863(value["goalRounds"]))
+    (!Object.hasOwn(value, "taskRevision") || SessionLogSseValue879(value["taskRevision"])) &&
+    (!Object.hasOwn(value, "predecessorID") || SessionLogSseValue807(value["predecessorID"])) &&
+    (!Object.hasOwn(value, "goalRounds") || SessionLogSseValue880(value["goalRounds"]))
   )
 }
 
-function SessionLogSseValue783(value: unknown): boolean {
+function SessionLogSseValue800(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     SessionLogSseValue3(value["id"]) &&
     Object.hasOwn(value, "created") &&
     SessionLogSseValue4(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || SessionLogSseValue784(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || SessionLogSseValue801(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    SessionLogSseValue785(value["type"]) &&
+    SessionLogSseValue802(value["type"]) &&
     Object.hasOwn(value, "durable") &&
-    SessionLogSseValue786(value["durable"]) &&
+    SessionLogSseValue803(value["durable"]) &&
     (!Object.hasOwn(value, "location") || SessionLogSseValue12(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    SessionLogSseValue788(value["data"])
+    SessionLogSseValue805(value["data"])
   )
 }
 
-function SessionLogSseValue865(value: unknown): boolean {
+function SessionLogSseValue882(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !SessionLogSseValue6(key) || SessionLogSseValue7(item))
   )
 }
 
-function SessionLogSseValue866(value: unknown): boolean {
+function SessionLogSseValue883(value: unknown): boolean {
   return value === "task.operation.changed"
 }
 
-function SessionLogSseValue868(value: unknown): boolean {
+function SessionLogSseValue885(value: unknown): boolean {
   return value === 1
 }
 
-function SessionLogSseValue867(value: unknown): boolean {
+function SessionLogSseValue884(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -7551,93 +7644,93 @@ function SessionLogSseValue867(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     SessionLogSseValue10(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    SessionLogSseValue868(value["version"])
+    SessionLogSseValue885(value["version"])
   )
-}
-
-function SessionLogSseValue872(value: unknown): boolean {
-  return value === "waiting"
-}
-
-function SessionLogSseValue873(value: unknown): boolean {
-  return value === "reserved"
-}
-
-function SessionLogSseValue874(value: unknown): boolean {
-  return value === "permission_pending"
-}
-
-function SessionLogSseValue875(value: unknown): boolean {
-  return value === "prepared"
-}
-
-function SessionLogSseValue876(value: unknown): boolean {
-  return value === "created"
-}
-
-function SessionLogSseValue877(value: unknown): boolean {
-  return value === "admitted"
-}
-
-function SessionLogSseValue878(value: unknown): boolean {
-  return value === "running"
-}
-
-function SessionLogSseValue879(value: unknown): boolean {
-  return value === "settled"
-}
-
-function SessionLogSseValue880(value: unknown): boolean {
-  return value === "blocked"
-}
-
-function SessionLogSseValue881(value: unknown): boolean {
-  return value === "failed"
-}
-
-function SessionLogSseValue882(value: unknown): boolean {
-  return value === "cancelled"
-}
-
-function SessionLogSseValue883(value: unknown): boolean {
-  return value === "recovery_required"
-}
-
-function SessionLogSseValue884(value: unknown): boolean {
-  return value === "superseded"
-}
-
-function SessionLogSseValue871(value: unknown): boolean {
-  return (
-    SessionLogSseValue872(value) ||
-    SessionLogSseValue873(value) ||
-    SessionLogSseValue874(value) ||
-    SessionLogSseValue875(value) ||
-    SessionLogSseValue876(value) ||
-    SessionLogSseValue877(value) ||
-    SessionLogSseValue878(value) ||
-    SessionLogSseValue879(value) ||
-    SessionLogSseValue880(value) ||
-    SessionLogSseValue881(value) ||
-    SessionLogSseValue882(value) ||
-    SessionLogSseValue883(value) ||
-    SessionLogSseValue884(value)
-  )
-}
-
-function SessionLogSseValue885(value: unknown): boolean {
-  return typeof value === "string"
-}
-
-function SessionLogSseValue886(value: unknown): boolean {
-  return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value > 0
-}
-
-function SessionLogSseValue888(value: unknown): boolean {
-  return typeof value === "string" && typeof value === "string" && new RegExp("^[a-f0-9]{64}$", "").test(value)
 }
 
 function SessionLogSseValue889(value: unknown): boolean {
+  return value === "waiting"
+}
+
+function SessionLogSseValue890(value: unknown): boolean {
+  return value === "reserved"
+}
+
+function SessionLogSseValue891(value: unknown): boolean {
+  return value === "permission_pending"
+}
+
+function SessionLogSseValue892(value: unknown): boolean {
+  return value === "prepared"
+}
+
+function SessionLogSseValue893(value: unknown): boolean {
+  return value === "created"
+}
+
+function SessionLogSseValue894(value: unknown): boolean {
+  return value === "admitted"
+}
+
+function SessionLogSseValue895(value: unknown): boolean {
+  return value === "running"
+}
+
+function SessionLogSseValue896(value: unknown): boolean {
+  return value === "settled"
+}
+
+function SessionLogSseValue897(value: unknown): boolean {
+  return value === "blocked"
+}
+
+function SessionLogSseValue898(value: unknown): boolean {
+  return value === "failed"
+}
+
+function SessionLogSseValue899(value: unknown): boolean {
+  return value === "cancelled"
+}
+
+function SessionLogSseValue900(value: unknown): boolean {
+  return value === "recovery_required"
+}
+
+function SessionLogSseValue901(value: unknown): boolean {
+  return value === "superseded"
+}
+
+function SessionLogSseValue888(value: unknown): boolean {
+  return (
+    SessionLogSseValue889(value) ||
+    SessionLogSseValue890(value) ||
+    SessionLogSseValue891(value) ||
+    SessionLogSseValue892(value) ||
+    SessionLogSseValue893(value) ||
+    SessionLogSseValue894(value) ||
+    SessionLogSseValue895(value) ||
+    SessionLogSseValue896(value) ||
+    SessionLogSseValue897(value) ||
+    SessionLogSseValue898(value) ||
+    SessionLogSseValue899(value) ||
+    SessionLogSseValue900(value) ||
+    SessionLogSseValue901(value)
+  )
+}
+
+function SessionLogSseValue902(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function SessionLogSseValue903(value: unknown): boolean {
+  return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value > 0
+}
+
+function SessionLogSseValue905(value: unknown): boolean {
+  return typeof value === "string" && typeof value === "string" && new RegExp("^[a-f0-9]{64}$", "").test(value)
+}
+
+function SessionLogSseValue906(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sourceSessionID") &&
@@ -7657,7 +7750,7 @@ function SessionLogSseValue889(value: unknown): boolean {
   )
 }
 
-function SessionLogSseValue887(value: unknown): boolean {
+function SessionLogSseValue904(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "payload") &&
@@ -7665,43 +7758,43 @@ function SessionLogSseValue887(value: unknown): boolean {
     Object.hasOwn(value, "delivery") &&
     SessionLogSseValue229(value["delivery"]) &&
     Object.hasOwn(value, "digest") &&
-    SessionLogSseValue888(value["digest"]) &&
-    (!Object.hasOwn(value, "reference") || SessionLogSseValue889(value["reference"]))
+    SessionLogSseValue905(value["digest"]) &&
+    (!Object.hasOwn(value, "reference") || SessionLogSseValue906(value["reference"]))
   )
 }
 
-function SessionLogSseValue891(value: unknown): boolean {
+function SessionLogSseValue908(value: unknown): boolean {
   return isSseArray(value) && value.length >= 0 && value.slice(0).every(SessionLogSseValue88)
 }
 
-function SessionLogSseValue892(value: unknown): boolean {
+function SessionLogSseValue909(value: unknown): boolean {
   return isSseArray(value) && value.length >= 0 && value.slice(0).every(SessionLogSseValue88)
 }
 
-function SessionLogSseValue893(value: unknown): boolean {
+function SessionLogSseValue910(value: unknown): boolean {
   return typeof value === "string"
 }
 
-function SessionLogSseValue894(value: unknown): boolean {
+function SessionLogSseValue911(value: unknown): boolean {
   return typeof value === "string" && typeof value === "string" && new RegExp("^[a-f0-9]{64}$", "").test(value)
 }
 
-function SessionLogSseValue890(value: unknown): boolean {
+function SessionLogSseValue907(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
     SessionLogSseValue16(value["sessionID"]) &&
     Object.hasOwn(value, "inputID") &&
     SessionLogSseValue88(value["inputID"]) &&
-    (!Object.hasOwn(value, "messageIDs") || SessionLogSseValue891(value["messageIDs"])) &&
-    (!Object.hasOwn(value, "sharedInputs") || SessionLogSseValue892(value["sharedInputs"])) &&
-    (!Object.hasOwn(value, "resultEventID") || SessionLogSseValue861(value["resultEventID"])) &&
-    (!Object.hasOwn(value, "text") || SessionLogSseValue893(value["text"])) &&
-    (!Object.hasOwn(value, "digest") || SessionLogSseValue894(value["digest"]))
+    (!Object.hasOwn(value, "messageIDs") || SessionLogSseValue908(value["messageIDs"])) &&
+    (!Object.hasOwn(value, "sharedInputs") || SessionLogSseValue909(value["sharedInputs"])) &&
+    (!Object.hasOwn(value, "resultEventID") || SessionLogSseValue878(value["resultEventID"])) &&
+    (!Object.hasOwn(value, "text") || SessionLogSseValue910(value["text"])) &&
+    (!Object.hasOwn(value, "digest") || SessionLogSseValue911(value["digest"]))
   )
 }
 
-function SessionLogSseValue896(value: unknown): boolean {
+function SessionLogSseValue913(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "consumerSessionID") &&
@@ -7711,56 +7804,56 @@ function SessionLogSseValue896(value: unknown): boolean {
     Object.hasOwn(value, "eventID") &&
     SessionLogSseValue3(value["eventID"]) &&
     Object.hasOwn(value, "resultDigest") &&
-    SessionLogSseValue888(value["resultDigest"])
+    SessionLogSseValue905(value["resultDigest"])
   )
 }
 
-function SessionLogSseValue895(value: unknown): boolean {
-  return isSseArray(value) && value.length >= 0 && value.slice(0).every(SessionLogSseValue896)
+function SessionLogSseValue912(value: unknown): boolean {
+  return isSseArray(value) && value.length >= 0 && value.slice(0).every(SessionLogSseValue913)
 }
 
-function SessionLogSseValue899(value: unknown): boolean {
+function SessionLogSseValue916(value: unknown): boolean {
   return typeof value === "string"
 }
 
-function SessionLogSseValue898(value: unknown): boolean {
+function SessionLogSseValue915(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "code") &&
-    SessionLogSseValue899(value["code"]) &&
+    SessionLogSseValue916(value["code"]) &&
     Object.hasOwn(value, "message") &&
     SessionLogSseValue6(value["message"])
   )
 }
 
-function SessionLogSseValue900(value: unknown): boolean {
+function SessionLogSseValue917(value: unknown): boolean {
   return value === null
 }
 
-function SessionLogSseValue897(value: unknown): boolean {
-  return SessionLogSseValue898(value) || SessionLogSseValue900(value)
+function SessionLogSseValue914(value: unknown): boolean {
+  return SessionLogSseValue915(value) || SessionLogSseValue917(value)
 }
 
-function SessionLogSseValue901(value: unknown): boolean {
+function SessionLogSseValue918(value: unknown): boolean {
   return typeof value === "boolean"
 }
 
-function SessionLogSseValue870(value: unknown): boolean {
+function SessionLogSseValue887(value: unknown): boolean {
   return (
     isSseRecord(value) &&
-    (!Object.hasOwn(value, "phase") || SessionLogSseValue871(value["phase"])) &&
-    (!Object.hasOwn(value, "taskID") || SessionLogSseValue885(value["taskID"])) &&
-    (!Object.hasOwn(value, "taskRevision") || SessionLogSseValue886(value["taskRevision"])) &&
+    (!Object.hasOwn(value, "phase") || SessionLogSseValue888(value["phase"])) &&
+    (!Object.hasOwn(value, "taskID") || SessionLogSseValue902(value["taskID"])) &&
+    (!Object.hasOwn(value, "taskRevision") || SessionLogSseValue903(value["taskRevision"])) &&
     (!Object.hasOwn(value, "targetSessionID") || SessionLogSseValue20(value["targetSessionID"])) &&
-    (!Object.hasOwn(value, "prepared") || SessionLogSseValue887(value["prepared"])) &&
-    (!Object.hasOwn(value, "result") || SessionLogSseValue890(value["result"])) &&
-    (!Object.hasOwn(value, "consumers") || SessionLogSseValue895(value["consumers"])) &&
-    (!Object.hasOwn(value, "error") || SessionLogSseValue897(value["error"])) &&
-    (!Object.hasOwn(value, "cancelIntent") || SessionLogSseValue901(value["cancelIntent"]))
+    (!Object.hasOwn(value, "prepared") || SessionLogSseValue904(value["prepared"])) &&
+    (!Object.hasOwn(value, "result") || SessionLogSseValue907(value["result"])) &&
+    (!Object.hasOwn(value, "consumers") || SessionLogSseValue912(value["consumers"])) &&
+    (!Object.hasOwn(value, "error") || SessionLogSseValue914(value["error"])) &&
+    (!Object.hasOwn(value, "cancelIntent") || SessionLogSseValue918(value["cancelIntent"]))
   )
 }
 
-function SessionLogSseValue869(value: unknown): boolean {
+function SessionLogSseValue886(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
@@ -7768,53 +7861,53 @@ function SessionLogSseValue869(value: unknown): boolean {
     Object.hasOwn(value, "operationID") &&
     SessionLogSseValue208(value["operationID"]) &&
     Object.hasOwn(value, "change") &&
-    SessionLogSseValue870(value["change"])
+    SessionLogSseValue887(value["change"])
   )
 }
 
-function SessionLogSseValue864(value: unknown): boolean {
+function SessionLogSseValue881(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     SessionLogSseValue3(value["id"]) &&
     Object.hasOwn(value, "created") &&
     SessionLogSseValue4(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || SessionLogSseValue865(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || SessionLogSseValue882(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    SessionLogSseValue866(value["type"]) &&
+    SessionLogSseValue883(value["type"]) &&
     Object.hasOwn(value, "durable") &&
-    SessionLogSseValue867(value["durable"]) &&
+    SessionLogSseValue884(value["durable"]) &&
     (!Object.hasOwn(value, "location") || SessionLogSseValue12(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    SessionLogSseValue869(value["data"])
+    SessionLogSseValue886(value["data"])
   )
 }
 
-function SessionLogSseValue782(value: unknown): boolean {
-  return Number(SessionLogSseValue783(value)) + Number(SessionLogSseValue864(value)) === 1
+function SessionLogSseValue799(value: unknown): boolean {
+  return Number(SessionLogSseValue800(value)) + Number(SessionLogSseValue881(value)) === 1
 }
 
-function SessionLogSseValue903(value: unknown): boolean {
+function SessionLogSseValue920(value: unknown): boolean {
   return value === "log.synced"
 }
 
-function SessionLogSseValue904(value: unknown): boolean {
+function SessionLogSseValue921(value: unknown): boolean {
   return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value >= 0
 }
 
-function SessionLogSseValue902(value: unknown): boolean {
+function SessionLogSseValue919(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "type") &&
-    SessionLogSseValue903(value["type"]) &&
+    SessionLogSseValue920(value["type"]) &&
     Object.hasOwn(value, "aggregateID") &&
     SessionLogSseValue6(value["aggregateID"]) &&
-    (!Object.hasOwn(value, "seq") || SessionLogSseValue904(value["seq"]))
+    (!Object.hasOwn(value, "seq") || SessionLogSseValue921(value["seq"]))
   )
 }
 
 function SessionLogSseValue0(value: unknown): boolean {
-  return SessionLogSseValue1(value) || SessionLogSseValue782(value) || SessionLogSseValue902(value)
+  return SessionLogSseValue1(value) || SessionLogSseValue799(value) || SessionLogSseValue919(value)
 }
 
 function isSessionLogSse(value: unknown): value is
@@ -8542,7 +8635,14 @@ function isSessionLogSse(value: unknown): value is
               outputStarted?: true
               firstOutputAt?: number
               firstTokenAt?: number
-              gatewayReport?: { source: "response-headers"; provider?: string; model?: string }
+              gatewayReport?: {
+                source: "response-headers" | "response-stream" | "route-trace"
+                provider?: string
+                model?: string
+                session?: string
+                attempt?: string
+                routeID?: string
+              }
             }
           }
         }
@@ -8566,6 +8666,34 @@ function isSessionLogSse(value: unknown): value is
               rawFinish?: string
               usage?: { input: number; output: number; reasoning: number; cache: { read: number; write: number } }
               cost?: number
+              gatewayAttempts?: Array<{
+                ordinal: number
+                correlationID?: string
+                provider?: string
+                model?: string
+                account?: string
+                endpoint?: string
+                status?: number
+                durationMs?: number
+                usage?: { input: number; output: number; reasoning: number; cache: { read: number; write: number } }
+                quote?:
+                  | { status: "unknown" }
+                  | {
+                      status: "known" | "free"
+                      prices: Array<{
+                        tier?: { type: "context"; size: number }
+                        input: number
+                        output: number
+                        cache: { read: number; write: number }
+                      }>
+                      observedAt?: number
+                      source?: string
+                      validFrom?: number
+                      validUntil?: number
+                    }
+                cost?: number
+                error?: string
+              }>
               failure?: {
                 reason:
                   | "InvalidRequest"
@@ -13311,15 +13439,39 @@ function EventSubscribeSseValue566(value: unknown): boolean {
   return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value >= 0
 }
 
-function EventSubscribeSseValue568(value: unknown): boolean {
+function EventSubscribeSseValue569(value: unknown): boolean {
   return value === "response-headers"
 }
 
-function EventSubscribeSseValue569(value: unknown): boolean {
+function EventSubscribeSseValue570(value: unknown): boolean {
+  return value === "response-stream"
+}
+
+function EventSubscribeSseValue571(value: unknown): boolean {
+  return value === "route-trace"
+}
+
+function EventSubscribeSseValue568(value: unknown): boolean {
+  return EventSubscribeSseValue569(value) || EventSubscribeSseValue570(value) || EventSubscribeSseValue571(value)
+}
+
+function EventSubscribeSseValue572(value: unknown): boolean {
   return typeof value === "string"
 }
 
-function EventSubscribeSseValue570(value: unknown): boolean {
+function EventSubscribeSseValue573(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function EventSubscribeSseValue574(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function EventSubscribeSseValue575(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function EventSubscribeSseValue576(value: unknown): boolean {
   return typeof value === "string"
 }
 
@@ -13328,8 +13480,11 @@ function EventSubscribeSseValue567(value: unknown): boolean {
     isSseRecord(value) &&
     Object.hasOwn(value, "source") &&
     EventSubscribeSseValue568(value["source"]) &&
-    (!Object.hasOwn(value, "provider") || EventSubscribeSseValue569(value["provider"])) &&
-    (!Object.hasOwn(value, "model") || EventSubscribeSseValue570(value["model"]))
+    (!Object.hasOwn(value, "provider") || EventSubscribeSseValue572(value["provider"])) &&
+    (!Object.hasOwn(value, "model") || EventSubscribeSseValue573(value["model"])) &&
+    (!Object.hasOwn(value, "session") || EventSubscribeSseValue574(value["session"])) &&
+    (!Object.hasOwn(value, "attempt") || EventSubscribeSseValue575(value["attempt"])) &&
+    (!Object.hasOwn(value, "routeID") || EventSubscribeSseValue576(value["routeID"]))
   )
 }
 
@@ -13380,22 +13535,22 @@ function EventSubscribeSseValue554(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue572(value: unknown): boolean {
+function EventSubscribeSseValue578(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
-function EventSubscribeSseValue573(value: unknown): boolean {
+function EventSubscribeSseValue579(value: unknown): boolean {
   return value === "session.attempt.ended"
 }
 
-function EventSubscribeSseValue575(value: unknown): boolean {
+function EventSubscribeSseValue581(value: unknown): boolean {
   return value === 1
 }
 
-function EventSubscribeSseValue574(value: unknown): boolean {
+function EventSubscribeSseValue580(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -13403,61 +13558,24 @@ function EventSubscribeSseValue574(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     EventSubscribeSseValue58(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue575(value["version"])
+    EventSubscribeSseValue581(value["version"])
   )
-}
-
-function EventSubscribeSseValue579(value: unknown): boolean {
-  return value === "completed"
-}
-
-function EventSubscribeSseValue580(value: unknown): boolean {
-  return value === "failed"
-}
-
-function EventSubscribeSseValue581(value: unknown): boolean {
-  return value === "cancelled"
-}
-
-function EventSubscribeSseValue582(value: unknown): boolean {
-  return value === "interrupted"
-}
-
-function EventSubscribeSseValue578(value: unknown): boolean {
-  return (
-    EventSubscribeSseValue579(value) ||
-    EventSubscribeSseValue580(value) ||
-    EventSubscribeSseValue581(value) ||
-    EventSubscribeSseValue582(value)
-  )
-}
-
-function EventSubscribeSseValue583(value: unknown): boolean {
-  return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value >= 0
 }
 
 function EventSubscribeSseValue585(value: unknown): boolean {
-  return value === "stop"
+  return value === "completed"
 }
 
 function EventSubscribeSseValue586(value: unknown): boolean {
-  return value === "length"
+  return value === "failed"
 }
 
 function EventSubscribeSseValue587(value: unknown): boolean {
-  return value === "tool-calls"
+  return value === "cancelled"
 }
 
 function EventSubscribeSseValue588(value: unknown): boolean {
-  return value === "content-filter"
-}
-
-function EventSubscribeSseValue589(value: unknown): boolean {
-  return value === "error"
-}
-
-function EventSubscribeSseValue590(value: unknown): boolean {
-  return value === "unknown"
+  return value === "interrupted"
 }
 
 function EventSubscribeSseValue584(value: unknown): boolean {
@@ -13465,17 +13583,54 @@ function EventSubscribeSseValue584(value: unknown): boolean {
     EventSubscribeSseValue585(value) ||
     EventSubscribeSseValue586(value) ||
     EventSubscribeSseValue587(value) ||
-    EventSubscribeSseValue588(value) ||
-    EventSubscribeSseValue589(value) ||
-    EventSubscribeSseValue590(value)
+    EventSubscribeSseValue588(value)
   )
 }
 
+function EventSubscribeSseValue589(value: unknown): boolean {
+  return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value >= 0
+}
+
 function EventSubscribeSseValue591(value: unknown): boolean {
-  return typeof value === "string"
+  return value === "stop"
 }
 
 function EventSubscribeSseValue592(value: unknown): boolean {
+  return value === "length"
+}
+
+function EventSubscribeSseValue593(value: unknown): boolean {
+  return value === "tool-calls"
+}
+
+function EventSubscribeSseValue594(value: unknown): boolean {
+  return value === "content-filter"
+}
+
+function EventSubscribeSseValue595(value: unknown): boolean {
+  return value === "error"
+}
+
+function EventSubscribeSseValue596(value: unknown): boolean {
+  return value === "unknown"
+}
+
+function EventSubscribeSseValue590(value: unknown): boolean {
+  return (
+    EventSubscribeSseValue591(value) ||
+    EventSubscribeSseValue592(value) ||
+    EventSubscribeSseValue593(value) ||
+    EventSubscribeSseValue594(value) ||
+    EventSubscribeSseValue595(value) ||
+    EventSubscribeSseValue596(value)
+  )
+}
+
+function EventSubscribeSseValue597(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function EventSubscribeSseValue598(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "input") &&
@@ -13489,11 +13644,76 @@ function EventSubscribeSseValue592(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue593(value: unknown): boolean {
+function EventSubscribeSseValue599(value: unknown): boolean {
   return typeof value === "number" && Number.isFinite(value)
 }
 
-function EventSubscribeSseValue594(value: unknown): boolean {
+function EventSubscribeSseValue602(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function EventSubscribeSseValue603(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function EventSubscribeSseValue604(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function EventSubscribeSseValue605(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function EventSubscribeSseValue606(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function EventSubscribeSseValue607(value: unknown): boolean {
+  return (
+    typeof value === "number" &&
+    Number.isSafeInteger(value) &&
+    typeof value === "number" &&
+    value >= 100 &&
+    value <= 599
+  )
+}
+
+function EventSubscribeSseValue608(value: unknown): boolean {
+  return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value >= 0
+}
+
+function EventSubscribeSseValue609(value: unknown): boolean {
+  return EventSubscribeSseValue440(value) || EventSubscribeSseValue442(value)
+}
+
+function EventSubscribeSseValue610(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function EventSubscribeSseValue601(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "ordinal") &&
+    EventSubscribeSseValue428(value["ordinal"]) &&
+    (!Object.hasOwn(value, "correlationID") || EventSubscribeSseValue602(value["correlationID"])) &&
+    (!Object.hasOwn(value, "provider") || EventSubscribeSseValue603(value["provider"])) &&
+    (!Object.hasOwn(value, "model") || EventSubscribeSseValue604(value["model"])) &&
+    (!Object.hasOwn(value, "account") || EventSubscribeSseValue605(value["account"])) &&
+    (!Object.hasOwn(value, "endpoint") || EventSubscribeSseValue606(value["endpoint"])) &&
+    (!Object.hasOwn(value, "status") || EventSubscribeSseValue607(value["status"])) &&
+    (!Object.hasOwn(value, "durationMs") || EventSubscribeSseValue608(value["durationMs"])) &&
+    (!Object.hasOwn(value, "usage") || EventSubscribeSseValue598(value["usage"])) &&
+    (!Object.hasOwn(value, "quote") || EventSubscribeSseValue609(value["quote"])) &&
+    (!Object.hasOwn(value, "cost") || EventSubscribeSseValue599(value["cost"])) &&
+    (!Object.hasOwn(value, "error") || EventSubscribeSseValue610(value["error"]))
+  )
+}
+
+function EventSubscribeSseValue600(value: unknown): boolean {
+  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue601)
+}
+
+function EventSubscribeSseValue611(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "reason") &&
@@ -13508,26 +13728,27 @@ function EventSubscribeSseValue594(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue577(value: unknown): boolean {
+function EventSubscribeSseValue583(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "status") &&
-    EventSubscribeSseValue578(value["status"]) &&
+    EventSubscribeSseValue584(value["status"]) &&
     Object.hasOwn(value, "ended") &&
     EventSubscribeSseValue428(value["ended"]) &&
-    (!Object.hasOwn(value, "providerEndedAt") || EventSubscribeSseValue583(value["providerEndedAt"])) &&
+    (!Object.hasOwn(value, "providerEndedAt") || EventSubscribeSseValue589(value["providerEndedAt"])) &&
     Object.hasOwn(value, "outputStarted") &&
     EventSubscribeSseValue247(value["outputStarted"]) &&
-    (!Object.hasOwn(value, "finish") || EventSubscribeSseValue584(value["finish"])) &&
-    (!Object.hasOwn(value, "rawFinish") || EventSubscribeSseValue591(value["rawFinish"])) &&
-    (!Object.hasOwn(value, "usage") || EventSubscribeSseValue592(value["usage"])) &&
-    (!Object.hasOwn(value, "cost") || EventSubscribeSseValue593(value["cost"])) &&
-    (!Object.hasOwn(value, "failure") || EventSubscribeSseValue594(value["failure"])) &&
+    (!Object.hasOwn(value, "finish") || EventSubscribeSseValue590(value["finish"])) &&
+    (!Object.hasOwn(value, "rawFinish") || EventSubscribeSseValue597(value["rawFinish"])) &&
+    (!Object.hasOwn(value, "usage") || EventSubscribeSseValue598(value["usage"])) &&
+    (!Object.hasOwn(value, "cost") || EventSubscribeSseValue599(value["cost"])) &&
+    (!Object.hasOwn(value, "gatewayAttempts") || EventSubscribeSseValue600(value["gatewayAttempts"])) &&
+    (!Object.hasOwn(value, "failure") || EventSubscribeSseValue611(value["failure"])) &&
     (!Object.hasOwn(value, "delivery") || EventSubscribeSseValue542(value["delivery"]))
   )
 }
 
-function EventSubscribeSseValue576(value: unknown): boolean {
+function EventSubscribeSseValue582(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
@@ -13537,44 +13758,44 @@ function EventSubscribeSseValue576(value: unknown): boolean {
     Object.hasOwn(value, "ordinal") &&
     EventSubscribeSseValue428(value["ordinal"]) &&
     Object.hasOwn(value, "terminal") &&
-    EventSubscribeSseValue577(value["terminal"])
+    EventSubscribeSseValue583(value["terminal"])
   )
 }
 
-function EventSubscribeSseValue571(value: unknown): boolean {
+function EventSubscribeSseValue577(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue572(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue578(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue573(value["type"]) &&
+    EventSubscribeSseValue579(value["type"]) &&
     Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue574(value["durable"]) &&
+    EventSubscribeSseValue580(value["durable"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue576(value["data"])
+    EventSubscribeSseValue582(value["data"])
   )
 }
 
-function EventSubscribeSseValue596(value: unknown): boolean {
+function EventSubscribeSseValue613(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
-function EventSubscribeSseValue597(value: unknown): boolean {
+function EventSubscribeSseValue614(value: unknown): boolean {
   return value === "session.step.started"
 }
 
-function EventSubscribeSseValue599(value: unknown): boolean {
+function EventSubscribeSseValue616(value: unknown): boolean {
   return value === 1
 }
 
-function EventSubscribeSseValue598(value: unknown): boolean {
+function EventSubscribeSseValue615(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -13582,15 +13803,15 @@ function EventSubscribeSseValue598(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     EventSubscribeSseValue58(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue599(value["version"])
+    EventSubscribeSseValue616(value["version"])
   )
 }
 
-function EventSubscribeSseValue601(value: unknown): boolean {
+function EventSubscribeSseValue618(value: unknown): boolean {
   return typeof value === "string"
 }
 
-function EventSubscribeSseValue600(value: unknown): boolean {
+function EventSubscribeSseValue617(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
@@ -13601,46 +13822,46 @@ function EventSubscribeSseValue600(value: unknown): boolean {
     EventSubscribeSseValue112(value["agent"]) &&
     Object.hasOwn(value, "model") &&
     EventSubscribeSseValue75(value["model"]) &&
-    (!Object.hasOwn(value, "snapshot") || EventSubscribeSseValue601(value["snapshot"])) &&
+    (!Object.hasOwn(value, "snapshot") || EventSubscribeSseValue618(value["snapshot"])) &&
     Object.hasOwn(value, "started") &&
     EventSubscribeSseValue428(value["started"])
   )
 }
 
-function EventSubscribeSseValue595(value: unknown): boolean {
+function EventSubscribeSseValue612(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue596(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue613(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue597(value["type"]) &&
+    EventSubscribeSseValue614(value["type"]) &&
     Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue598(value["durable"]) &&
+    EventSubscribeSseValue615(value["durable"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue600(value["data"])
+    EventSubscribeSseValue617(value["data"])
   )
 }
 
-function EventSubscribeSseValue603(value: unknown): boolean {
+function EventSubscribeSseValue620(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
-function EventSubscribeSseValue604(value: unknown): boolean {
+function EventSubscribeSseValue621(value: unknown): boolean {
   return value === "session.step.streamed"
 }
 
-function EventSubscribeSseValue606(value: unknown): boolean {
+function EventSubscribeSseValue623(value: unknown): boolean {
   return value === 1
 }
 
-function EventSubscribeSseValue605(value: unknown): boolean {
+function EventSubscribeSseValue622(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -13648,11 +13869,11 @@ function EventSubscribeSseValue605(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     EventSubscribeSseValue58(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue606(value["version"])
+    EventSubscribeSseValue623(value["version"])
   )
 }
 
-function EventSubscribeSseValue607(value: unknown): boolean {
+function EventSubscribeSseValue624(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
@@ -13662,40 +13883,40 @@ function EventSubscribeSseValue607(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue602(value: unknown): boolean {
+function EventSubscribeSseValue619(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue603(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue620(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue604(value["type"]) &&
+    EventSubscribeSseValue621(value["type"]) &&
     Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue605(value["durable"]) &&
+    EventSubscribeSseValue622(value["durable"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue607(value["data"])
+    EventSubscribeSseValue624(value["data"])
   )
 }
 
-function EventSubscribeSseValue609(value: unknown): boolean {
+function EventSubscribeSseValue626(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
-function EventSubscribeSseValue610(value: unknown): boolean {
+function EventSubscribeSseValue627(value: unknown): boolean {
   return value === "session.step.ended"
 }
 
-function EventSubscribeSseValue612(value: unknown): boolean {
+function EventSubscribeSseValue629(value: unknown): boolean {
   return value === 1
 }
 
-function EventSubscribeSseValue611(value: unknown): boolean {
+function EventSubscribeSseValue628(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -13703,101 +13924,101 @@ function EventSubscribeSseValue611(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     EventSubscribeSseValue58(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue612(value["version"])
+    EventSubscribeSseValue629(value["version"])
   )
 }
 
-function EventSubscribeSseValue614(value: unknown): boolean {
+function EventSubscribeSseValue631(value: unknown): boolean {
   return typeof value === "boolean"
 }
 
-function EventSubscribeSseValue615(value: unknown): boolean {
+function EventSubscribeSseValue632(value: unknown): boolean {
   return (
-    EventSubscribeSseValue585(value) ||
-    EventSubscribeSseValue586(value) ||
-    EventSubscribeSseValue587(value) ||
-    EventSubscribeSseValue588(value) ||
-    EventSubscribeSseValue589(value) ||
-    EventSubscribeSseValue590(value)
+    EventSubscribeSseValue591(value) ||
+    EventSubscribeSseValue592(value) ||
+    EventSubscribeSseValue593(value) ||
+    EventSubscribeSseValue594(value) ||
+    EventSubscribeSseValue595(value) ||
+    EventSubscribeSseValue596(value)
   )
 }
 
-function EventSubscribeSseValue616(value: unknown): boolean {
+function EventSubscribeSseValue633(value: unknown): boolean {
   return typeof value === "string"
 }
 
-function EventSubscribeSseValue617(value: unknown): boolean {
+function EventSubscribeSseValue634(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
-function EventSubscribeSseValue619(value: unknown): boolean {
+function EventSubscribeSseValue636(value: unknown): boolean {
   return typeof value === "string"
 }
 
-function EventSubscribeSseValue618(value: unknown): boolean {
-  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue619)
+function EventSubscribeSseValue635(value: unknown): boolean {
+  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue636)
 }
 
-function EventSubscribeSseValue613(value: unknown): boolean {
+function EventSubscribeSseValue630(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
     EventSubscribeSseValue61(value["sessionID"]) &&
     Object.hasOwn(value, "assistantMessageID") &&
     EventSubscribeSseValue127(value["assistantMessageID"]) &&
-    (!Object.hasOwn(value, "needsContinuation") || EventSubscribeSseValue614(value["needsContinuation"])) &&
+    (!Object.hasOwn(value, "needsContinuation") || EventSubscribeSseValue631(value["needsContinuation"])) &&
     Object.hasOwn(value, "finish") &&
-    EventSubscribeSseValue615(value["finish"]) &&
-    (!Object.hasOwn(value, "rawFinish") || EventSubscribeSseValue616(value["rawFinish"])) &&
-    (!Object.hasOwn(value, "providerState") || EventSubscribeSseValue617(value["providerState"])) &&
+    EventSubscribeSseValue632(value["finish"]) &&
+    (!Object.hasOwn(value, "rawFinish") || EventSubscribeSseValue633(value["rawFinish"])) &&
+    (!Object.hasOwn(value, "providerState") || EventSubscribeSseValue634(value["providerState"])) &&
     Object.hasOwn(value, "cost") &&
     EventSubscribeSseValue221(value["cost"]) &&
     Object.hasOwn(value, "tokens") &&
     EventSubscribeSseValue222(value["tokens"]) &&
     (!Object.hasOwn(value, "unknownPriceAttempts") || EventSubscribeSseValue224(value["unknownPriceAttempts"])) &&
     (!Object.hasOwn(value, "missingUsageAttempts") || EventSubscribeSseValue225(value["missingUsageAttempts"])) &&
-    (!Object.hasOwn(value, "snapshot") || EventSubscribeSseValue601(value["snapshot"])) &&
-    (!Object.hasOwn(value, "files") || EventSubscribeSseValue618(value["files"]))
+    (!Object.hasOwn(value, "snapshot") || EventSubscribeSseValue618(value["snapshot"])) &&
+    (!Object.hasOwn(value, "files") || EventSubscribeSseValue635(value["files"]))
   )
 }
 
-function EventSubscribeSseValue608(value: unknown): boolean {
+function EventSubscribeSseValue625(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue609(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue626(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue610(value["type"]) &&
+    EventSubscribeSseValue627(value["type"]) &&
     Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue611(value["durable"]) &&
+    EventSubscribeSseValue628(value["durable"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue613(value["data"])
+    EventSubscribeSseValue630(value["data"])
   )
 }
 
-function EventSubscribeSseValue621(value: unknown): boolean {
+function EventSubscribeSseValue638(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
-function EventSubscribeSseValue622(value: unknown): boolean {
+function EventSubscribeSseValue639(value: unknown): boolean {
   return value === "session.step.completed"
 }
 
-function EventSubscribeSseValue624(value: unknown): boolean {
+function EventSubscribeSseValue641(value: unknown): boolean {
   return value === 1
 }
 
-function EventSubscribeSseValue623(value: unknown): boolean {
+function EventSubscribeSseValue640(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -13805,11 +14026,11 @@ function EventSubscribeSseValue623(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     EventSubscribeSseValue58(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue624(value["version"])
+    EventSubscribeSseValue641(value["version"])
   )
 }
 
-function EventSubscribeSseValue625(value: unknown): boolean {
+function EventSubscribeSseValue642(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
@@ -13820,40 +14041,40 @@ function EventSubscribeSseValue625(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue620(value: unknown): boolean {
+function EventSubscribeSseValue637(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue621(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue638(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue622(value["type"]) &&
+    EventSubscribeSseValue639(value["type"]) &&
     Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue623(value["durable"]) &&
+    EventSubscribeSseValue640(value["durable"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue625(value["data"])
+    EventSubscribeSseValue642(value["data"])
   )
 }
 
-function EventSubscribeSseValue627(value: unknown): boolean {
+function EventSubscribeSseValue644(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
-function EventSubscribeSseValue628(value: unknown): boolean {
+function EventSubscribeSseValue645(value: unknown): boolean {
   return value === "session.step.failed"
 }
 
-function EventSubscribeSseValue630(value: unknown): boolean {
+function EventSubscribeSseValue647(value: unknown): boolean {
   return value === 1
 }
 
-function EventSubscribeSseValue629(value: unknown): boolean {
+function EventSubscribeSseValue646(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -13861,27 +14082,27 @@ function EventSubscribeSseValue629(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     EventSubscribeSseValue58(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue630(value["version"])
+    EventSubscribeSseValue647(value["version"])
   )
 }
 
-function EventSubscribeSseValue633(value: unknown): boolean {
+function EventSubscribeSseValue650(value: unknown): boolean {
   return value === "content-filter"
 }
 
-function EventSubscribeSseValue632(value: unknown): boolean {
-  return EventSubscribeSseValue633(value)
+function EventSubscribeSseValue649(value: unknown): boolean {
+  return EventSubscribeSseValue650(value)
 }
 
-function EventSubscribeSseValue634(value: unknown): boolean {
+function EventSubscribeSseValue651(value: unknown): boolean {
   return typeof value === "string"
 }
 
-function EventSubscribeSseValue635(value: unknown): boolean {
-  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue619)
+function EventSubscribeSseValue652(value: unknown): boolean {
+  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue636)
 }
 
-function EventSubscribeSseValue631(value: unknown): boolean {
+function EventSubscribeSseValue648(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
@@ -13890,52 +14111,52 @@ function EventSubscribeSseValue631(value: unknown): boolean {
     EventSubscribeSseValue127(value["assistantMessageID"]) &&
     Object.hasOwn(value, "error") &&
     EventSubscribeSseValue363(value["error"]) &&
-    (!Object.hasOwn(value, "finish") || EventSubscribeSseValue632(value["finish"])) &&
-    (!Object.hasOwn(value, "rawFinish") || EventSubscribeSseValue634(value["rawFinish"])) &&
-    (!Object.hasOwn(value, "providerState") || EventSubscribeSseValue617(value["providerState"])) &&
-    (!Object.hasOwn(value, "cost") || EventSubscribeSseValue593(value["cost"])) &&
-    (!Object.hasOwn(value, "tokens") || EventSubscribeSseValue592(value["tokens"])) &&
+    (!Object.hasOwn(value, "finish") || EventSubscribeSseValue649(value["finish"])) &&
+    (!Object.hasOwn(value, "rawFinish") || EventSubscribeSseValue651(value["rawFinish"])) &&
+    (!Object.hasOwn(value, "providerState") || EventSubscribeSseValue634(value["providerState"])) &&
+    (!Object.hasOwn(value, "cost") || EventSubscribeSseValue599(value["cost"])) &&
+    (!Object.hasOwn(value, "tokens") || EventSubscribeSseValue598(value["tokens"])) &&
     (!Object.hasOwn(value, "unknownPriceAttempts") || EventSubscribeSseValue224(value["unknownPriceAttempts"])) &&
     (!Object.hasOwn(value, "missingUsageAttempts") || EventSubscribeSseValue225(value["missingUsageAttempts"])) &&
-    (!Object.hasOwn(value, "snapshot") || EventSubscribeSseValue601(value["snapshot"])) &&
-    (!Object.hasOwn(value, "files") || EventSubscribeSseValue635(value["files"]))
+    (!Object.hasOwn(value, "snapshot") || EventSubscribeSseValue618(value["snapshot"])) &&
+    (!Object.hasOwn(value, "files") || EventSubscribeSseValue652(value["files"]))
   )
 }
 
-function EventSubscribeSseValue626(value: unknown): boolean {
+function EventSubscribeSseValue643(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue627(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue644(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue628(value["type"]) &&
+    EventSubscribeSseValue645(value["type"]) &&
     Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue629(value["durable"]) &&
+    EventSubscribeSseValue646(value["durable"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue631(value["data"])
+    EventSubscribeSseValue648(value["data"])
   )
 }
 
-function EventSubscribeSseValue637(value: unknown): boolean {
+function EventSubscribeSseValue654(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
-function EventSubscribeSseValue638(value: unknown): boolean {
+function EventSubscribeSseValue655(value: unknown): boolean {
   return value === "session.text.started"
 }
 
-function EventSubscribeSseValue640(value: unknown): boolean {
+function EventSubscribeSseValue657(value: unknown): boolean {
   return value === 1
 }
 
-function EventSubscribeSseValue639(value: unknown): boolean {
+function EventSubscribeSseValue656(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -13943,11 +14164,11 @@ function EventSubscribeSseValue639(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     EventSubscribeSseValue58(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue640(value["version"])
+    EventSubscribeSseValue657(value["version"])
   )
 }
 
-function EventSubscribeSseValue641(value: unknown): boolean {
+function EventSubscribeSseValue658(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
@@ -13959,36 +14180,36 @@ function EventSubscribeSseValue641(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue636(value: unknown): boolean {
+function EventSubscribeSseValue653(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue637(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue654(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue638(value["type"]) &&
+    EventSubscribeSseValue655(value["type"]) &&
     Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue639(value["durable"]) &&
+    EventSubscribeSseValue656(value["durable"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue641(value["data"])
+    EventSubscribeSseValue658(value["data"])
   )
 }
 
-function EventSubscribeSseValue643(value: unknown): boolean {
+function EventSubscribeSseValue660(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
-function EventSubscribeSseValue644(value: unknown): boolean {
+function EventSubscribeSseValue661(value: unknown): boolean {
   return value === "session.text.delta"
 }
 
-function EventSubscribeSseValue645(value: unknown): boolean {
+function EventSubscribeSseValue662(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
@@ -13999,155 +14220,155 @@ function EventSubscribeSseValue645(value: unknown): boolean {
     EventSubscribeSseValue428(value["ordinal"]) &&
     Object.hasOwn(value, "delta") &&
     EventSubscribeSseValue5(value["delta"])
-  )
-}
-
-function EventSubscribeSseValue642(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue2(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue643(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue644(value["type"]) &&
-    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue645(value["data"])
-  )
-}
-
-function EventSubscribeSseValue647(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
-  )
-}
-
-function EventSubscribeSseValue648(value: unknown): boolean {
-  return value === "session.text.ended"
-}
-
-function EventSubscribeSseValue650(value: unknown): boolean {
-  return value === 1
-}
-
-function EventSubscribeSseValue649(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "aggregateID") &&
-    EventSubscribeSseValue5(value["aggregateID"]) &&
-    Object.hasOwn(value, "seq") &&
-    EventSubscribeSseValue58(value["seq"]) &&
-    Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue650(value["version"])
-  )
-}
-
-function EventSubscribeSseValue651(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "sessionID") &&
-    EventSubscribeSseValue61(value["sessionID"]) &&
-    Object.hasOwn(value, "assistantMessageID") &&
-    EventSubscribeSseValue127(value["assistantMessageID"]) &&
-    Object.hasOwn(value, "ordinal") &&
-    EventSubscribeSseValue428(value["ordinal"]) &&
-    Object.hasOwn(value, "text") &&
-    EventSubscribeSseValue5(value["text"]) &&
-    (!Object.hasOwn(value, "state") || EventSubscribeSseValue617(value["state"]))
-  )
-}
-
-function EventSubscribeSseValue646(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue2(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue647(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue648(value["type"]) &&
-    Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue649(value["durable"]) &&
-    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue651(value["data"])
-  )
-}
-
-function EventSubscribeSseValue653(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
-  )
-}
-
-function EventSubscribeSseValue654(value: unknown): boolean {
-  return value === "session.reasoning.started"
-}
-
-function EventSubscribeSseValue656(value: unknown): boolean {
-  return value === 1
-}
-
-function EventSubscribeSseValue655(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "aggregateID") &&
-    EventSubscribeSseValue5(value["aggregateID"]) &&
-    Object.hasOwn(value, "seq") &&
-    EventSubscribeSseValue58(value["seq"]) &&
-    Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue656(value["version"])
-  )
-}
-
-function EventSubscribeSseValue657(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "sessionID") &&
-    EventSubscribeSseValue61(value["sessionID"]) &&
-    Object.hasOwn(value, "assistantMessageID") &&
-    EventSubscribeSseValue127(value["assistantMessageID"]) &&
-    Object.hasOwn(value, "ordinal") &&
-    EventSubscribeSseValue428(value["ordinal"]) &&
-    (!Object.hasOwn(value, "state") || EventSubscribeSseValue617(value["state"]))
-  )
-}
-
-function EventSubscribeSseValue652(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue2(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue653(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue654(value["type"]) &&
-    Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue655(value["durable"]) &&
-    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue657(value["data"])
   )
 }
 
 function EventSubscribeSseValue659(value: unknown): boolean {
   return (
     isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue2(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    EventSubscribeSseValue3(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue660(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue661(value["type"]) &&
+    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    EventSubscribeSseValue662(value["data"])
+  )
+}
+
+function EventSubscribeSseValue664(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
-function EventSubscribeSseValue660(value: unknown): boolean {
+function EventSubscribeSseValue665(value: unknown): boolean {
+  return value === "session.text.ended"
+}
+
+function EventSubscribeSseValue667(value: unknown): boolean {
+  return value === 1
+}
+
+function EventSubscribeSseValue666(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "aggregateID") &&
+    EventSubscribeSseValue5(value["aggregateID"]) &&
+    Object.hasOwn(value, "seq") &&
+    EventSubscribeSseValue58(value["seq"]) &&
+    Object.hasOwn(value, "version") &&
+    EventSubscribeSseValue667(value["version"])
+  )
+}
+
+function EventSubscribeSseValue668(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "sessionID") &&
+    EventSubscribeSseValue61(value["sessionID"]) &&
+    Object.hasOwn(value, "assistantMessageID") &&
+    EventSubscribeSseValue127(value["assistantMessageID"]) &&
+    Object.hasOwn(value, "ordinal") &&
+    EventSubscribeSseValue428(value["ordinal"]) &&
+    Object.hasOwn(value, "text") &&
+    EventSubscribeSseValue5(value["text"]) &&
+    (!Object.hasOwn(value, "state") || EventSubscribeSseValue634(value["state"]))
+  )
+}
+
+function EventSubscribeSseValue663(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue2(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    EventSubscribeSseValue3(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue664(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue665(value["type"]) &&
+    Object.hasOwn(value, "durable") &&
+    EventSubscribeSseValue666(value["durable"]) &&
+    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    EventSubscribeSseValue668(value["data"])
+  )
+}
+
+function EventSubscribeSseValue670(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+  )
+}
+
+function EventSubscribeSseValue671(value: unknown): boolean {
+  return value === "session.reasoning.started"
+}
+
+function EventSubscribeSseValue673(value: unknown): boolean {
+  return value === 1
+}
+
+function EventSubscribeSseValue672(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "aggregateID") &&
+    EventSubscribeSseValue5(value["aggregateID"]) &&
+    Object.hasOwn(value, "seq") &&
+    EventSubscribeSseValue58(value["seq"]) &&
+    Object.hasOwn(value, "version") &&
+    EventSubscribeSseValue673(value["version"])
+  )
+}
+
+function EventSubscribeSseValue674(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "sessionID") &&
+    EventSubscribeSseValue61(value["sessionID"]) &&
+    Object.hasOwn(value, "assistantMessageID") &&
+    EventSubscribeSseValue127(value["assistantMessageID"]) &&
+    Object.hasOwn(value, "ordinal") &&
+    EventSubscribeSseValue428(value["ordinal"]) &&
+    (!Object.hasOwn(value, "state") || EventSubscribeSseValue634(value["state"]))
+  )
+}
+
+function EventSubscribeSseValue669(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue2(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    EventSubscribeSseValue3(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue670(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue671(value["type"]) &&
+    Object.hasOwn(value, "durable") &&
+    EventSubscribeSseValue672(value["durable"]) &&
+    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    EventSubscribeSseValue674(value["data"])
+  )
+}
+
+function EventSubscribeSseValue676(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+  )
+}
+
+function EventSubscribeSseValue677(value: unknown): boolean {
   return value === "session.reasoning.delta"
 }
 
-function EventSubscribeSseValue661(value: unknown): boolean {
+function EventSubscribeSseValue678(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
@@ -14161,38 +14382,38 @@ function EventSubscribeSseValue661(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue658(value: unknown): boolean {
+function EventSubscribeSseValue675(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue659(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue676(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue660(value["type"]) &&
+    EventSubscribeSseValue677(value["type"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue661(value["data"])
+    EventSubscribeSseValue678(value["data"])
   )
 }
 
-function EventSubscribeSseValue663(value: unknown): boolean {
+function EventSubscribeSseValue680(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
-function EventSubscribeSseValue664(value: unknown): boolean {
+function EventSubscribeSseValue681(value: unknown): boolean {
   return value === "session.reasoning.ended"
 }
 
-function EventSubscribeSseValue666(value: unknown): boolean {
+function EventSubscribeSseValue683(value: unknown): boolean {
   return value === 1
 }
 
-function EventSubscribeSseValue665(value: unknown): boolean {
+function EventSubscribeSseValue682(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -14200,11 +14421,11 @@ function EventSubscribeSseValue665(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     EventSubscribeSseValue58(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue666(value["version"])
+    EventSubscribeSseValue683(value["version"])
   )
 }
 
-function EventSubscribeSseValue667(value: unknown): boolean {
+function EventSubscribeSseValue684(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
@@ -14215,44 +14436,44 @@ function EventSubscribeSseValue667(value: unknown): boolean {
     EventSubscribeSseValue428(value["ordinal"]) &&
     Object.hasOwn(value, "text") &&
     EventSubscribeSseValue5(value["text"]) &&
-    (!Object.hasOwn(value, "state") || EventSubscribeSseValue617(value["state"]))
+    (!Object.hasOwn(value, "state") || EventSubscribeSseValue634(value["state"]))
   )
 }
 
-function EventSubscribeSseValue662(value: unknown): boolean {
+function EventSubscribeSseValue679(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue663(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue680(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue664(value["type"]) &&
+    EventSubscribeSseValue681(value["type"]) &&
     Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue665(value["durable"]) &&
+    EventSubscribeSseValue682(value["durable"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue667(value["data"])
+    EventSubscribeSseValue684(value["data"])
   )
 }
 
-function EventSubscribeSseValue669(value: unknown): boolean {
+function EventSubscribeSseValue686(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
-function EventSubscribeSseValue670(value: unknown): boolean {
+function EventSubscribeSseValue687(value: unknown): boolean {
   return value === "session.tool.input.started"
 }
 
-function EventSubscribeSseValue672(value: unknown): boolean {
+function EventSubscribeSseValue689(value: unknown): boolean {
   return value === 1
 }
 
-function EventSubscribeSseValue671(value: unknown): boolean {
+function EventSubscribeSseValue688(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -14260,11 +14481,11 @@ function EventSubscribeSseValue671(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     EventSubscribeSseValue58(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue672(value["version"])
+    EventSubscribeSseValue689(value["version"])
   )
 }
 
-function EventSubscribeSseValue673(value: unknown): boolean {
+function EventSubscribeSseValue690(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
@@ -14278,190 +14499,21 @@ function EventSubscribeSseValue673(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue668(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue2(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue669(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue670(value["type"]) &&
-    Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue671(value["durable"]) &&
-    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue673(value["data"])
-  )
-}
-
-function EventSubscribeSseValue675(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
-  )
-}
-
-function EventSubscribeSseValue676(value: unknown): boolean {
-  return value === "session.tool.input.delta"
-}
-
-function EventSubscribeSseValue677(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "sessionID") &&
-    EventSubscribeSseValue61(value["sessionID"]) &&
-    Object.hasOwn(value, "assistantMessageID") &&
-    EventSubscribeSseValue127(value["assistantMessageID"]) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue5(value["id"]) &&
-    Object.hasOwn(value, "delta") &&
-    EventSubscribeSseValue5(value["delta"])
-  )
-}
-
-function EventSubscribeSseValue674(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue2(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue675(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue676(value["type"]) &&
-    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue677(value["data"])
-  )
-}
-
-function EventSubscribeSseValue679(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
-  )
-}
-
-function EventSubscribeSseValue680(value: unknown): boolean {
-  return value === "session.tool.input.ended"
-}
-
-function EventSubscribeSseValue682(value: unknown): boolean {
-  return value === 1
-}
-
-function EventSubscribeSseValue681(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "aggregateID") &&
-    EventSubscribeSseValue5(value["aggregateID"]) &&
-    Object.hasOwn(value, "seq") &&
-    EventSubscribeSseValue58(value["seq"]) &&
-    Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue682(value["version"])
-  )
-}
-
-function EventSubscribeSseValue683(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "sessionID") &&
-    EventSubscribeSseValue61(value["sessionID"]) &&
-    Object.hasOwn(value, "assistantMessageID") &&
-    EventSubscribeSseValue127(value["assistantMessageID"]) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue5(value["id"]) &&
-    Object.hasOwn(value, "text") &&
-    EventSubscribeSseValue5(value["text"])
-  )
-}
-
-function EventSubscribeSseValue678(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue2(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue679(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue680(value["type"]) &&
-    Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue681(value["durable"]) &&
-    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue683(value["data"])
-  )
-}
-
 function EventSubscribeSseValue685(value: unknown): boolean {
   return (
     isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
-  )
-}
-
-function EventSubscribeSseValue686(value: unknown): boolean {
-  return value === "session.tool.called"
-}
-
-function EventSubscribeSseValue688(value: unknown): boolean {
-  return value === 1
-}
-
-function EventSubscribeSseValue687(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "aggregateID") &&
-    EventSubscribeSseValue5(value["aggregateID"]) &&
-    Object.hasOwn(value, "seq") &&
-    EventSubscribeSseValue58(value["seq"]) &&
-    Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue688(value["version"])
-  )
-}
-
-function EventSubscribeSseValue690(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
-  )
-}
-
-function EventSubscribeSseValue689(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "sessionID") &&
-    EventSubscribeSseValue61(value["sessionID"]) &&
-    Object.hasOwn(value, "assistantMessageID") &&
-    EventSubscribeSseValue127(value["assistantMessageID"]) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue5(value["id"]) &&
-    Object.hasOwn(value, "input") &&
-    EventSubscribeSseValue690(value["input"]) &&
-    Object.hasOwn(value, "executed") &&
-    EventSubscribeSseValue247(value["executed"]) &&
-    (!Object.hasOwn(value, "state") || EventSubscribeSseValue617(value["state"]))
-  )
-}
-
-function EventSubscribeSseValue684(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue685(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue686(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue686(value["type"]) &&
+    EventSubscribeSseValue687(value["type"]) &&
     Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue687(value["durable"]) &&
+    EventSubscribeSseValue688(value["durable"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue689(value["data"])
+    EventSubscribeSseValue690(value["data"])
   )
 }
 
@@ -14473,14 +14525,7 @@ function EventSubscribeSseValue692(value: unknown): boolean {
 }
 
 function EventSubscribeSseValue693(value: unknown): boolean {
-  return value === "session.tool.progress"
-}
-
-function EventSubscribeSseValue695(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue134(item))
-  )
+  return value === "session.tool.input.delta"
 }
 
 function EventSubscribeSseValue694(value: unknown): boolean {
@@ -14492,8 +14537,8 @@ function EventSubscribeSseValue694(value: unknown): boolean {
     EventSubscribeSseValue127(value["assistantMessageID"]) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue5(value["id"]) &&
-    Object.hasOwn(value, "metadata") &&
-    EventSubscribeSseValue695(value["metadata"])
+    Object.hasOwn(value, "delta") &&
+    EventSubscribeSseValue5(value["delta"])
   )
 }
 
@@ -14513,22 +14558,22 @@ function EventSubscribeSseValue691(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue697(value: unknown): boolean {
+function EventSubscribeSseValue696(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
-function EventSubscribeSseValue698(value: unknown): boolean {
-  return value === "session.tool.success"
-}
-
-function EventSubscribeSseValue700(value: unknown): boolean {
-  return value === 2
+function EventSubscribeSseValue697(value: unknown): boolean {
+  return value === "session.tool.input.ended"
 }
 
 function EventSubscribeSseValue699(value: unknown): boolean {
+  return value === 1
+}
+
+function EventSubscribeSseValue698(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -14536,70 +14581,246 @@ function EventSubscribeSseValue699(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     EventSubscribeSseValue58(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue700(value["version"])
+    EventSubscribeSseValue699(value["version"])
   )
 }
 
-function EventSubscribeSseValue705(value: unknown): boolean {
-  return value === "text"
-}
-
-function EventSubscribeSseValue704(value: unknown): boolean {
+function EventSubscribeSseValue700(value: unknown): boolean {
   return (
     isSseRecord(value) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue705(value["type"]) &&
+    Object.hasOwn(value, "sessionID") &&
+    EventSubscribeSseValue61(value["sessionID"]) &&
+    Object.hasOwn(value, "assistantMessageID") &&
+    EventSubscribeSseValue127(value["assistantMessageID"]) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue5(value["id"]) &&
     Object.hasOwn(value, "text") &&
     EventSubscribeSseValue5(value["text"])
   )
 }
 
+function EventSubscribeSseValue695(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue2(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    EventSubscribeSseValue3(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue696(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue697(value["type"]) &&
+    Object.hasOwn(value, "durable") &&
+    EventSubscribeSseValue698(value["durable"]) &&
+    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    EventSubscribeSseValue700(value["data"])
+  )
+}
+
+function EventSubscribeSseValue702(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+  )
+}
+
+function EventSubscribeSseValue703(value: unknown): boolean {
+  return value === "session.tool.called"
+}
+
+function EventSubscribeSseValue705(value: unknown): boolean {
+  return value === 1
+}
+
+function EventSubscribeSseValue704(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "aggregateID") &&
+    EventSubscribeSseValue5(value["aggregateID"]) &&
+    Object.hasOwn(value, "seq") &&
+    EventSubscribeSseValue58(value["seq"]) &&
+    Object.hasOwn(value, "version") &&
+    EventSubscribeSseValue705(value["version"])
+  )
+}
+
 function EventSubscribeSseValue707(value: unknown): boolean {
-  return value === "file"
-}
-
-function EventSubscribeSseValue709(value: unknown): boolean {
-  return value === undefined
-}
-
-function EventSubscribeSseValue708(value: unknown): boolean {
-  return EventSubscribeSseValue5(value) || EventSubscribeSseValue709(value)
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+  )
 }
 
 function EventSubscribeSseValue706(value: unknown): boolean {
   return (
     isSseRecord(value) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue707(value["type"]) &&
-    Object.hasOwn(value, "uri") &&
-    EventSubscribeSseValue5(value["uri"]) &&
-    Object.hasOwn(value, "mime") &&
-    EventSubscribeSseValue5(value["mime"]) &&
-    (!Object.hasOwn(value, "name") || EventSubscribeSseValue708(value["name"]))
+    Object.hasOwn(value, "sessionID") &&
+    EventSubscribeSseValue61(value["sessionID"]) &&
+    Object.hasOwn(value, "assistantMessageID") &&
+    EventSubscribeSseValue127(value["assistantMessageID"]) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue5(value["id"]) &&
+    Object.hasOwn(value, "input") &&
+    EventSubscribeSseValue707(value["input"]) &&
+    Object.hasOwn(value, "executed") &&
+    EventSubscribeSseValue247(value["executed"]) &&
+    (!Object.hasOwn(value, "state") || EventSubscribeSseValue634(value["state"]))
   )
 }
 
-function EventSubscribeSseValue703(value: unknown): boolean {
-  return EventSubscribeSseValue704(value) || EventSubscribeSseValue706(value)
+function EventSubscribeSseValue701(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue2(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    EventSubscribeSseValue3(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue702(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue703(value["type"]) &&
+    Object.hasOwn(value, "durable") &&
+    EventSubscribeSseValue704(value["durable"]) &&
+    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    EventSubscribeSseValue706(value["data"])
+  )
 }
 
-function EventSubscribeSseValue702(value: unknown): boolean {
+function EventSubscribeSseValue709(value: unknown): boolean {
   return (
-    isSseArray(value) &&
-    value.length >= 1 &&
-    EventSubscribeSseValue703(value[0]) &&
-    value.slice(1).every(EventSubscribeSseValue703)
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
 function EventSubscribeSseValue710(value: unknown): boolean {
+  return value === "session.tool.progress"
+}
+
+function EventSubscribeSseValue712(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue134(item))
   )
 }
 
-function EventSubscribeSseValue701(value: unknown): boolean {
+function EventSubscribeSseValue711(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "sessionID") &&
+    EventSubscribeSseValue61(value["sessionID"]) &&
+    Object.hasOwn(value, "assistantMessageID") &&
+    EventSubscribeSseValue127(value["assistantMessageID"]) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue5(value["id"]) &&
+    Object.hasOwn(value, "metadata") &&
+    EventSubscribeSseValue712(value["metadata"])
+  )
+}
+
+function EventSubscribeSseValue708(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue2(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    EventSubscribeSseValue3(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue709(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue710(value["type"]) &&
+    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    EventSubscribeSseValue711(value["data"])
+  )
+}
+
+function EventSubscribeSseValue714(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+  )
+}
+
+function EventSubscribeSseValue715(value: unknown): boolean {
+  return value === "session.tool.success"
+}
+
+function EventSubscribeSseValue717(value: unknown): boolean {
+  return value === 2
+}
+
+function EventSubscribeSseValue716(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "aggregateID") &&
+    EventSubscribeSseValue5(value["aggregateID"]) &&
+    Object.hasOwn(value, "seq") &&
+    EventSubscribeSseValue58(value["seq"]) &&
+    Object.hasOwn(value, "version") &&
+    EventSubscribeSseValue717(value["version"])
+  )
+}
+
+function EventSubscribeSseValue722(value: unknown): boolean {
+  return value === "text"
+}
+
+function EventSubscribeSseValue721(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue722(value["type"]) &&
+    Object.hasOwn(value, "text") &&
+    EventSubscribeSseValue5(value["text"])
+  )
+}
+
+function EventSubscribeSseValue724(value: unknown): boolean {
+  return value === "file"
+}
+
+function EventSubscribeSseValue726(value: unknown): boolean {
+  return value === undefined
+}
+
+function EventSubscribeSseValue725(value: unknown): boolean {
+  return EventSubscribeSseValue5(value) || EventSubscribeSseValue726(value)
+}
+
+function EventSubscribeSseValue723(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue724(value["type"]) &&
+    Object.hasOwn(value, "uri") &&
+    EventSubscribeSseValue5(value["uri"]) &&
+    Object.hasOwn(value, "mime") &&
+    EventSubscribeSseValue5(value["mime"]) &&
+    (!Object.hasOwn(value, "name") || EventSubscribeSseValue725(value["name"]))
+  )
+}
+
+function EventSubscribeSseValue720(value: unknown): boolean {
+  return EventSubscribeSseValue721(value) || EventSubscribeSseValue723(value)
+}
+
+function EventSubscribeSseValue719(value: unknown): boolean {
+  return (
+    isSseArray(value) &&
+    value.length >= 1 &&
+    EventSubscribeSseValue720(value[0]) &&
+    value.slice(1).every(EventSubscribeSseValue720)
+  )
+}
+
+function EventSubscribeSseValue727(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue134(item))
+  )
+}
+
+function EventSubscribeSseValue718(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
@@ -14609,48 +14830,48 @@ function EventSubscribeSseValue701(value: unknown): boolean {
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue5(value["id"]) &&
     Object.hasOwn(value, "content") &&
-    EventSubscribeSseValue702(value["content"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue710(value["metadata"])) &&
+    EventSubscribeSseValue719(value["content"]) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue727(value["metadata"])) &&
     Object.hasOwn(value, "executed") &&
     EventSubscribeSseValue247(value["executed"]) &&
-    (!Object.hasOwn(value, "resultState") || EventSubscribeSseValue617(value["resultState"]))
+    (!Object.hasOwn(value, "resultState") || EventSubscribeSseValue634(value["resultState"]))
   )
 }
 
-function EventSubscribeSseValue696(value: unknown): boolean {
+function EventSubscribeSseValue713(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue697(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue714(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue698(value["type"]) &&
+    EventSubscribeSseValue715(value["type"]) &&
     Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue699(value["durable"]) &&
+    EventSubscribeSseValue716(value["durable"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue701(value["data"])
+    EventSubscribeSseValue718(value["data"])
   )
 }
 
-function EventSubscribeSseValue712(value: unknown): boolean {
+function EventSubscribeSseValue729(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
-function EventSubscribeSseValue713(value: unknown): boolean {
+function EventSubscribeSseValue730(value: unknown): boolean {
   return value === "session.tool.failed"
 }
 
-function EventSubscribeSseValue715(value: unknown): boolean {
+function EventSubscribeSseValue732(value: unknown): boolean {
   return value === 2
 }
 
-function EventSubscribeSseValue714(value: unknown): boolean {
+function EventSubscribeSseValue731(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -14658,27 +14879,27 @@ function EventSubscribeSseValue714(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     EventSubscribeSseValue58(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue715(value["version"])
+    EventSubscribeSseValue732(value["version"])
   )
 }
 
-function EventSubscribeSseValue717(value: unknown): boolean {
+function EventSubscribeSseValue734(value: unknown): boolean {
   return (
     isSseArray(value) &&
     value.length >= 1 &&
-    EventSubscribeSseValue703(value[0]) &&
-    value.slice(1).every(EventSubscribeSseValue703)
+    EventSubscribeSseValue720(value[0]) &&
+    value.slice(1).every(EventSubscribeSseValue720)
   )
 }
 
-function EventSubscribeSseValue718(value: unknown): boolean {
+function EventSubscribeSseValue735(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue134(item))
   )
 }
 
-function EventSubscribeSseValue716(value: unknown): boolean {
+function EventSubscribeSseValue733(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
@@ -14689,48 +14910,48 @@ function EventSubscribeSseValue716(value: unknown): boolean {
     EventSubscribeSseValue5(value["id"]) &&
     Object.hasOwn(value, "error") &&
     EventSubscribeSseValue363(value["error"]) &&
-    (!Object.hasOwn(value, "content") || EventSubscribeSseValue717(value["content"])) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue718(value["metadata"])) &&
+    (!Object.hasOwn(value, "content") || EventSubscribeSseValue734(value["content"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue735(value["metadata"])) &&
     Object.hasOwn(value, "executed") &&
     EventSubscribeSseValue247(value["executed"]) &&
-    (!Object.hasOwn(value, "resultState") || EventSubscribeSseValue617(value["resultState"]))
+    (!Object.hasOwn(value, "resultState") || EventSubscribeSseValue634(value["resultState"]))
   )
 }
 
-function EventSubscribeSseValue711(value: unknown): boolean {
+function EventSubscribeSseValue728(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue712(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue729(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue713(value["type"]) &&
+    EventSubscribeSseValue730(value["type"]) &&
     Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue714(value["durable"]) &&
+    EventSubscribeSseValue731(value["durable"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue716(value["data"])
+    EventSubscribeSseValue733(value["data"])
   )
 }
 
-function EventSubscribeSseValue720(value: unknown): boolean {
+function EventSubscribeSseValue737(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
-function EventSubscribeSseValue721(value: unknown): boolean {
+function EventSubscribeSseValue738(value: unknown): boolean {
   return value === "session.retry.scheduled"
 }
 
-function EventSubscribeSseValue723(value: unknown): boolean {
+function EventSubscribeSseValue740(value: unknown): boolean {
   return value === 1
 }
 
-function EventSubscribeSseValue722(value: unknown): boolean {
+function EventSubscribeSseValue739(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -14738,11 +14959,11 @@ function EventSubscribeSseValue722(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     EventSubscribeSseValue58(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue723(value["version"])
+    EventSubscribeSseValue740(value["version"])
   )
 }
 
-function EventSubscribeSseValue724(value: unknown): boolean {
+function EventSubscribeSseValue741(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
@@ -14758,40 +14979,40 @@ function EventSubscribeSseValue724(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue719(value: unknown): boolean {
+function EventSubscribeSseValue736(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue720(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue737(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue721(value["type"]) &&
+    EventSubscribeSseValue738(value["type"]) &&
     Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue722(value["durable"]) &&
+    EventSubscribeSseValue739(value["durable"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue724(value["data"])
+    EventSubscribeSseValue741(value["data"])
   )
 }
 
-function EventSubscribeSseValue726(value: unknown): boolean {
+function EventSubscribeSseValue743(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
-function EventSubscribeSseValue727(value: unknown): boolean {
+function EventSubscribeSseValue744(value: unknown): boolean {
   return value === "session.compaction.started"
 }
 
-function EventSubscribeSseValue729(value: unknown): boolean {
+function EventSubscribeSseValue746(value: unknown): boolean {
   return value === 1
 }
 
-function EventSubscribeSseValue728(value: unknown): boolean {
+function EventSubscribeSseValue745(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -14799,65 +15020,65 @@ function EventSubscribeSseValue728(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     EventSubscribeSseValue58(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue729(value["version"])
+    EventSubscribeSseValue746(value["version"])
   )
 }
 
-function EventSubscribeSseValue732(value: unknown): boolean {
+function EventSubscribeSseValue749(value: unknown): boolean {
   return value === "auto"
 }
 
-function EventSubscribeSseValue733(value: unknown): boolean {
+function EventSubscribeSseValue750(value: unknown): boolean {
   return value === "manual"
 }
 
-function EventSubscribeSseValue731(value: unknown): boolean {
-  return EventSubscribeSseValue732(value) || EventSubscribeSseValue733(value)
+function EventSubscribeSseValue748(value: unknown): boolean {
+  return EventSubscribeSseValue749(value) || EventSubscribeSseValue750(value)
 }
 
-function EventSubscribeSseValue730(value: unknown): boolean {
+function EventSubscribeSseValue747(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
     EventSubscribeSseValue61(value["sessionID"]) &&
     Object.hasOwn(value, "reason") &&
-    EventSubscribeSseValue731(value["reason"]) &&
+    EventSubscribeSseValue748(value["reason"]) &&
     Object.hasOwn(value, "recent") &&
     EventSubscribeSseValue5(value["recent"]) &&
     (!Object.hasOwn(value, "inputID") || EventSubscribeSseValue356(value["inputID"]))
   )
 }
 
-function EventSubscribeSseValue725(value: unknown): boolean {
+function EventSubscribeSseValue742(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue726(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue743(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue727(value["type"]) &&
+    EventSubscribeSseValue744(value["type"]) &&
     Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue728(value["durable"]) &&
+    EventSubscribeSseValue745(value["durable"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue730(value["data"])
+    EventSubscribeSseValue747(value["data"])
   )
 }
 
-function EventSubscribeSseValue735(value: unknown): boolean {
+function EventSubscribeSseValue752(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
-function EventSubscribeSseValue736(value: unknown): boolean {
+function EventSubscribeSseValue753(value: unknown): boolean {
   return value === "session.compaction.delta"
 }
 
-function EventSubscribeSseValue737(value: unknown): boolean {
+function EventSubscribeSseValue754(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
@@ -14867,38 +15088,38 @@ function EventSubscribeSseValue737(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue734(value: unknown): boolean {
+function EventSubscribeSseValue751(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue735(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue752(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue736(value["type"]) &&
+    EventSubscribeSseValue753(value["type"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue737(value["data"])
+    EventSubscribeSseValue754(value["data"])
   )
 }
 
-function EventSubscribeSseValue739(value: unknown): boolean {
+function EventSubscribeSseValue756(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
-function EventSubscribeSseValue740(value: unknown): boolean {
+function EventSubscribeSseValue757(value: unknown): boolean {
   return value === "session.compaction.ended"
 }
 
-function EventSubscribeSseValue742(value: unknown): boolean {
+function EventSubscribeSseValue759(value: unknown): boolean {
   return value === 1
 }
 
-function EventSubscribeSseValue741(value: unknown): boolean {
+function EventSubscribeSseValue758(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -14906,11 +15127,11 @@ function EventSubscribeSseValue741(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     EventSubscribeSseValue58(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue742(value["version"])
+    EventSubscribeSseValue759(value["version"])
   )
 }
 
-function EventSubscribeSseValue744(value: unknown): boolean {
+function EventSubscribeSseValue761(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
@@ -14921,11 +15142,11 @@ function EventSubscribeSseValue744(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue746(value: unknown): boolean {
+function EventSubscribeSseValue763(value: unknown): boolean {
   return value === 1
 }
 
-function EventSubscribeSseValue747(value: unknown): boolean {
+function EventSubscribeSseValue764(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "providerID") &&
@@ -14945,131 +15166,71 @@ function EventSubscribeSseValue747(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue745(value: unknown): boolean {
+function EventSubscribeSseValue762(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue746(value["version"]) &&
+    EventSubscribeSseValue763(value["version"]) &&
     Object.hasOwn(value, "provenance") &&
-    EventSubscribeSseValue747(value["provenance"]) &&
+    EventSubscribeSseValue764(value["provenance"]) &&
     Object.hasOwn(value, "messages") &&
     EventSubscribeSseValue134(value["messages"])
   )
 }
 
-function EventSubscribeSseValue743(value: unknown): boolean {
+function EventSubscribeSseValue760(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
     EventSubscribeSseValue61(value["sessionID"]) &&
     Object.hasOwn(value, "reason") &&
-    EventSubscribeSseValue731(value["reason"]) &&
-    (!Object.hasOwn(value, "model") || EventSubscribeSseValue744(value["model"])) &&
-    (!Object.hasOwn(value, "providerState") || EventSubscribeSseValue617(value["providerState"])) &&
-    (!Object.hasOwn(value, "providerContext") || EventSubscribeSseValue745(value["providerContext"])) &&
+    EventSubscribeSseValue748(value["reason"]) &&
+    (!Object.hasOwn(value, "model") || EventSubscribeSseValue761(value["model"])) &&
+    (!Object.hasOwn(value, "providerState") || EventSubscribeSseValue634(value["providerState"])) &&
+    (!Object.hasOwn(value, "providerContext") || EventSubscribeSseValue762(value["providerContext"])) &&
     Object.hasOwn(value, "text") &&
     EventSubscribeSseValue5(value["text"]) &&
     Object.hasOwn(value, "recent") &&
     EventSubscribeSseValue5(value["recent"]) &&
-    (!Object.hasOwn(value, "cost") || EventSubscribeSseValue593(value["cost"])) &&
-    (!Object.hasOwn(value, "tokens") || EventSubscribeSseValue592(value["tokens"]))
-  )
-}
-
-function EventSubscribeSseValue738(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue2(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue739(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue740(value["type"]) &&
-    Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue741(value["durable"]) &&
-    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue743(value["data"])
-  )
-}
-
-function EventSubscribeSseValue749(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
-  )
-}
-
-function EventSubscribeSseValue750(value: unknown): boolean {
-  return value === "session.compaction.failed"
-}
-
-function EventSubscribeSseValue752(value: unknown): boolean {
-  return value === 1
-}
-
-function EventSubscribeSseValue751(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "aggregateID") &&
-    EventSubscribeSseValue5(value["aggregateID"]) &&
-    Object.hasOwn(value, "seq") &&
-    EventSubscribeSseValue58(value["seq"]) &&
-    Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue752(value["version"])
-  )
-}
-
-function EventSubscribeSseValue753(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "sessionID") &&
-    EventSubscribeSseValue61(value["sessionID"]) &&
-    Object.hasOwn(value, "reason") &&
-    EventSubscribeSseValue731(value["reason"]) &&
-    Object.hasOwn(value, "error") &&
-    EventSubscribeSseValue363(value["error"]) &&
-    (!Object.hasOwn(value, "inputID") || EventSubscribeSseValue356(value["inputID"])) &&
-    (!Object.hasOwn(value, "cost") || EventSubscribeSseValue593(value["cost"])) &&
-    (!Object.hasOwn(value, "tokens") || EventSubscribeSseValue592(value["tokens"]))
-  )
-}
-
-function EventSubscribeSseValue748(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue2(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue749(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue750(value["type"]) &&
-    Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue751(value["durable"]) &&
-    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue753(value["data"])
+    (!Object.hasOwn(value, "cost") || EventSubscribeSseValue599(value["cost"])) &&
+    (!Object.hasOwn(value, "tokens") || EventSubscribeSseValue598(value["tokens"]))
   )
 }
 
 function EventSubscribeSseValue755(value: unknown): boolean {
   return (
     isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue2(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    EventSubscribeSseValue3(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue756(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue757(value["type"]) &&
+    Object.hasOwn(value, "durable") &&
+    EventSubscribeSseValue758(value["durable"]) &&
+    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    EventSubscribeSseValue760(value["data"])
+  )
+}
+
+function EventSubscribeSseValue766(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
-function EventSubscribeSseValue756(value: unknown): boolean {
-  return value === "session.revert.staged"
+function EventSubscribeSseValue767(value: unknown): boolean {
+  return value === "session.compaction.failed"
 }
 
-function EventSubscribeSseValue758(value: unknown): boolean {
+function EventSubscribeSseValue769(value: unknown): boolean {
   return value === 1
 }
 
-function EventSubscribeSseValue757(value: unknown): boolean {
+function EventSubscribeSseValue768(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -15077,31 +15238,91 @@ function EventSubscribeSseValue757(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     EventSubscribeSseValue58(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue758(value["version"])
+    EventSubscribeSseValue769(value["version"])
   )
 }
 
-function EventSubscribeSseValue761(value: unknown): boolean {
-  return typeof value === "string"
+function EventSubscribeSseValue770(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "sessionID") &&
+    EventSubscribeSseValue61(value["sessionID"]) &&
+    Object.hasOwn(value, "reason") &&
+    EventSubscribeSseValue748(value["reason"]) &&
+    Object.hasOwn(value, "error") &&
+    EventSubscribeSseValue363(value["error"]) &&
+    (!Object.hasOwn(value, "inputID") || EventSubscribeSseValue356(value["inputID"])) &&
+    (!Object.hasOwn(value, "cost") || EventSubscribeSseValue599(value["cost"])) &&
+    (!Object.hasOwn(value, "tokens") || EventSubscribeSseValue598(value["tokens"]))
+  )
 }
 
 function EventSubscribeSseValue765(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue2(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    EventSubscribeSseValue3(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue766(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue767(value["type"]) &&
+    Object.hasOwn(value, "durable") &&
+    EventSubscribeSseValue768(value["durable"]) &&
+    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    EventSubscribeSseValue770(value["data"])
+  )
+}
+
+function EventSubscribeSseValue772(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+  )
+}
+
+function EventSubscribeSseValue773(value: unknown): boolean {
+  return value === "session.revert.staged"
+}
+
+function EventSubscribeSseValue775(value: unknown): boolean {
+  return value === 1
+}
+
+function EventSubscribeSseValue774(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "aggregateID") &&
+    EventSubscribeSseValue5(value["aggregateID"]) &&
+    Object.hasOwn(value, "seq") &&
+    EventSubscribeSseValue58(value["seq"]) &&
+    Object.hasOwn(value, "version") &&
+    EventSubscribeSseValue775(value["version"])
+  )
+}
+
+function EventSubscribeSseValue778(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function EventSubscribeSseValue782(value: unknown): boolean {
   return value === "added"
 }
 
-function EventSubscribeSseValue766(value: unknown): boolean {
+function EventSubscribeSseValue783(value: unknown): boolean {
   return value === "deleted"
 }
 
-function EventSubscribeSseValue767(value: unknown): boolean {
+function EventSubscribeSseValue784(value: unknown): boolean {
   return value === "modified"
 }
 
-function EventSubscribeSseValue764(value: unknown): boolean {
-  return EventSubscribeSseValue765(value) || EventSubscribeSseValue766(value) || EventSubscribeSseValue767(value)
+function EventSubscribeSseValue781(value: unknown): boolean {
+  return EventSubscribeSseValue782(value) || EventSubscribeSseValue783(value) || EventSubscribeSseValue784(value)
 }
 
-function EventSubscribeSseValue763(value: unknown): boolean {
+function EventSubscribeSseValue780(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "file") &&
@@ -15113,178 +15334,178 @@ function EventSubscribeSseValue763(value: unknown): boolean {
     Object.hasOwn(value, "deletions") &&
     EventSubscribeSseValue428(value["deletions"]) &&
     Object.hasOwn(value, "status") &&
-    EventSubscribeSseValue764(value["status"])
+    EventSubscribeSseValue781(value["status"])
   )
 }
 
-function EventSubscribeSseValue762(value: unknown): boolean {
-  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue763)
-}
-
-function EventSubscribeSseValue760(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "messageID") &&
-    EventSubscribeSseValue127(value["messageID"]) &&
-    (!Object.hasOwn(value, "partID") || EventSubscribeSseValue761(value["partID"])) &&
-    (!Object.hasOwn(value, "snapshot") || EventSubscribeSseValue601(value["snapshot"])) &&
-    (!Object.hasOwn(value, "files") || EventSubscribeSseValue762(value["files"]))
-  )
-}
-
-function EventSubscribeSseValue759(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "sessionID") &&
-    EventSubscribeSseValue61(value["sessionID"]) &&
-    Object.hasOwn(value, "revert") &&
-    EventSubscribeSseValue760(value["revert"])
-  )
-}
-
-function EventSubscribeSseValue754(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue2(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue755(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue756(value["type"]) &&
-    Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue757(value["durable"]) &&
-    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue759(value["data"])
-  )
-}
-
-function EventSubscribeSseValue769(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
-  )
-}
-
-function EventSubscribeSseValue770(value: unknown): boolean {
-  return value === "session.revert.cleared"
-}
-
-function EventSubscribeSseValue772(value: unknown): boolean {
-  return value === 1
-}
-
-function EventSubscribeSseValue771(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "aggregateID") &&
-    EventSubscribeSseValue5(value["aggregateID"]) &&
-    Object.hasOwn(value, "seq") &&
-    EventSubscribeSseValue58(value["seq"]) &&
-    Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue772(value["version"])
-  )
-}
-
-function EventSubscribeSseValue773(value: unknown): boolean {
-  return isSseRecord(value) && Object.hasOwn(value, "sessionID") && EventSubscribeSseValue61(value["sessionID"])
-}
-
-function EventSubscribeSseValue768(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue2(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue769(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue770(value["type"]) &&
-    Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue771(value["durable"]) &&
-    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue773(value["data"])
-  )
-}
-
-function EventSubscribeSseValue775(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
-  )
-}
-
-function EventSubscribeSseValue776(value: unknown): boolean {
-  return value === "session.revert.committed"
-}
-
-function EventSubscribeSseValue778(value: unknown): boolean {
-  return value === 1
+function EventSubscribeSseValue779(value: unknown): boolean {
+  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue780)
 }
 
 function EventSubscribeSseValue777(value: unknown): boolean {
   return (
     isSseRecord(value) &&
+    Object.hasOwn(value, "messageID") &&
+    EventSubscribeSseValue127(value["messageID"]) &&
+    (!Object.hasOwn(value, "partID") || EventSubscribeSseValue778(value["partID"])) &&
+    (!Object.hasOwn(value, "snapshot") || EventSubscribeSseValue618(value["snapshot"])) &&
+    (!Object.hasOwn(value, "files") || EventSubscribeSseValue779(value["files"]))
+  )
+}
+
+function EventSubscribeSseValue776(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "sessionID") &&
+    EventSubscribeSseValue61(value["sessionID"]) &&
+    Object.hasOwn(value, "revert") &&
+    EventSubscribeSseValue777(value["revert"])
+  )
+}
+
+function EventSubscribeSseValue771(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue2(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    EventSubscribeSseValue3(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue772(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue773(value["type"]) &&
+    Object.hasOwn(value, "durable") &&
+    EventSubscribeSseValue774(value["durable"]) &&
+    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    EventSubscribeSseValue776(value["data"])
+  )
+}
+
+function EventSubscribeSseValue786(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+  )
+}
+
+function EventSubscribeSseValue787(value: unknown): boolean {
+  return value === "session.revert.cleared"
+}
+
+function EventSubscribeSseValue789(value: unknown): boolean {
+  return value === 1
+}
+
+function EventSubscribeSseValue788(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
     EventSubscribeSseValue5(value["aggregateID"]) &&
     Object.hasOwn(value, "seq") &&
     EventSubscribeSseValue58(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue778(value["version"])
+    EventSubscribeSseValue789(value["version"])
   )
 }
 
-function EventSubscribeSseValue780(value: unknown): boolean {
+function EventSubscribeSseValue790(value: unknown): boolean {
+  return isSseRecord(value) && Object.hasOwn(value, "sessionID") && EventSubscribeSseValue61(value["sessionID"])
+}
+
+function EventSubscribeSseValue785(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue2(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    EventSubscribeSseValue3(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue786(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue787(value["type"]) &&
+    Object.hasOwn(value, "durable") &&
+    EventSubscribeSseValue788(value["durable"]) &&
+    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    EventSubscribeSseValue790(value["data"])
+  )
+}
+
+function EventSubscribeSseValue792(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+  )
+}
+
+function EventSubscribeSseValue793(value: unknown): boolean {
+  return value === "session.revert.committed"
+}
+
+function EventSubscribeSseValue795(value: unknown): boolean {
+  return value === 1
+}
+
+function EventSubscribeSseValue794(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "aggregateID") &&
+    EventSubscribeSseValue5(value["aggregateID"]) &&
+    Object.hasOwn(value, "seq") &&
+    EventSubscribeSseValue58(value["seq"]) &&
+    Object.hasOwn(value, "version") &&
+    EventSubscribeSseValue795(value["version"])
+  )
+}
+
+function EventSubscribeSseValue797(value: unknown): boolean {
   return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value >= 0
 }
 
-function EventSubscribeSseValue779(value: unknown): boolean {
+function EventSubscribeSseValue796(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
     EventSubscribeSseValue61(value["sessionID"]) &&
     Object.hasOwn(value, "to") &&
     EventSubscribeSseValue127(value["to"]) &&
-    (!Object.hasOwn(value, "boundarySeq") || EventSubscribeSseValue780(value["boundarySeq"]))
+    (!Object.hasOwn(value, "boundarySeq") || EventSubscribeSseValue797(value["boundarySeq"]))
   )
 }
 
-function EventSubscribeSseValue774(value: unknown): boolean {
+function EventSubscribeSseValue791(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue775(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue792(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue776(value["type"]) &&
+    EventSubscribeSseValue793(value["type"]) &&
     Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue777(value["durable"]) &&
+    EventSubscribeSseValue794(value["durable"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue779(value["data"])
+    EventSubscribeSseValue796(value["data"])
   )
 }
 
-function EventSubscribeSseValue782(value: unknown): boolean {
+function EventSubscribeSseValue799(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
-function EventSubscribeSseValue783(value: unknown): boolean {
+function EventSubscribeSseValue800(value: unknown): boolean {
   return value === "session.next.verify.started"
 }
 
-function EventSubscribeSseValue785(value: unknown): boolean {
+function EventSubscribeSseValue802(value: unknown): boolean {
   return value === 1
 }
 
-function EventSubscribeSseValue784(value: unknown): boolean {
+function EventSubscribeSseValue801(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -15292,11 +15513,11 @@ function EventSubscribeSseValue784(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     EventSubscribeSseValue58(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue785(value["version"])
+    EventSubscribeSseValue802(value["version"])
   )
 }
 
-function EventSubscribeSseValue786(value: unknown): boolean {
+function EventSubscribeSseValue803(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
@@ -15308,40 +15529,40 @@ function EventSubscribeSseValue786(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue781(value: unknown): boolean {
+function EventSubscribeSseValue798(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue782(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue799(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue783(value["type"]) &&
+    EventSubscribeSseValue800(value["type"]) &&
     Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue784(value["durable"]) &&
+    EventSubscribeSseValue801(value["durable"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue786(value["data"])
+    EventSubscribeSseValue803(value["data"])
   )
 }
 
-function EventSubscribeSseValue788(value: unknown): boolean {
+function EventSubscribeSseValue805(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
-function EventSubscribeSseValue789(value: unknown): boolean {
+function EventSubscribeSseValue806(value: unknown): boolean {
   return value === "session.next.verify.passed"
 }
 
-function EventSubscribeSseValue791(value: unknown): boolean {
+function EventSubscribeSseValue808(value: unknown): boolean {
   return value === 1
 }
 
-function EventSubscribeSseValue790(value: unknown): boolean {
+function EventSubscribeSseValue807(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -15349,11 +15570,11 @@ function EventSubscribeSseValue790(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     EventSubscribeSseValue58(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue791(value["version"])
+    EventSubscribeSseValue808(value["version"])
   )
 }
 
-function EventSubscribeSseValue792(value: unknown): boolean {
+function EventSubscribeSseValue809(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
@@ -15367,40 +15588,40 @@ function EventSubscribeSseValue792(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue787(value: unknown): boolean {
+function EventSubscribeSseValue804(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue788(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue805(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue789(value["type"]) &&
+    EventSubscribeSseValue806(value["type"]) &&
     Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue790(value["durable"]) &&
+    EventSubscribeSseValue807(value["durable"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue792(value["data"])
+    EventSubscribeSseValue809(value["data"])
   )
 }
 
-function EventSubscribeSseValue794(value: unknown): boolean {
+function EventSubscribeSseValue811(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
-function EventSubscribeSseValue795(value: unknown): boolean {
+function EventSubscribeSseValue812(value: unknown): boolean {
   return value === "session.next.verify.failed"
 }
 
-function EventSubscribeSseValue797(value: unknown): boolean {
+function EventSubscribeSseValue814(value: unknown): boolean {
   return value === 1
 }
 
-function EventSubscribeSseValue796(value: unknown): boolean {
+function EventSubscribeSseValue813(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -15408,11 +15629,11 @@ function EventSubscribeSseValue796(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     EventSubscribeSseValue58(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue797(value["version"])
+    EventSubscribeSseValue814(value["version"])
   )
 }
 
-function EventSubscribeSseValue798(value: unknown): boolean {
+function EventSubscribeSseValue815(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
@@ -15428,36 +15649,36 @@ function EventSubscribeSseValue798(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue793(value: unknown): boolean {
+function EventSubscribeSseValue810(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue794(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue811(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue795(value["type"]) &&
+    EventSubscribeSseValue812(value["type"]) &&
     Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue796(value["durable"]) &&
+    EventSubscribeSseValue813(value["durable"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue798(value["data"])
+    EventSubscribeSseValue815(value["data"])
   )
 }
 
-function EventSubscribeSseValue800(value: unknown): boolean {
+function EventSubscribeSseValue817(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
-function EventSubscribeSseValue801(value: unknown): boolean {
+function EventSubscribeSseValue818(value: unknown): boolean {
   return value === "session.goal.updated"
 }
 
-function EventSubscribeSseValue805(value: unknown): boolean {
+function EventSubscribeSseValue822(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
@@ -15467,7 +15688,7 @@ function EventSubscribeSseValue805(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue806(value: unknown): boolean {
+function EventSubscribeSseValue823(value: unknown): boolean {
   return (
     typeof value === "string" &&
     (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
@@ -15481,16 +15702,16 @@ function EventSubscribeSseValue806(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue804(value: unknown): boolean {
+function EventSubscribeSseValue821(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     (!Object.hasOwn(value, "agent") || EventSubscribeSseValue73(value["agent"])) &&
-    (!Object.hasOwn(value, "event") || EventSubscribeSseValue805(value["event"])) &&
-    (!Object.hasOwn(value, "compositionDigest") || EventSubscribeSseValue806(value["compositionDigest"]))
+    (!Object.hasOwn(value, "event") || EventSubscribeSseValue822(value["event"])) &&
+    (!Object.hasOwn(value, "compositionDigest") || EventSubscribeSseValue823(value["compositionDigest"]))
   )
 }
 
-function EventSubscribeSseValue807(value: unknown): boolean {
+function EventSubscribeSseValue824(value: unknown): boolean {
   return (
     typeof value === "string" &&
     (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
@@ -15499,7 +15720,7 @@ function EventSubscribeSseValue807(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue811(value: unknown): boolean {
+function EventSubscribeSseValue828(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sourceSessionID") &&
@@ -15509,15 +15730,15 @@ function EventSubscribeSseValue811(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue812(value: unknown): boolean {
+function EventSubscribeSseValue829(value: unknown): boolean {
   return value === "command_result"
 }
 
-function EventSubscribeSseValue813(value: unknown): boolean {
-  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue807)
+function EventSubscribeSseValue830(value: unknown): boolean {
+  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue824)
 }
 
-function EventSubscribeSseValue814(value: unknown): boolean {
+function EventSubscribeSseValue831(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
@@ -15529,32 +15750,32 @@ function EventSubscribeSseValue814(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue810(value: unknown): boolean {
+function EventSubscribeSseValue827(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue807(value["id"]) &&
-    (!Object.hasOwn(value, "operation") || EventSubscribeSseValue811(value["operation"])) &&
+    EventSubscribeSseValue824(value["id"]) &&
+    (!Object.hasOwn(value, "operation") || EventSubscribeSseValue828(value["operation"])) &&
     Object.hasOwn(value, "kind") &&
-    EventSubscribeSseValue812(value["kind"]) &&
+    EventSubscribeSseValue829(value["kind"]) &&
     Object.hasOwn(value, "command") &&
-    EventSubscribeSseValue807(value["command"]) &&
+    EventSubscribeSseValue824(value["command"]) &&
     Object.hasOwn(value, "cwd") &&
-    EventSubscribeSseValue807(value["cwd"]) &&
+    EventSubscribeSseValue824(value["cwd"]) &&
     Object.hasOwn(value, "exit") &&
     EventSubscribeSseValue450(value["exit"]) &&
     Object.hasOwn(value, "outputIncludes") &&
-    EventSubscribeSseValue813(value["outputIncludes"]) &&
-    (!Object.hasOwn(value, "producer") || EventSubscribeSseValue814(value["producer"])) &&
-    (!Object.hasOwn(value, "sourceSnapshot") || EventSubscribeSseValue601(value["sourceSnapshot"]))
+    EventSubscribeSseValue830(value["outputIncludes"]) &&
+    (!Object.hasOwn(value, "producer") || EventSubscribeSseValue831(value["producer"])) &&
+    (!Object.hasOwn(value, "sourceSnapshot") || EventSubscribeSseValue618(value["sourceSnapshot"]))
   )
 }
 
-function EventSubscribeSseValue816(value: unknown): boolean {
+function EventSubscribeSseValue833(value: unknown): boolean {
   return value === "artifact"
 }
 
-function EventSubscribeSseValue817(value: unknown): boolean {
+function EventSubscribeSseValue834(value: unknown): boolean {
   return (
     typeof value === "string" &&
     (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
@@ -15568,174 +15789,174 @@ function EventSubscribeSseValue817(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue815(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue807(value["id"]) &&
-    (!Object.hasOwn(value, "operation") || EventSubscribeSseValue811(value["operation"])) &&
-    Object.hasOwn(value, "kind") &&
-    EventSubscribeSseValue816(value["kind"]) &&
-    Object.hasOwn(value, "sessionID") &&
-    EventSubscribeSseValue61(value["sessionID"]) &&
-    Object.hasOwn(value, "artifactID") &&
-    EventSubscribeSseValue807(value["artifactID"]) &&
-    Object.hasOwn(value, "revision") &&
-    EventSubscribeSseValue817(value["revision"]) &&
-    Object.hasOwn(value, "relativePath") &&
-    EventSubscribeSseValue807(value["relativePath"])
-  )
-}
-
-function EventSubscribeSseValue819(value: unknown): boolean {
-  return value === "human_acceptance"
-}
-
-function EventSubscribeSseValue818(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue807(value["id"]) &&
-    (!Object.hasOwn(value, "operation") || EventSubscribeSseValue811(value["operation"])) &&
-    Object.hasOwn(value, "kind") &&
-    EventSubscribeSseValue819(value["kind"]) &&
-    Object.hasOwn(value, "description") &&
-    EventSubscribeSseValue807(value["description"])
-  )
-}
-
-function EventSubscribeSseValue809(value: unknown): boolean {
-  return EventSubscribeSseValue810(value) || EventSubscribeSseValue815(value) || EventSubscribeSseValue818(value)
-}
-
-function EventSubscribeSseValue808(value: unknown): boolean {
-  return (
-    isSseArray(value) &&
-    value.length >= 1 &&
-    EventSubscribeSseValue809(value[0]) &&
-    value.slice(1).every(EventSubscribeSseValue809)
-  )
-}
-
-function EventSubscribeSseValue820(value: unknown): boolean {
-  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue304)
-}
-
-function EventSubscribeSseValue822(value: unknown): boolean {
-  return value === "active"
-}
-
-function EventSubscribeSseValue823(value: unknown): boolean {
-  return value === "paused"
-}
-
-function EventSubscribeSseValue824(value: unknown): boolean {
-  return value === "completed"
-}
-
-function EventSubscribeSseValue825(value: unknown): boolean {
-  return value === "cancelled"
-}
-
-function EventSubscribeSseValue821(value: unknown): boolean {
-  return (
-    EventSubscribeSseValue822(value) ||
-    EventSubscribeSseValue823(value) ||
-    EventSubscribeSseValue824(value) ||
-    EventSubscribeSseValue825(value)
-  )
-}
-
-function EventSubscribeSseValue827(value: unknown): boolean {
-  return value === "user"
-}
-
-function EventSubscribeSseValue828(value: unknown): boolean {
-  return value === "budget"
-}
-
-function EventSubscribeSseValue829(value: unknown): boolean {
-  return value === "blocked"
-}
-
-function EventSubscribeSseValue830(value: unknown): boolean {
-  return value === "recovery_required"
-}
-
-function EventSubscribeSseValue826(value: unknown): boolean {
-  return (
-    EventSubscribeSseValue827(value) ||
-    EventSubscribeSseValue828(value) ||
-    EventSubscribeSseValue829(value) ||
-    EventSubscribeSseValue830(value)
-  )
-}
-
-function EventSubscribeSseValue831(value: unknown): boolean {
-  return typeof value === "string"
-}
-
-function EventSubscribeSseValue833(value: unknown): boolean {
-  return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value > 0
-}
-
-function EventSubscribeSseValue834(value: unknown): boolean {
-  return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value > 0
-}
-
-function EventSubscribeSseValue835(value: unknown): boolean {
-  return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value > 0
-}
-
-function EventSubscribeSseValue836(value: unknown): boolean {
-  return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value > 0
-}
-
-function EventSubscribeSseValue837(value: unknown): boolean {
-  return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value > 0
-}
-
 function EventSubscribeSseValue832(value: unknown): boolean {
   return (
     isSseRecord(value) &&
-    (!Object.hasOwn(value, "rounds") || EventSubscribeSseValue833(value["rounds"])) &&
-    (!Object.hasOwn(value, "steps") || EventSubscribeSseValue834(value["steps"])) &&
-    (!Object.hasOwn(value, "attempts") || EventSubscribeSseValue835(value["attempts"])) &&
-    (!Object.hasOwn(value, "tokens") || EventSubscribeSseValue836(value["tokens"])) &&
-    (!Object.hasOwn(value, "activeMilliseconds") || EventSubscribeSseValue837(value["activeMilliseconds"]))
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue824(value["id"]) &&
+    (!Object.hasOwn(value, "operation") || EventSubscribeSseValue828(value["operation"])) &&
+    Object.hasOwn(value, "kind") &&
+    EventSubscribeSseValue833(value["kind"]) &&
+    Object.hasOwn(value, "sessionID") &&
+    EventSubscribeSseValue61(value["sessionID"]) &&
+    Object.hasOwn(value, "artifactID") &&
+    EventSubscribeSseValue824(value["artifactID"]) &&
+    Object.hasOwn(value, "revision") &&
+    EventSubscribeSseValue834(value["revision"]) &&
+    Object.hasOwn(value, "relativePath") &&
+    EventSubscribeSseValue824(value["relativePath"])
   )
 }
 
-function EventSubscribeSseValue840(value: unknown): boolean {
-  return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value >= 0
+function EventSubscribeSseValue836(value: unknown): boolean {
+  return value === "human_acceptance"
 }
 
-function EventSubscribeSseValue842(value: unknown): boolean {
-  return value === "completed"
-}
-
-function EventSubscribeSseValue843(value: unknown): boolean {
-  return value === "failed"
-}
-
-function EventSubscribeSseValue844(value: unknown): boolean {
-  return value === "interrupted"
-}
-
-function EventSubscribeSseValue845(value: unknown): boolean {
-  return value === "unverified"
-}
-
-function EventSubscribeSseValue841(value: unknown): boolean {
+function EventSubscribeSseValue835(value: unknown): boolean {
   return (
-    EventSubscribeSseValue842(value) ||
-    EventSubscribeSseValue843(value) ||
-    EventSubscribeSseValue844(value) ||
-    EventSubscribeSseValue845(value)
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue824(value["id"]) &&
+    (!Object.hasOwn(value, "operation") || EventSubscribeSseValue828(value["operation"])) &&
+    Object.hasOwn(value, "kind") &&
+    EventSubscribeSseValue836(value["kind"]) &&
+    Object.hasOwn(value, "description") &&
+    EventSubscribeSseValue824(value["description"])
   )
+}
+
+function EventSubscribeSseValue826(value: unknown): boolean {
+  return EventSubscribeSseValue827(value) || EventSubscribeSseValue832(value) || EventSubscribeSseValue835(value)
+}
+
+function EventSubscribeSseValue825(value: unknown): boolean {
+  return (
+    isSseArray(value) &&
+    value.length >= 1 &&
+    EventSubscribeSseValue826(value[0]) &&
+    value.slice(1).every(EventSubscribeSseValue826)
+  )
+}
+
+function EventSubscribeSseValue837(value: unknown): boolean {
+  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue304)
 }
 
 function EventSubscribeSseValue839(value: unknown): boolean {
+  return value === "active"
+}
+
+function EventSubscribeSseValue840(value: unknown): boolean {
+  return value === "paused"
+}
+
+function EventSubscribeSseValue841(value: unknown): boolean {
+  return value === "completed"
+}
+
+function EventSubscribeSseValue842(value: unknown): boolean {
+  return value === "cancelled"
+}
+
+function EventSubscribeSseValue838(value: unknown): boolean {
+  return (
+    EventSubscribeSseValue839(value) ||
+    EventSubscribeSseValue840(value) ||
+    EventSubscribeSseValue841(value) ||
+    EventSubscribeSseValue842(value)
+  )
+}
+
+function EventSubscribeSseValue844(value: unknown): boolean {
+  return value === "user"
+}
+
+function EventSubscribeSseValue845(value: unknown): boolean {
+  return value === "budget"
+}
+
+function EventSubscribeSseValue846(value: unknown): boolean {
+  return value === "blocked"
+}
+
+function EventSubscribeSseValue847(value: unknown): boolean {
+  return value === "recovery_required"
+}
+
+function EventSubscribeSseValue843(value: unknown): boolean {
+  return (
+    EventSubscribeSseValue844(value) ||
+    EventSubscribeSseValue845(value) ||
+    EventSubscribeSseValue846(value) ||
+    EventSubscribeSseValue847(value)
+  )
+}
+
+function EventSubscribeSseValue848(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function EventSubscribeSseValue850(value: unknown): boolean {
+  return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value > 0
+}
+
+function EventSubscribeSseValue851(value: unknown): boolean {
+  return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value > 0
+}
+
+function EventSubscribeSseValue852(value: unknown): boolean {
+  return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value > 0
+}
+
+function EventSubscribeSseValue853(value: unknown): boolean {
+  return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value > 0
+}
+
+function EventSubscribeSseValue854(value: unknown): boolean {
+  return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value > 0
+}
+
+function EventSubscribeSseValue849(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    (!Object.hasOwn(value, "rounds") || EventSubscribeSseValue850(value["rounds"])) &&
+    (!Object.hasOwn(value, "steps") || EventSubscribeSseValue851(value["steps"])) &&
+    (!Object.hasOwn(value, "attempts") || EventSubscribeSseValue852(value["attempts"])) &&
+    (!Object.hasOwn(value, "tokens") || EventSubscribeSseValue853(value["tokens"])) &&
+    (!Object.hasOwn(value, "activeMilliseconds") || EventSubscribeSseValue854(value["activeMilliseconds"]))
+  )
+}
+
+function EventSubscribeSseValue857(value: unknown): boolean {
+  return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value >= 0
+}
+
+function EventSubscribeSseValue859(value: unknown): boolean {
+  return value === "completed"
+}
+
+function EventSubscribeSseValue860(value: unknown): boolean {
+  return value === "failed"
+}
+
+function EventSubscribeSseValue861(value: unknown): boolean {
+  return value === "interrupted"
+}
+
+function EventSubscribeSseValue862(value: unknown): boolean {
+  return value === "unverified"
+}
+
+function EventSubscribeSseValue858(value: unknown): boolean {
+  return (
+    EventSubscribeSseValue859(value) ||
+    EventSubscribeSseValue860(value) ||
+    EventSubscribeSseValue861(value) ||
+    EventSubscribeSseValue862(value)
+  )
+}
+
+function EventSubscribeSseValue856(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "goalID") &&
@@ -15749,46 +15970,46 @@ function EventSubscribeSseValue839(value: unknown): boolean {
     Object.hasOwn(value, "inputID") &&
     EventSubscribeSseValue127(value["inputID"]) &&
     Object.hasOwn(value, "selection") &&
-    EventSubscribeSseValue804(value["selection"]) &&
+    EventSubscribeSseValue821(value["selection"]) &&
     Object.hasOwn(value, "trigger") &&
     EventSubscribeSseValue5(value["trigger"]) &&
     Object.hasOwn(value, "createdAt") &&
     EventSubscribeSseValue428(value["createdAt"]) &&
-    (!Object.hasOwn(value, "settledAt") || EventSubscribeSseValue840(value["settledAt"])) &&
-    (!Object.hasOwn(value, "outcome") || EventSubscribeSseValue841(value["outcome"]))
+    (!Object.hasOwn(value, "settledAt") || EventSubscribeSseValue857(value["settledAt"])) &&
+    (!Object.hasOwn(value, "outcome") || EventSubscribeSseValue858(value["outcome"]))
   )
 }
 
-function EventSubscribeSseValue838(value: unknown): boolean {
-  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue839)
+function EventSubscribeSseValue855(value: unknown): boolean {
+  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue856)
 }
 
-function EventSubscribeSseValue849(value: unknown): boolean {
+function EventSubscribeSseValue866(value: unknown): boolean {
   return value === "coordinator"
 }
 
-function EventSubscribeSseValue850(value: unknown): boolean {
+function EventSubscribeSseValue867(value: unknown): boolean {
   return value === "worker"
 }
 
-function EventSubscribeSseValue851(value: unknown): boolean {
+function EventSubscribeSseValue868(value: unknown): boolean {
   return value === "compaction"
 }
 
-function EventSubscribeSseValue852(value: unknown): boolean {
+function EventSubscribeSseValue869(value: unknown): boolean {
   return value === "auxiliary"
 }
 
-function EventSubscribeSseValue848(value: unknown): boolean {
+function EventSubscribeSseValue865(value: unknown): boolean {
   return (
-    EventSubscribeSseValue849(value) ||
-    EventSubscribeSseValue850(value) ||
-    EventSubscribeSseValue851(value) ||
-    EventSubscribeSseValue852(value)
+    EventSubscribeSseValue866(value) ||
+    EventSubscribeSseValue867(value) ||
+    EventSubscribeSseValue868(value) ||
+    EventSubscribeSseValue869(value)
   )
 }
 
-function EventSubscribeSseValue853(value: unknown): boolean {
+function EventSubscribeSseValue870(value: unknown): boolean {
   return (
     isSseArray(value) &&
     value.length >= 1 &&
@@ -15797,7 +16018,7 @@ function EventSubscribeSseValue853(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue854(value: unknown): boolean {
+function EventSubscribeSseValue871(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sourceSessionID") &&
@@ -15807,15 +16028,15 @@ function EventSubscribeSseValue854(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue855(value: unknown): boolean {
+function EventSubscribeSseValue872(value: unknown): boolean {
   return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue304)
 }
 
-function EventSubscribeSseValue856(value: unknown): boolean {
+function EventSubscribeSseValue873(value: unknown): boolean {
   return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value >= 0
 }
 
-function EventSubscribeSseValue847(value: unknown): boolean {
+function EventSubscribeSseValue864(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
@@ -15824,27 +16045,27 @@ function EventSubscribeSseValue847(value: unknown): boolean {
     EventSubscribeSseValue61(value["sessionID"]) &&
     (!Object.hasOwn(value, "assistantMessageID") || EventSubscribeSseValue356(value["assistantMessageID"])) &&
     Object.hasOwn(value, "kind") &&
-    EventSubscribeSseValue848(value["kind"]) &&
+    EventSubscribeSseValue865(value["kind"]) &&
     Object.hasOwn(value, "rounds") &&
-    EventSubscribeSseValue853(value["rounds"]) &&
-    (!Object.hasOwn(value, "operation") || EventSubscribeSseValue854(value["operation"])) &&
-    (!Object.hasOwn(value, "operations") || EventSubscribeSseValue855(value["operations"])) &&
+    EventSubscribeSseValue870(value["rounds"]) &&
+    (!Object.hasOwn(value, "operation") || EventSubscribeSseValue871(value["operation"])) &&
+    (!Object.hasOwn(value, "operations") || EventSubscribeSseValue872(value["operations"])) &&
     Object.hasOwn(value, "dispatchedAt") &&
     EventSubscribeSseValue428(value["dispatchedAt"]) &&
-    (!Object.hasOwn(value, "settledAt") || EventSubscribeSseValue856(value["settledAt"])) &&
-    (!Object.hasOwn(value, "usage") || EventSubscribeSseValue592(value["usage"]))
+    (!Object.hasOwn(value, "settledAt") || EventSubscribeSseValue873(value["settledAt"])) &&
+    (!Object.hasOwn(value, "usage") || EventSubscribeSseValue598(value["usage"]))
   )
 }
 
-function EventSubscribeSseValue846(value: unknown): boolean {
-  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue847)
+function EventSubscribeSseValue863(value: unknown): boolean {
+  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue864)
 }
 
-function EventSubscribeSseValue860(value: unknown): boolean {
+function EventSubscribeSseValue877(value: unknown): boolean {
   return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue309)
 }
 
-function EventSubscribeSseValue861(value: unknown): boolean {
+function EventSubscribeSseValue878(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sourceSessionID") &&
@@ -15854,15 +16075,15 @@ function EventSubscribeSseValue861(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue862(value: unknown): boolean {
+function EventSubscribeSseValue879(value: unknown): boolean {
   return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue304)
 }
 
-function EventSubscribeSseValue863(value: unknown): boolean {
+function EventSubscribeSseValue880(value: unknown): boolean {
   return value === "command_result"
 }
 
-function EventSubscribeSseValue864(value: unknown): boolean {
+function EventSubscribeSseValue881(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "eventID") &&
@@ -15873,23 +16094,23 @@ function EventSubscribeSseValue864(value: unknown): boolean {
     EventSubscribeSseValue127(value["assistantMessageID"]) &&
     Object.hasOwn(value, "toolCallID") &&
     EventSubscribeSseValue5(value["toolCallID"]) &&
-    (!Object.hasOwn(value, "sourceSnapshot") || EventSubscribeSseValue601(value["sourceSnapshot"]))
+    (!Object.hasOwn(value, "sourceSnapshot") || EventSubscribeSseValue618(value["sourceSnapshot"]))
   )
 }
 
-function EventSubscribeSseValue866(value: unknown): boolean {
+function EventSubscribeSseValue883(value: unknown): boolean {
   return typeof value === "number" && Number.isFinite(value)
 }
 
-function EventSubscribeSseValue867(value: unknown): boolean {
+function EventSubscribeSseValue884(value: unknown): boolean {
   return typeof value === "string"
 }
 
-function EventSubscribeSseValue868(value: unknown): boolean {
+function EventSubscribeSseValue885(value: unknown): boolean {
   return typeof value === "string" && typeof value === "string" && new RegExp("^[a-f0-9]{64}$", "").test(value)
 }
 
-function EventSubscribeSseValue865(value: unknown): boolean {
+function EventSubscribeSseValue882(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
@@ -15898,14 +16119,14 @@ function EventSubscribeSseValue865(value: unknown): boolean {
     EventSubscribeSseValue5(value["command"]) &&
     Object.hasOwn(value, "cwd") &&
     EventSubscribeSseValue5(value["cwd"]) &&
-    (!Object.hasOwn(value, "exit") || EventSubscribeSseValue866(value["exit"])) &&
-    (!Object.hasOwn(value, "signal") || EventSubscribeSseValue867(value["signal"])) &&
+    (!Object.hasOwn(value, "exit") || EventSubscribeSseValue883(value["exit"])) &&
+    (!Object.hasOwn(value, "signal") || EventSubscribeSseValue884(value["signal"])) &&
     Object.hasOwn(value, "timeout") &&
     EventSubscribeSseValue247(value["timeout"]) &&
     Object.hasOwn(value, "truncated") &&
     EventSubscribeSseValue247(value["truncated"]) &&
     Object.hasOwn(value, "outputDigest") &&
-    EventSubscribeSseValue868(value["outputDigest"]) &&
+    EventSubscribeSseValue885(value["outputDigest"]) &&
     Object.hasOwn(value, "started") &&
     EventSubscribeSseValue428(value["started"]) &&
     Object.hasOwn(value, "completed") &&
@@ -15913,11 +16134,11 @@ function EventSubscribeSseValue865(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue869(value: unknown): boolean {
+function EventSubscribeSseValue886(value: unknown): boolean {
   return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue5)
 }
 
-function EventSubscribeSseValue859(value: unknown): boolean {
+function EventSubscribeSseValue876(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
@@ -15927,27 +16148,27 @@ function EventSubscribeSseValue859(value: unknown): boolean {
     Object.hasOwn(value, "revision") &&
     EventSubscribeSseValue309(value["revision"]) &&
     Object.hasOwn(value, "acceptedRevisions") &&
-    EventSubscribeSseValue860(value["acceptedRevisions"]) &&
-    (!Object.hasOwn(value, "operation") || EventSubscribeSseValue861(value["operation"])) &&
-    (!Object.hasOwn(value, "operations") || EventSubscribeSseValue862(value["operations"])) &&
+    EventSubscribeSseValue877(value["acceptedRevisions"]) &&
+    (!Object.hasOwn(value, "operation") || EventSubscribeSseValue878(value["operation"])) &&
+    (!Object.hasOwn(value, "operations") || EventSubscribeSseValue879(value["operations"])) &&
     Object.hasOwn(value, "recordedAt") &&
     EventSubscribeSseValue428(value["recordedAt"]) &&
     Object.hasOwn(value, "kind") &&
-    EventSubscribeSseValue863(value["kind"]) &&
+    EventSubscribeSseValue880(value["kind"]) &&
     Object.hasOwn(value, "producer") &&
-    EventSubscribeSseValue864(value["producer"]) &&
+    EventSubscribeSseValue881(value["producer"]) &&
     Object.hasOwn(value, "result") &&
-    EventSubscribeSseValue865(value["result"]) &&
+    EventSubscribeSseValue882(value["result"]) &&
     Object.hasOwn(value, "outputIncludes") &&
-    EventSubscribeSseValue869(value["outputIncludes"])
+    EventSubscribeSseValue886(value["outputIncludes"])
   )
 }
 
-function EventSubscribeSseValue871(value: unknown): boolean {
+function EventSubscribeSseValue888(value: unknown): boolean {
   return value === "artifact"
 }
 
-function EventSubscribeSseValue872(value: unknown): boolean {
+function EventSubscribeSseValue889(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
@@ -15955,13 +16176,13 @@ function EventSubscribeSseValue872(value: unknown): boolean {
     Object.hasOwn(value, "artifactID") &&
     EventSubscribeSseValue5(value["artifactID"]) &&
     Object.hasOwn(value, "revision") &&
-    EventSubscribeSseValue817(value["revision"]) &&
+    EventSubscribeSseValue834(value["revision"]) &&
     Object.hasOwn(value, "relativePath") &&
     EventSubscribeSseValue5(value["relativePath"])
   )
 }
 
-function EventSubscribeSseValue870(value: unknown): boolean {
+function EventSubscribeSseValue887(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
@@ -15971,35 +16192,35 @@ function EventSubscribeSseValue870(value: unknown): boolean {
     Object.hasOwn(value, "revision") &&
     EventSubscribeSseValue309(value["revision"]) &&
     Object.hasOwn(value, "acceptedRevisions") &&
-    EventSubscribeSseValue860(value["acceptedRevisions"]) &&
-    (!Object.hasOwn(value, "operation") || EventSubscribeSseValue861(value["operation"])) &&
-    (!Object.hasOwn(value, "operations") || EventSubscribeSseValue862(value["operations"])) &&
+    EventSubscribeSseValue877(value["acceptedRevisions"]) &&
+    (!Object.hasOwn(value, "operation") || EventSubscribeSseValue878(value["operation"])) &&
+    (!Object.hasOwn(value, "operations") || EventSubscribeSseValue879(value["operations"])) &&
     Object.hasOwn(value, "recordedAt") &&
     EventSubscribeSseValue428(value["recordedAt"]) &&
     Object.hasOwn(value, "kind") &&
-    EventSubscribeSseValue871(value["kind"]) &&
+    EventSubscribeSseValue888(value["kind"]) &&
     Object.hasOwn(value, "producer") &&
-    EventSubscribeSseValue872(value["producer"])
+    EventSubscribeSseValue889(value["producer"])
   )
 }
 
-function EventSubscribeSseValue874(value: unknown): boolean {
+function EventSubscribeSseValue891(value: unknown): boolean {
   return value === "human_acceptance"
 }
 
-function EventSubscribeSseValue875(value: unknown): boolean {
+function EventSubscribeSseValue892(value: unknown): boolean {
   return typeof value === "string" && typeof value === "string" && new RegExp("^[a-f0-9]{64}$", "").test(value)
 }
 
-function EventSubscribeSseValue876(value: unknown): boolean {
+function EventSubscribeSseValue893(value: unknown): boolean {
   return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue5)
 }
 
-function EventSubscribeSseValue877(value: unknown): boolean {
+function EventSubscribeSseValue894(value: unknown): boolean {
   return value === "authenticated_user"
 }
 
-function EventSubscribeSseValue873(value: unknown): boolean {
+function EventSubscribeSseValue890(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
@@ -16009,43 +16230,43 @@ function EventSubscribeSseValue873(value: unknown): boolean {
     Object.hasOwn(value, "revision") &&
     EventSubscribeSseValue309(value["revision"]) &&
     Object.hasOwn(value, "acceptedRevisions") &&
-    EventSubscribeSseValue860(value["acceptedRevisions"]) &&
-    (!Object.hasOwn(value, "operation") || EventSubscribeSseValue861(value["operation"])) &&
-    (!Object.hasOwn(value, "operations") || EventSubscribeSseValue862(value["operations"])) &&
+    EventSubscribeSseValue877(value["acceptedRevisions"]) &&
+    (!Object.hasOwn(value, "operation") || EventSubscribeSseValue878(value["operation"])) &&
+    (!Object.hasOwn(value, "operations") || EventSubscribeSseValue879(value["operations"])) &&
     Object.hasOwn(value, "recordedAt") &&
     EventSubscribeSseValue428(value["recordedAt"]) &&
     Object.hasOwn(value, "kind") &&
-    EventSubscribeSseValue874(value["kind"]) &&
+    EventSubscribeSseValue891(value["kind"]) &&
     Object.hasOwn(value, "evidenceSetDigest") &&
-    EventSubscribeSseValue875(value["evidenceSetDigest"]) &&
+    EventSubscribeSseValue892(value["evidenceSetDigest"]) &&
     Object.hasOwn(value, "evidenceIDs") &&
-    EventSubscribeSseValue876(value["evidenceIDs"]) &&
+    EventSubscribeSseValue893(value["evidenceIDs"]) &&
     Object.hasOwn(value, "source") &&
-    EventSubscribeSseValue877(value["source"])
+    EventSubscribeSseValue894(value["source"])
   )
 }
 
-function EventSubscribeSseValue858(value: unknown): boolean {
-  return EventSubscribeSseValue859(value) || EventSubscribeSseValue870(value) || EventSubscribeSseValue873(value)
+function EventSubscribeSseValue875(value: unknown): boolean {
+  return EventSubscribeSseValue876(value) || EventSubscribeSseValue887(value) || EventSubscribeSseValue890(value)
 }
 
-function EventSubscribeSseValue857(value: unknown): boolean {
-  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue858)
+function EventSubscribeSseValue874(value: unknown): boolean {
+  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue875)
 }
 
-function EventSubscribeSseValue878(value: unknown): boolean {
+function EventSubscribeSseValue895(value: unknown): boolean {
   return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue5)
 }
 
-function EventSubscribeSseValue879(value: unknown): boolean {
+function EventSubscribeSseValue896(value: unknown): boolean {
   return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue5)
 }
 
-function EventSubscribeSseValue880(value: unknown): boolean {
+function EventSubscribeSseValue897(value: unknown): boolean {
   return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value >= 0
 }
 
-function EventSubscribeSseValue882(value: unknown): boolean {
+function EventSubscribeSseValue899(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "steps") &&
@@ -16063,7 +16284,7 @@ function EventSubscribeSseValue882(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue881(value: unknown): boolean {
+function EventSubscribeSseValue898(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "rounds") &&
@@ -16071,17 +16292,17 @@ function EventSubscribeSseValue881(value: unknown): boolean {
     Object.hasOwn(value, "activeMilliseconds") &&
     EventSubscribeSseValue428(value["activeMilliseconds"]) &&
     Object.hasOwn(value, "coordinator") &&
-    EventSubscribeSseValue882(value["coordinator"]) &&
+    EventSubscribeSseValue899(value["coordinator"]) &&
     Object.hasOwn(value, "worker") &&
-    EventSubscribeSseValue882(value["worker"]) &&
+    EventSubscribeSseValue899(value["worker"]) &&
     Object.hasOwn(value, "compaction") &&
-    EventSubscribeSseValue882(value["compaction"]) &&
+    EventSubscribeSseValue899(value["compaction"]) &&
     Object.hasOwn(value, "auxiliary") &&
-    EventSubscribeSseValue882(value["auxiliary"])
+    EventSubscribeSseValue899(value["auxiliary"])
   )
 }
 
-function EventSubscribeSseValue803(value: unknown): boolean {
+function EventSubscribeSseValue820(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
@@ -16093,42 +16314,42 @@ function EventSubscribeSseValue803(value: unknown): boolean {
     Object.hasOwn(value, "agent") &&
     EventSubscribeSseValue112(value["agent"]) &&
     Object.hasOwn(value, "selection") &&
-    EventSubscribeSseValue804(value["selection"]) &&
+    EventSubscribeSseValue821(value["selection"]) &&
     Object.hasOwn(value, "objective") &&
-    EventSubscribeSseValue807(value["objective"]) &&
+    EventSubscribeSseValue824(value["objective"]) &&
     Object.hasOwn(value, "conditions") &&
-    EventSubscribeSseValue808(value["conditions"]) &&
+    EventSubscribeSseValue825(value["conditions"]) &&
     Object.hasOwn(value, "taskRefs") &&
-    EventSubscribeSseValue820(value["taskRefs"]) &&
+    EventSubscribeSseValue837(value["taskRefs"]) &&
     Object.hasOwn(value, "revision") &&
     EventSubscribeSseValue309(value["revision"]) &&
     Object.hasOwn(value, "status") &&
-    EventSubscribeSseValue821(value["status"]) &&
+    EventSubscribeSseValue838(value["status"]) &&
     Object.hasOwn(value, "revisionCreatedAt") &&
     EventSubscribeSseValue428(value["revisionCreatedAt"]) &&
-    (!Object.hasOwn(value, "pauseReason") || EventSubscribeSseValue826(value["pauseReason"])) &&
-    (!Object.hasOwn(value, "pauseCode") || EventSubscribeSseValue831(value["pauseCode"])) &&
+    (!Object.hasOwn(value, "pauseReason") || EventSubscribeSseValue843(value["pauseReason"])) &&
+    (!Object.hasOwn(value, "pauseCode") || EventSubscribeSseValue848(value["pauseCode"])) &&
     Object.hasOwn(value, "pauseVersion") &&
     EventSubscribeSseValue428(value["pauseVersion"]) &&
     Object.hasOwn(value, "budget") &&
-    EventSubscribeSseValue832(value["budget"]) &&
+    EventSubscribeSseValue849(value["budget"]) &&
     Object.hasOwn(value, "rounds") &&
-    EventSubscribeSseValue838(value["rounds"]) &&
+    EventSubscribeSseValue855(value["rounds"]) &&
     Object.hasOwn(value, "attempts") &&
-    EventSubscribeSseValue846(value["attempts"]) &&
+    EventSubscribeSseValue863(value["attempts"]) &&
     Object.hasOwn(value, "evidence") &&
-    EventSubscribeSseValue857(value["evidence"]) &&
-    (!Object.hasOwn(value, "currentEvidenceIDs") || EventSubscribeSseValue878(value["currentEvidenceIDs"])) &&
+    EventSubscribeSseValue874(value["evidence"]) &&
+    (!Object.hasOwn(value, "currentEvidenceIDs") || EventSubscribeSseValue895(value["currentEvidenceIDs"])) &&
     Object.hasOwn(value, "evidenceSetDigest") &&
-    EventSubscribeSseValue875(value["evidenceSetDigest"]) &&
+    EventSubscribeSseValue892(value["evidenceSetDigest"]) &&
     Object.hasOwn(value, "satisfiedConditionIDs") &&
-    EventSubscribeSseValue879(value["satisfiedConditionIDs"]) &&
+    EventSubscribeSseValue896(value["satisfiedConditionIDs"]) &&
     (!Object.hasOwn(value, "lastRoundInputID") || EventSubscribeSseValue356(value["lastRoundInputID"])) &&
-    (!Object.hasOwn(value, "activeSince") || EventSubscribeSseValue880(value["activeSince"])) &&
+    (!Object.hasOwn(value, "activeSince") || EventSubscribeSseValue897(value["activeSince"])) &&
     Object.hasOwn(value, "activeMilliseconds") &&
     EventSubscribeSseValue428(value["activeMilliseconds"]) &&
     Object.hasOwn(value, "accounting") &&
-    EventSubscribeSseValue881(value["accounting"]) &&
+    EventSubscribeSseValue898(value["accounting"]) &&
     Object.hasOwn(value, "createdAt") &&
     EventSubscribeSseValue428(value["createdAt"]) &&
     Object.hasOwn(value, "updatedAt") &&
@@ -16136,319 +16357,319 @@ function EventSubscribeSseValue803(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue802(value: unknown): boolean {
+function EventSubscribeSseValue819(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
     EventSubscribeSseValue61(value["sessionID"]) &&
     Object.hasOwn(value, "goal") &&
-    EventSubscribeSseValue803(value["goal"])
+    EventSubscribeSseValue820(value["goal"])
   )
 }
 
-function EventSubscribeSseValue799(value: unknown): boolean {
+function EventSubscribeSseValue816(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue800(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue817(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue801(value["type"]) &&
+    EventSubscribeSseValue818(value["type"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue802(value["data"])
-  )
-}
-
-function EventSubscribeSseValue884(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
-  )
-}
-
-function EventSubscribeSseValue885(value: unknown): boolean {
-  return value === "schedule.updated"
-}
-
-function EventSubscribeSseValue889(value: unknown): boolean {
-  return typeof value === "string" && typeof value === "string" && value.startsWith("sch")
-}
-
-function EventSubscribeSseValue891(value: unknown): boolean {
-  return value === "reminder"
-}
-
-function EventSubscribeSseValue890(value: unknown): boolean {
-  return EventSubscribeSseValue891(value)
-}
-
-function EventSubscribeSseValue892(value: unknown): boolean {
-  return typeof value === "string"
-}
-
-function EventSubscribeSseValue893(value: unknown): boolean {
-  return typeof value === "number"
-}
-
-function EventSubscribeSseValue894(value: unknown): boolean {
-  return typeof value === "string"
-}
-
-function EventSubscribeSseValue896(value: unknown): boolean {
-  return value === "pending"
-}
-
-function EventSubscribeSseValue897(value: unknown): boolean {
-  return value === "running"
-}
-
-function EventSubscribeSseValue898(value: unknown): boolean {
-  return value === "completed"
-}
-
-function EventSubscribeSseValue899(value: unknown): boolean {
-  return value === "cancelled"
-}
-
-function EventSubscribeSseValue900(value: unknown): boolean {
-  return value === "failed"
-}
-
-function EventSubscribeSseValue895(value: unknown): boolean {
-  return (
-    EventSubscribeSseValue896(value) ||
-    EventSubscribeSseValue897(value) ||
-    EventSubscribeSseValue898(value) ||
-    EventSubscribeSseValue899(value) ||
-    EventSubscribeSseValue900(value)
+    EventSubscribeSseValue819(value["data"])
   )
 }
 
 function EventSubscribeSseValue901(value: unknown): boolean {
-  return typeof value === "number"
-}
-
-function EventSubscribeSseValue902(value: unknown): boolean {
-  return typeof value === "number"
-}
-
-function EventSubscribeSseValue903(value: unknown): boolean {
-  return typeof value === "string"
-}
-
-function EventSubscribeSseValue904(value: unknown): boolean {
-  return typeof value === "number"
-}
-
-function EventSubscribeSseValue905(value: unknown): boolean {
-  return typeof value === "string"
-}
-
-function EventSubscribeSseValue888(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue889(value["id"]) &&
-    Object.hasOwn(value, "sessionID") &&
-    EventSubscribeSseValue5(value["sessionID"]) &&
-    Object.hasOwn(value, "kind") &&
-    EventSubscribeSseValue890(value["kind"]) &&
-    Object.hasOwn(value, "content") &&
-    EventSubscribeSseValue892(value["content"]) &&
-    Object.hasOwn(value, "dueAt") &&
-    EventSubscribeSseValue893(value["dueAt"]) &&
-    Object.hasOwn(value, "timezone") &&
-    EventSubscribeSseValue894(value["timezone"]) &&
-    Object.hasOwn(value, "status") &&
-    EventSubscribeSseValue895(value["status"]) &&
-    Object.hasOwn(value, "attempts") &&
-    EventSubscribeSseValue901(value["attempts"]) &&
-    (!Object.hasOwn(value, "nextAttemptAt") || EventSubscribeSseValue902(value["nextAttemptAt"])) &&
-    (!Object.hasOwn(value, "leaseOwner") || EventSubscribeSseValue903(value["leaseOwner"])) &&
-    (!Object.hasOwn(value, "leaseExpiresAt") || EventSubscribeSseValue904(value["leaseExpiresAt"])) &&
-    Object.hasOwn(value, "deliveryKey") &&
-    EventSubscribeSseValue905(value["deliveryKey"]) &&
-    Object.hasOwn(value, "createdAt") &&
-    EventSubscribeSseValue901(value["createdAt"]) &&
-    Object.hasOwn(value, "updatedAt") &&
-    EventSubscribeSseValue901(value["updatedAt"])
-  )
-}
-
-function EventSubscribeSseValue887(value: unknown): boolean {
-  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue888)
-}
-
-function EventSubscribeSseValue886(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "sessionID") &&
-    EventSubscribeSseValue61(value["sessionID"]) &&
-    Object.hasOwn(value, "schedules") &&
-    EventSubscribeSseValue887(value["schedules"])
-  )
-}
-
-function EventSubscribeSseValue883(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue2(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue884(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue885(value["type"]) &&
-    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue886(value["data"])
-  )
-}
-
-function EventSubscribeSseValue907(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
+function EventSubscribeSseValue902(value: unknown): boolean {
+  return value === "schedule.updated"
+}
+
+function EventSubscribeSseValue906(value: unknown): boolean {
+  return typeof value === "string" && typeof value === "string" && value.startsWith("sch")
+}
+
 function EventSubscribeSseValue908(value: unknown): boolean {
-  return value === "schedule.delivered"
+  return value === "reminder"
+}
+
+function EventSubscribeSseValue907(value: unknown): boolean {
+  return EventSubscribeSseValue908(value)
+}
+
+function EventSubscribeSseValue909(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function EventSubscribeSseValue910(value: unknown): boolean {
+  return typeof value === "number"
 }
 
 function EventSubscribeSseValue911(value: unknown): boolean {
   return typeof value === "string"
 }
 
-function EventSubscribeSseValue912(value: unknown): boolean {
-  return typeof value === "boolean"
+function EventSubscribeSseValue913(value: unknown): boolean {
+  return value === "pending"
 }
 
-function EventSubscribeSseValue910(value: unknown): boolean {
+function EventSubscribeSseValue914(value: unknown): boolean {
+  return value === "running"
+}
+
+function EventSubscribeSseValue915(value: unknown): boolean {
+  return value === "completed"
+}
+
+function EventSubscribeSseValue916(value: unknown): boolean {
+  return value === "cancelled"
+}
+
+function EventSubscribeSseValue917(value: unknown): boolean {
+  return value === "failed"
+}
+
+function EventSubscribeSseValue912(value: unknown): boolean {
   return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "deliveryKey") &&
-    EventSubscribeSseValue5(value["deliveryKey"]) &&
-    Object.hasOwn(value, "scheduleID") &&
-    EventSubscribeSseValue889(value["scheduleID"]) &&
-    Object.hasOwn(value, "sessionID") &&
-    EventSubscribeSseValue5(value["sessionID"]) &&
-    Object.hasOwn(value, "kind") &&
-    EventSubscribeSseValue890(value["kind"]) &&
-    Object.hasOwn(value, "content") &&
-    EventSubscribeSseValue911(value["content"]) &&
-    Object.hasOwn(value, "deliveredAt") &&
-    EventSubscribeSseValue901(value["deliveredAt"]) &&
-    Object.hasOwn(value, "caughtUp") &&
-    EventSubscribeSseValue912(value["caughtUp"]) &&
-    Object.hasOwn(value, "createdAt") &&
-    EventSubscribeSseValue901(value["createdAt"])
+    EventSubscribeSseValue913(value) ||
+    EventSubscribeSseValue914(value) ||
+    EventSubscribeSseValue915(value) ||
+    EventSubscribeSseValue916(value) ||
+    EventSubscribeSseValue917(value)
   )
 }
 
-function EventSubscribeSseValue909(value: unknown): boolean {
+function EventSubscribeSseValue918(value: unknown): boolean {
+  return typeof value === "number"
+}
+
+function EventSubscribeSseValue919(value: unknown): boolean {
+  return typeof value === "number"
+}
+
+function EventSubscribeSseValue920(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function EventSubscribeSseValue921(value: unknown): boolean {
+  return typeof value === "number"
+}
+
+function EventSubscribeSseValue922(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function EventSubscribeSseValue905(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue906(value["id"]) &&
+    Object.hasOwn(value, "sessionID") &&
+    EventSubscribeSseValue5(value["sessionID"]) &&
+    Object.hasOwn(value, "kind") &&
+    EventSubscribeSseValue907(value["kind"]) &&
+    Object.hasOwn(value, "content") &&
+    EventSubscribeSseValue909(value["content"]) &&
+    Object.hasOwn(value, "dueAt") &&
+    EventSubscribeSseValue910(value["dueAt"]) &&
+    Object.hasOwn(value, "timezone") &&
+    EventSubscribeSseValue911(value["timezone"]) &&
+    Object.hasOwn(value, "status") &&
+    EventSubscribeSseValue912(value["status"]) &&
+    Object.hasOwn(value, "attempts") &&
+    EventSubscribeSseValue918(value["attempts"]) &&
+    (!Object.hasOwn(value, "nextAttemptAt") || EventSubscribeSseValue919(value["nextAttemptAt"])) &&
+    (!Object.hasOwn(value, "leaseOwner") || EventSubscribeSseValue920(value["leaseOwner"])) &&
+    (!Object.hasOwn(value, "leaseExpiresAt") || EventSubscribeSseValue921(value["leaseExpiresAt"])) &&
+    Object.hasOwn(value, "deliveryKey") &&
+    EventSubscribeSseValue922(value["deliveryKey"]) &&
+    Object.hasOwn(value, "createdAt") &&
+    EventSubscribeSseValue918(value["createdAt"]) &&
+    Object.hasOwn(value, "updatedAt") &&
+    EventSubscribeSseValue918(value["updatedAt"])
+  )
+}
+
+function EventSubscribeSseValue904(value: unknown): boolean {
+  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue905)
+}
+
+function EventSubscribeSseValue903(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
     EventSubscribeSseValue61(value["sessionID"]) &&
-    Object.hasOwn(value, "delivery") &&
-    EventSubscribeSseValue910(value["delivery"])
+    Object.hasOwn(value, "schedules") &&
+    EventSubscribeSseValue904(value["schedules"])
   )
 }
 
-function EventSubscribeSseValue906(value: unknown): boolean {
+function EventSubscribeSseValue900(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue907(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue901(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue908(value["type"]) &&
+    EventSubscribeSseValue902(value["type"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue909(value["data"])
+    EventSubscribeSseValue903(value["data"])
   )
 }
 
-function EventSubscribeSseValue914(value: unknown): boolean {
+function EventSubscribeSseValue924(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
-function EventSubscribeSseValue915(value: unknown): boolean {
-  return value === "schedule.rule.updated"
+function EventSubscribeSseValue925(value: unknown): boolean {
+  return value === "schedule.delivered"
 }
 
-function EventSubscribeSseValue919(value: unknown): boolean {
-  return value === "reminder"
-}
-
-function EventSubscribeSseValue920(value: unknown): boolean {
-  return value === "prompt"
-}
-
-function EventSubscribeSseValue921(value: unknown): boolean {
-  return value === "goal"
-}
-
-function EventSubscribeSseValue922(value: unknown): boolean {
-  return value === "task"
-}
-
-function EventSubscribeSseValue918(value: unknown): boolean {
-  return (
-    EventSubscribeSseValue919(value) ||
-    EventSubscribeSseValue920(value) ||
-    EventSubscribeSseValue921(value) ||
-    EventSubscribeSseValue922(value)
-  )
-}
-
-function EventSubscribeSseValue924(value: unknown): boolean {
+function EventSubscribeSseValue928(value: unknown): boolean {
   return typeof value === "string"
 }
 
-function EventSubscribeSseValue923(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "cron") &&
-    EventSubscribeSseValue5(value["cron"]) &&
-    (!Object.hasOwn(value, "timezone") || EventSubscribeSseValue924(value["timezone"])) &&
-    Object.hasOwn(value, "enabled") &&
-    EventSubscribeSseValue247(value["enabled"])
-  )
+function EventSubscribeSseValue929(value: unknown): boolean {
+  return typeof value === "boolean"
 }
 
 function EventSubscribeSseValue927(value: unknown): boolean {
-  return value === "existing"
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "deliveryKey") &&
+    EventSubscribeSseValue5(value["deliveryKey"]) &&
+    Object.hasOwn(value, "scheduleID") &&
+    EventSubscribeSseValue906(value["scheduleID"]) &&
+    Object.hasOwn(value, "sessionID") &&
+    EventSubscribeSseValue5(value["sessionID"]) &&
+    Object.hasOwn(value, "kind") &&
+    EventSubscribeSseValue907(value["kind"]) &&
+    Object.hasOwn(value, "content") &&
+    EventSubscribeSseValue928(value["content"]) &&
+    Object.hasOwn(value, "deliveredAt") &&
+    EventSubscribeSseValue918(value["deliveredAt"]) &&
+    Object.hasOwn(value, "caughtUp") &&
+    EventSubscribeSseValue929(value["caughtUp"]) &&
+    Object.hasOwn(value, "createdAt") &&
+    EventSubscribeSseValue918(value["createdAt"])
+  )
 }
 
 function EventSubscribeSseValue926(value: unknown): boolean {
   return (
     isSseRecord(value) &&
+    Object.hasOwn(value, "sessionID") &&
+    EventSubscribeSseValue61(value["sessionID"]) &&
+    Object.hasOwn(value, "delivery") &&
+    EventSubscribeSseValue927(value["delivery"])
+  )
+}
+
+function EventSubscribeSseValue923(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue2(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    EventSubscribeSseValue3(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue924(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue925(value["type"]) &&
+    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    EventSubscribeSseValue926(value["data"])
+  )
+}
+
+function EventSubscribeSseValue931(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+  )
+}
+
+function EventSubscribeSseValue932(value: unknown): boolean {
+  return value === "schedule.rule.updated"
+}
+
+function EventSubscribeSseValue936(value: unknown): boolean {
+  return value === "reminder"
+}
+
+function EventSubscribeSseValue937(value: unknown): boolean {
+  return value === "prompt"
+}
+
+function EventSubscribeSseValue938(value: unknown): boolean {
+  return value === "goal"
+}
+
+function EventSubscribeSseValue939(value: unknown): boolean {
+  return value === "task"
+}
+
+function EventSubscribeSseValue935(value: unknown): boolean {
+  return (
+    EventSubscribeSseValue936(value) ||
+    EventSubscribeSseValue937(value) ||
+    EventSubscribeSseValue938(value) ||
+    EventSubscribeSseValue939(value)
+  )
+}
+
+function EventSubscribeSseValue941(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function EventSubscribeSseValue940(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "cron") &&
+    EventSubscribeSseValue5(value["cron"]) &&
+    (!Object.hasOwn(value, "timezone") || EventSubscribeSseValue941(value["timezone"])) &&
+    Object.hasOwn(value, "enabled") &&
+    EventSubscribeSseValue247(value["enabled"])
+  )
+}
+
+function EventSubscribeSseValue944(value: unknown): boolean {
+  return value === "existing"
+}
+
+function EventSubscribeSseValue943(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
     Object.hasOwn(value, "policy") &&
-    EventSubscribeSseValue927(value["policy"]) &&
+    EventSubscribeSseValue944(value["policy"]) &&
     Object.hasOwn(value, "sessionID") &&
     EventSubscribeSseValue61(value["sessionID"])
   )
 }
 
-function EventSubscribeSseValue929(value: unknown): boolean {
+function EventSubscribeSseValue946(value: unknown): boolean {
   return value === "new_once"
 }
 
-function EventSubscribeSseValue931(value: unknown): boolean {
+function EventSubscribeSseValue948(value: unknown): boolean {
   return value === "new_root"
 }
 
-function EventSubscribeSseValue932(value: unknown): boolean {
+function EventSubscribeSseValue949(value: unknown): boolean {
   return (
     EventSubscribeSseValue67(value) ||
     EventSubscribeSseValue68(value) ||
@@ -16458,11 +16679,11 @@ function EventSubscribeSseValue932(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue935(value: unknown): boolean {
+function EventSubscribeSseValue952(value: unknown): boolean {
   return value === "temporary"
 }
 
-function EventSubscribeSseValue937(value: unknown): boolean {
+function EventSubscribeSseValue954(value: unknown): boolean {
   return (
     typeof value === "string" &&
     (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
@@ -16476,31 +16697,31 @@ function EventSubscribeSseValue937(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue936(value: unknown): boolean {
-  return EventSubscribeSseValue937(value) || EventSubscribeSseValue709(value)
+function EventSubscribeSseValue953(value: unknown): boolean {
+  return EventSubscribeSseValue954(value) || EventSubscribeSseValue726(value)
 }
 
-function EventSubscribeSseValue940(value: unknown): boolean {
+function EventSubscribeSseValue957(value: unknown): boolean {
   return value === "builtin"
 }
 
-function EventSubscribeSseValue942(value: unknown): boolean {
+function EventSubscribeSseValue959(value: unknown): boolean {
   return value === "build"
 }
 
-function EventSubscribeSseValue943(value: unknown): boolean {
+function EventSubscribeSseValue960(value: unknown): boolean {
   return value === "plan"
 }
 
-function EventSubscribeSseValue944(value: unknown): boolean {
+function EventSubscribeSseValue961(value: unknown): boolean {
   return value === "meta"
 }
 
-function EventSubscribeSseValue941(value: unknown): boolean {
-  return EventSubscribeSseValue942(value) || EventSubscribeSseValue943(value) || EventSubscribeSseValue944(value)
+function EventSubscribeSseValue958(value: unknown): boolean {
+  return EventSubscribeSseValue959(value) || EventSubscribeSseValue960(value) || EventSubscribeSseValue961(value)
 }
 
-function EventSubscribeSseValue945(value: unknown): boolean {
+function EventSubscribeSseValue962(value: unknown): boolean {
   return (
     typeof value === "string" &&
     (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
@@ -16514,162 +16735,73 @@ function EventSubscribeSseValue945(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue939(value: unknown): boolean {
+function EventSubscribeSseValue956(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "source") &&
-    EventSubscribeSseValue940(value["source"]) &&
+    EventSubscribeSseValue957(value["source"]) &&
     Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue941(value["id"]) &&
-    (!Object.hasOwn(value, "revision") || EventSubscribeSseValue945(value["revision"]))
+    EventSubscribeSseValue958(value["id"]) &&
+    (!Object.hasOwn(value, "revision") || EventSubscribeSseValue962(value["revision"]))
   )
 }
 
-function EventSubscribeSseValue947(value: unknown): boolean {
+function EventSubscribeSseValue964(value: unknown): boolean {
   return value === "agent"
 }
 
-function EventSubscribeSseValue948(value: unknown): boolean {
+function EventSubscribeSseValue965(value: unknown): boolean {
   return false
 }
 
-function EventSubscribeSseValue949(value: unknown): boolean {
+function EventSubscribeSseValue966(value: unknown): boolean {
   return value === "asset"
 }
 
-function EventSubscribeSseValue946(value: unknown): boolean {
+function EventSubscribeSseValue963(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "kind") &&
-    EventSubscribeSseValue947(value["kind"]) &&
+    EventSubscribeSseValue964(value["kind"]) &&
     Object.hasOwn(value, "relativePath") &&
     EventSubscribeSseValue5(value["relativePath"]) &&
     Object.hasOwn(value, "revision") &&
-    EventSubscribeSseValue937(value["revision"]) &&
-    (!Object.hasOwn(value, "target") || EventSubscribeSseValue948(value["target"])) &&
+    EventSubscribeSseValue954(value["revision"]) &&
+    (!Object.hasOwn(value, "target") || EventSubscribeSseValue965(value["target"])) &&
     Object.hasOwn(value, "source") &&
-    EventSubscribeSseValue949(value["source"]) &&
+    EventSubscribeSseValue966(value["source"]) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue112(value["id"])
   )
 }
 
-function EventSubscribeSseValue938(value: unknown): boolean {
-  return EventSubscribeSseValue939(value) || EventSubscribeSseValue946(value)
-}
-
-function EventSubscribeSseValue951(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "kind") &&
-    EventSubscribeSseValue947(value["kind"]) &&
-    Object.hasOwn(value, "relativePath") &&
-    EventSubscribeSseValue5(value["relativePath"]) &&
-    Object.hasOwn(value, "revision") &&
-    EventSubscribeSseValue937(value["revision"]) &&
-    (!Object.hasOwn(value, "target") || EventSubscribeSseValue948(value["target"]))
-  )
-}
-
-function EventSubscribeSseValue950(value: unknown): boolean {
-  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue951)
-}
-
-function EventSubscribeSseValue954(value: unknown): boolean {
-  return value === "workflow"
-}
-
 function EventSubscribeSseValue955(value: unknown): boolean {
-  return false
-}
-
-function EventSubscribeSseValue953(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "kind") &&
-    EventSubscribeSseValue954(value["kind"]) &&
-    Object.hasOwn(value, "relativePath") &&
-    EventSubscribeSseValue5(value["relativePath"]) &&
-    Object.hasOwn(value, "revision") &&
-    EventSubscribeSseValue937(value["revision"]) &&
-    (!Object.hasOwn(value, "target") || EventSubscribeSseValue955(value["target"]))
-  )
-}
-
-function EventSubscribeSseValue952(value: unknown): boolean {
-  return EventSubscribeSseValue953(value) || EventSubscribeSseValue709(value)
-}
-
-function EventSubscribeSseValue960(value: unknown): boolean {
-  return value === "prompt"
-}
-
-function EventSubscribeSseValue963(value: unknown): boolean {
-  return value === "project"
-}
-
-function EventSubscribeSseValue964(value: unknown): boolean {
-  return value === "global"
-}
-
-function EventSubscribeSseValue965(value: unknown): boolean {
-  return value === "location"
-}
-
-function EventSubscribeSseValue962(value: unknown): boolean {
-  return EventSubscribeSseValue963(value) || EventSubscribeSseValue964(value) || EventSubscribeSseValue965(value)
-}
-
-function EventSubscribeSseValue961(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "scope") &&
-    EventSubscribeSseValue962(value["scope"]) &&
-    Object.hasOwn(value, "root") &&
-    EventSubscribeSseValue9(value["root"])
-  )
-}
-
-function EventSubscribeSseValue959(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "kind") &&
-    EventSubscribeSseValue960(value["kind"]) &&
-    Object.hasOwn(value, "relativePath") &&
-    EventSubscribeSseValue5(value["relativePath"]) &&
-    Object.hasOwn(value, "revision") &&
-    EventSubscribeSseValue937(value["revision"]) &&
-    (!Object.hasOwn(value, "target") || EventSubscribeSseValue961(value["target"]))
-  )
-}
-
-function EventSubscribeSseValue958(value: unknown): boolean {
-  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue959)
+  return EventSubscribeSseValue956(value) || EventSubscribeSseValue963(value)
 }
 
 function EventSubscribeSseValue968(value: unknown): boolean {
-  return value === "skill"
-}
-
-function EventSubscribeSseValue967(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "kind") &&
-    EventSubscribeSseValue968(value["kind"]) &&
+    EventSubscribeSseValue964(value["kind"]) &&
     Object.hasOwn(value, "relativePath") &&
     EventSubscribeSseValue5(value["relativePath"]) &&
     Object.hasOwn(value, "revision") &&
-    EventSubscribeSseValue937(value["revision"]) &&
-    (!Object.hasOwn(value, "target") || EventSubscribeSseValue961(value["target"]))
+    EventSubscribeSseValue954(value["revision"]) &&
+    (!Object.hasOwn(value, "target") || EventSubscribeSseValue965(value["target"]))
   )
 }
 
-function EventSubscribeSseValue966(value: unknown): boolean {
-  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue967)
+function EventSubscribeSseValue967(value: unknown): boolean {
+  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue968)
 }
 
 function EventSubscribeSseValue971(value: unknown): boolean {
-  return value === "command"
+  return value === "workflow"
+}
+
+function EventSubscribeSseValue972(value: unknown): boolean {
+  return false
 }
 
 function EventSubscribeSseValue970(value: unknown): boolean {
@@ -16680,131 +16812,220 @@ function EventSubscribeSseValue970(value: unknown): boolean {
     Object.hasOwn(value, "relativePath") &&
     EventSubscribeSseValue5(value["relativePath"]) &&
     Object.hasOwn(value, "revision") &&
-    EventSubscribeSseValue937(value["revision"]) &&
-    (!Object.hasOwn(value, "target") || EventSubscribeSseValue961(value["target"]))
+    EventSubscribeSseValue954(value["revision"]) &&
+    (!Object.hasOwn(value, "target") || EventSubscribeSseValue972(value["target"]))
   )
 }
 
 function EventSubscribeSseValue969(value: unknown): boolean {
-  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue970)
+  return EventSubscribeSseValue970(value) || EventSubscribeSseValue726(value)
 }
 
-function EventSubscribeSseValue957(value: unknown): boolean {
+function EventSubscribeSseValue977(value: unknown): boolean {
+  return value === "prompt"
+}
+
+function EventSubscribeSseValue980(value: unknown): boolean {
+  return value === "project"
+}
+
+function EventSubscribeSseValue981(value: unknown): boolean {
+  return value === "global"
+}
+
+function EventSubscribeSseValue982(value: unknown): boolean {
+  return value === "location"
+}
+
+function EventSubscribeSseValue979(value: unknown): boolean {
+  return EventSubscribeSseValue980(value) || EventSubscribeSseValue981(value) || EventSubscribeSseValue982(value)
+}
+
+function EventSubscribeSseValue978(value: unknown): boolean {
   return (
     isSseRecord(value) &&
-    Object.hasOwn(value, "prompts") &&
-    EventSubscribeSseValue958(value["prompts"]) &&
-    Object.hasOwn(value, "skills") &&
-    EventSubscribeSseValue966(value["skills"]) &&
-    (!Object.hasOwn(value, "commands") || EventSubscribeSseValue969(value["commands"]))
+    Object.hasOwn(value, "scope") &&
+    EventSubscribeSseValue979(value["scope"]) &&
+    Object.hasOwn(value, "root") &&
+    EventSubscribeSseValue9(value["root"])
   )
 }
 
-function EventSubscribeSseValue956(value: unknown): boolean {
+function EventSubscribeSseValue976(value: unknown): boolean {
   return (
     isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue957(item))
-  )
-}
-
-function EventSubscribeSseValue972(value: unknown): boolean {
-  return value === "native"
-}
-
-function EventSubscribeSseValue973(value: unknown): boolean {
-  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue5)
-}
-
-function EventSubscribeSseValue934(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "source") &&
-    EventSubscribeSseValue935(value["source"]) &&
-    (!Object.hasOwn(value, "profilePath") || EventSubscribeSseValue708(value["profilePath"])) &&
-    (!Object.hasOwn(value, "profileRevision") || EventSubscribeSseValue936(value["profileRevision"])) &&
-    (!Object.hasOwn(value, "root") || EventSubscribeSseValue938(value["root"])) &&
-    Object.hasOwn(value, "agents") &&
-    EventSubscribeSseValue950(value["agents"]) &&
-    (!Object.hasOwn(value, "workflow") || EventSubscribeSseValue952(value["workflow"])) &&
-    Object.hasOwn(value, "bindings") &&
-    EventSubscribeSseValue956(value["bindings"]) &&
-    Object.hasOwn(value, "presentation") &&
-    EventSubscribeSseValue972(value["presentation"]) &&
-    Object.hasOwn(value, "requestedCapabilities") &&
-    EventSubscribeSseValue973(value["requestedCapabilities"])
+    Object.hasOwn(value, "kind") &&
+    EventSubscribeSseValue977(value["kind"]) &&
+    Object.hasOwn(value, "relativePath") &&
+    EventSubscribeSseValue5(value["relativePath"]) &&
+    Object.hasOwn(value, "revision") &&
+    EventSubscribeSseValue954(value["revision"]) &&
+    (!Object.hasOwn(value, "target") || EventSubscribeSseValue978(value["target"]))
   )
 }
 
 function EventSubscribeSseValue975(value: unknown): boolean {
-  return value === "profile"
+  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue976)
+}
+
+function EventSubscribeSseValue985(value: unknown): boolean {
+  return value === "skill"
+}
+
+function EventSubscribeSseValue984(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "kind") &&
+    EventSubscribeSseValue985(value["kind"]) &&
+    Object.hasOwn(value, "relativePath") &&
+    EventSubscribeSseValue5(value["relativePath"]) &&
+    Object.hasOwn(value, "revision") &&
+    EventSubscribeSseValue954(value["revision"]) &&
+    (!Object.hasOwn(value, "target") || EventSubscribeSseValue978(value["target"]))
+  )
+}
+
+function EventSubscribeSseValue983(value: unknown): boolean {
+  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue984)
+}
+
+function EventSubscribeSseValue988(value: unknown): boolean {
+  return value === "command"
+}
+
+function EventSubscribeSseValue987(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "kind") &&
+    EventSubscribeSseValue988(value["kind"]) &&
+    Object.hasOwn(value, "relativePath") &&
+    EventSubscribeSseValue5(value["relativePath"]) &&
+    Object.hasOwn(value, "revision") &&
+    EventSubscribeSseValue954(value["revision"]) &&
+    (!Object.hasOwn(value, "target") || EventSubscribeSseValue978(value["target"]))
+  )
+}
+
+function EventSubscribeSseValue986(value: unknown): boolean {
+  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue987)
 }
 
 function EventSubscribeSseValue974(value: unknown): boolean {
   return (
     isSseRecord(value) &&
-    Object.hasOwn(value, "source") &&
-    EventSubscribeSseValue975(value["source"]) &&
-    Object.hasOwn(value, "profilePath") &&
-    EventSubscribeSseValue5(value["profilePath"]) &&
-    Object.hasOwn(value, "profileRevision") &&
-    EventSubscribeSseValue937(value["profileRevision"])
+    Object.hasOwn(value, "prompts") &&
+    EventSubscribeSseValue975(value["prompts"]) &&
+    Object.hasOwn(value, "skills") &&
+    EventSubscribeSseValue983(value["skills"]) &&
+    (!Object.hasOwn(value, "commands") || EventSubscribeSseValue986(value["commands"]))
   )
 }
 
-function EventSubscribeSseValue933(value: unknown): boolean {
-  return EventSubscribeSseValue934(value) || EventSubscribeSseValue974(value)
+function EventSubscribeSseValue973(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue974(item))
+  )
 }
 
-function EventSubscribeSseValue976(value: unknown): boolean {
+function EventSubscribeSseValue989(value: unknown): boolean {
+  return value === "native"
+}
+
+function EventSubscribeSseValue990(value: unknown): boolean {
+  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue5)
+}
+
+function EventSubscribeSseValue951(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "source") &&
+    EventSubscribeSseValue952(value["source"]) &&
+    (!Object.hasOwn(value, "profilePath") || EventSubscribeSseValue725(value["profilePath"])) &&
+    (!Object.hasOwn(value, "profileRevision") || EventSubscribeSseValue953(value["profileRevision"])) &&
+    (!Object.hasOwn(value, "root") || EventSubscribeSseValue955(value["root"])) &&
+    Object.hasOwn(value, "agents") &&
+    EventSubscribeSseValue967(value["agents"]) &&
+    (!Object.hasOwn(value, "workflow") || EventSubscribeSseValue969(value["workflow"])) &&
+    Object.hasOwn(value, "bindings") &&
+    EventSubscribeSseValue973(value["bindings"]) &&
+    Object.hasOwn(value, "presentation") &&
+    EventSubscribeSseValue989(value["presentation"]) &&
+    Object.hasOwn(value, "requestedCapabilities") &&
+    EventSubscribeSseValue990(value["requestedCapabilities"])
+  )
+}
+
+function EventSubscribeSseValue992(value: unknown): boolean {
+  return value === "profile"
+}
+
+function EventSubscribeSseValue991(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "source") &&
+    EventSubscribeSseValue992(value["source"]) &&
+    Object.hasOwn(value, "profilePath") &&
+    EventSubscribeSseValue5(value["profilePath"]) &&
+    Object.hasOwn(value, "profileRevision") &&
+    EventSubscribeSseValue954(value["profileRevision"])
+  )
+}
+
+function EventSubscribeSseValue950(value: unknown): boolean {
+  return EventSubscribeSseValue951(value) || EventSubscribeSseValue991(value)
+}
+
+function EventSubscribeSseValue993(value: unknown): boolean {
   return typeof value === "string"
 }
 
-function EventSubscribeSseValue930(value: unknown): boolean {
+function EventSubscribeSseValue947(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue931(value["type"]) &&
+    EventSubscribeSseValue948(value["type"]) &&
     Object.hasOwn(value, "mode") &&
-    EventSubscribeSseValue932(value["mode"]) &&
+    EventSubscribeSseValue949(value["mode"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     (!Object.hasOwn(value, "agent") || EventSubscribeSseValue73(value["agent"])) &&
     (!Object.hasOwn(value, "model") || EventSubscribeSseValue74(value["model"])) &&
     (!Object.hasOwn(value, "executorPreference") || EventSubscribeSseValue132(value["executorPreference"])) &&
-    (!Object.hasOwn(value, "composition") || EventSubscribeSseValue933(value["composition"])) &&
-    (!Object.hasOwn(value, "expectedPlanDigest") || EventSubscribeSseValue806(value["expectedPlanDigest"])) &&
-    (!Object.hasOwn(value, "title") || EventSubscribeSseValue976(value["title"]))
+    (!Object.hasOwn(value, "composition") || EventSubscribeSseValue950(value["composition"])) &&
+    (!Object.hasOwn(value, "expectedPlanDigest") || EventSubscribeSseValue823(value["expectedPlanDigest"])) &&
+    (!Object.hasOwn(value, "title") || EventSubscribeSseValue993(value["title"]))
   )
 }
 
-function EventSubscribeSseValue928(value: unknown): boolean {
+function EventSubscribeSseValue945(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "policy") &&
-    EventSubscribeSseValue929(value["policy"]) &&
+    EventSubscribeSseValue946(value["policy"]) &&
     Object.hasOwn(value, "template") &&
-    EventSubscribeSseValue930(value["template"])
+    EventSubscribeSseValue947(value["template"])
   )
 }
 
-function EventSubscribeSseValue978(value: unknown): boolean {
+function EventSubscribeSseValue995(value: unknown): boolean {
   return value === "new"
 }
 
-function EventSubscribeSseValue977(value: unknown): boolean {
+function EventSubscribeSseValue994(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "policy") &&
-    EventSubscribeSseValue978(value["policy"]) &&
+    EventSubscribeSseValue995(value["policy"]) &&
     Object.hasOwn(value, "template") &&
-    EventSubscribeSseValue930(value["template"])
+    EventSubscribeSseValue947(value["template"])
   )
 }
 
-function EventSubscribeSseValue980(value: unknown): boolean {
+function EventSubscribeSseValue997(value: unknown): boolean {
   return value === "goal"
 }
 
-function EventSubscribeSseValue981(value: unknown): boolean {
+function EventSubscribeSseValue998(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "goalRevision") &&
@@ -16814,217 +17035,84 @@ function EventSubscribeSseValue981(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue979(value: unknown): boolean {
+function EventSubscribeSseValue996(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "policy") &&
-    EventSubscribeSseValue980(value["policy"]) &&
+    EventSubscribeSseValue997(value["policy"]) &&
     Object.hasOwn(value, "goalID") &&
     EventSubscribeSseValue5(value["goalID"]) &&
-    (!Object.hasOwn(value, "resumeAuthorization") || EventSubscribeSseValue981(value["resumeAuthorization"]))
+    (!Object.hasOwn(value, "resumeAuthorization") || EventSubscribeSseValue998(value["resumeAuthorization"]))
   )
 }
 
-function EventSubscribeSseValue983(value: unknown): boolean {
+function EventSubscribeSseValue1000(value: unknown): boolean {
   return value === "legacy_child"
 }
 
-function EventSubscribeSseValue982(value: unknown): boolean {
+function EventSubscribeSseValue999(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "policy") &&
-    EventSubscribeSseValue983(value["policy"]) &&
+    EventSubscribeSseValue1000(value["policy"]) &&
     (!Object.hasOwn(value, "agentID") || EventSubscribeSseValue73(value["agentID"]))
   )
 }
 
-function EventSubscribeSseValue925(value: unknown): boolean {
+function EventSubscribeSseValue942(value: unknown): boolean {
   return (
-    EventSubscribeSseValue926(value) ||
-    EventSubscribeSseValue928(value) ||
-    EventSubscribeSseValue977(value) ||
-    EventSubscribeSseValue979(value) ||
-    EventSubscribeSseValue982(value)
-  )
-}
-
-function EventSubscribeSseValue986(value: unknown): boolean {
-  return value === "queue"
-}
-
-function EventSubscribeSseValue987(value: unknown): boolean {
-  return value === "steer"
-}
-
-function EventSubscribeSseValue985(value: unknown): boolean {
-  return EventSubscribeSseValue986(value) || EventSubscribeSseValue987(value)
-}
-
-function EventSubscribeSseValue989(value: unknown): boolean {
-  return value === "catch_up"
-}
-
-function EventSubscribeSseValue990(value: unknown): boolean {
-  return value === "skip"
-}
-
-function EventSubscribeSseValue988(value: unknown): boolean {
-  return EventSubscribeSseValue989(value) || EventSubscribeSseValue990(value)
-}
-
-function EventSubscribeSseValue984(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "delivery") &&
-    EventSubscribeSseValue985(value["delivery"]) &&
-    Object.hasOwn(value, "missed") &&
-    EventSubscribeSseValue988(value["missed"])
-  )
-}
-
-function EventSubscribeSseValue991(value: unknown): boolean {
-  return typeof value === "string"
-}
-
-function EventSubscribeSseValue993(value: unknown): boolean {
-  return value === "pending"
-}
-
-function EventSubscribeSseValue994(value: unknown): boolean {
-  return value === "paused"
-}
-
-function EventSubscribeSseValue995(value: unknown): boolean {
-  return value === "completed"
-}
-
-function EventSubscribeSseValue996(value: unknown): boolean {
-  return value === "cancelled"
-}
-
-function EventSubscribeSseValue997(value: unknown): boolean {
-  return value === "failed"
-}
-
-function EventSubscribeSseValue992(value: unknown): boolean {
-  return (
-    EventSubscribeSseValue993(value) ||
+    EventSubscribeSseValue943(value) ||
+    EventSubscribeSseValue945(value) ||
     EventSubscribeSseValue994(value) ||
-    EventSubscribeSseValue995(value) ||
     EventSubscribeSseValue996(value) ||
-    EventSubscribeSseValue997(value)
-  )
-}
-
-function EventSubscribeSseValue998(value: unknown): boolean {
-  return typeof value === "number"
-}
-
-function EventSubscribeSseValue999(value: unknown): boolean {
-  return typeof value === "string" && typeof value === "string" && value.startsWith("sco_")
-}
-
-function EventSubscribeSseValue1000(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "code") &&
-    EventSubscribeSseValue5(value["code"]) &&
-    Object.hasOwn(value, "message") &&
-    EventSubscribeSseValue5(value["message"])
-  )
-}
-
-function EventSubscribeSseValue917(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue889(value["id"]) &&
-    Object.hasOwn(value, "sessionID") &&
-    EventSubscribeSseValue61(value["sessionID"]) &&
-    Object.hasOwn(value, "kind") &&
-    EventSubscribeSseValue918(value["kind"]) &&
-    Object.hasOwn(value, "content") &&
-    EventSubscribeSseValue5(value["content"]) &&
-    Object.hasOwn(value, "dueAt") &&
-    EventSubscribeSseValue901(value["dueAt"]) &&
-    (!Object.hasOwn(value, "recurrence") || EventSubscribeSseValue923(value["recurrence"])) &&
-    Object.hasOwn(value, "timezone") &&
-    EventSubscribeSseValue5(value["timezone"]) &&
-    (!Object.hasOwn(value, "target") || EventSubscribeSseValue925(value["target"])) &&
-    Object.hasOwn(value, "executionPolicy") &&
-    EventSubscribeSseValue984(value["executionPolicy"]) &&
-    (!Object.hasOwn(value, "sourceAgent") || EventSubscribeSseValue73(value["sourceAgent"])) &&
-    (!Object.hasOwn(value, "taskID") || EventSubscribeSseValue991(value["taskID"])) &&
-    Object.hasOwn(value, "revision") &&
-    EventSubscribeSseValue309(value["revision"]) &&
-    Object.hasOwn(value, "status") &&
-    EventSubscribeSseValue992(value["status"]) &&
-    (!Object.hasOwn(value, "nextDueAt") || EventSubscribeSseValue998(value["nextDueAt"])) &&
-    (!Object.hasOwn(value, "activeOccurrenceID") || EventSubscribeSseValue999(value["activeOccurrenceID"])) &&
-    (!Object.hasOwn(value, "boundTargetSessionID") || EventSubscribeSseValue65(value["boundTargetSessionID"])) &&
-    (!Object.hasOwn(value, "error") || EventSubscribeSseValue1000(value["error"])) &&
-    Object.hasOwn(value, "createdAt") &&
-    EventSubscribeSseValue901(value["createdAt"]) &&
-    Object.hasOwn(value, "updatedAt") &&
-    EventSubscribeSseValue901(value["updatedAt"])
-  )
-}
-
-function EventSubscribeSseValue916(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "sessionID") &&
-    EventSubscribeSseValue61(value["sessionID"]) &&
-    Object.hasOwn(value, "rule") &&
-    EventSubscribeSseValue917(value["rule"])
-  )
-}
-
-function EventSubscribeSseValue913(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue2(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue914(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue915(value["type"]) &&
-    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue916(value["data"])
-  )
-}
-
-function EventSubscribeSseValue1002(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+    EventSubscribeSseValue999(value)
   )
 }
 
 function EventSubscribeSseValue1003(value: unknown): boolean {
-  return value === "schedule.occurrence.updated"
+  return value === "queue"
+}
+
+function EventSubscribeSseValue1004(value: unknown): boolean {
+  return value === "steer"
+}
+
+function EventSubscribeSseValue1002(value: unknown): boolean {
+  return EventSubscribeSseValue1003(value) || EventSubscribeSseValue1004(value)
 }
 
 function EventSubscribeSseValue1006(value: unknown): boolean {
-  return typeof value === "string" && typeof value === "string" && value.startsWith("sco_")
+  return value === "catch_up"
 }
 
 function EventSubscribeSseValue1007(value: unknown): boolean {
-  return typeof value === "number"
+  return value === "skip"
 }
 
-function EventSubscribeSseValue1009(value: unknown): boolean {
-  return value === "claimed"
+function EventSubscribeSseValue1005(value: unknown): boolean {
+  return EventSubscribeSseValue1006(value) || EventSubscribeSseValue1007(value)
+}
+
+function EventSubscribeSseValue1001(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "delivery") &&
+    EventSubscribeSseValue1002(value["delivery"]) &&
+    Object.hasOwn(value, "missed") &&
+    EventSubscribeSseValue1005(value["missed"])
+  )
+}
+
+function EventSubscribeSseValue1008(value: unknown): boolean {
+  return typeof value === "string"
 }
 
 function EventSubscribeSseValue1010(value: unknown): boolean {
-  return value === "admitted"
+  return value === "pending"
 }
 
 function EventSubscribeSseValue1011(value: unknown): boolean {
-  return value === "running"
+  return value === "paused"
 }
 
 function EventSubscribeSseValue1012(value: unknown): boolean {
@@ -17032,630 +17120,193 @@ function EventSubscribeSseValue1012(value: unknown): boolean {
 }
 
 function EventSubscribeSseValue1013(value: unknown): boolean {
-  return value === "failed"
-}
-
-function EventSubscribeSseValue1014(value: unknown): boolean {
   return value === "cancelled"
 }
 
-function EventSubscribeSseValue1015(value: unknown): boolean {
-  return value === "blocked"
+function EventSubscribeSseValue1014(value: unknown): boolean {
+  return value === "failed"
 }
 
-function EventSubscribeSseValue1016(value: unknown): boolean {
-  return value === "skipped"
-}
-
-function EventSubscribeSseValue1017(value: unknown): boolean {
-  return value === "recovery_required"
-}
-
-function EventSubscribeSseValue1008(value: unknown): boolean {
+function EventSubscribeSseValue1009(value: unknown): boolean {
   return (
-    EventSubscribeSseValue1009(value) ||
     EventSubscribeSseValue1010(value) ||
     EventSubscribeSseValue1011(value) ||
     EventSubscribeSseValue1012(value) ||
     EventSubscribeSseValue1013(value) ||
-    EventSubscribeSseValue1014(value) ||
-    EventSubscribeSseValue1015(value) ||
-    EventSubscribeSseValue1016(value) ||
-    EventSubscribeSseValue1017(value)
+    EventSubscribeSseValue1014(value)
   )
 }
 
-function EventSubscribeSseValue1018(value: unknown): boolean {
-  return typeof value === "boolean"
-}
-
-function EventSubscribeSseValue1019(value: unknown): boolean {
-  return typeof value === "string"
-}
-
-function EventSubscribeSseValue1020(value: unknown): boolean {
-  return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value > 0
-}
-
-function EventSubscribeSseValue1022(value: unknown): boolean {
-  return typeof value === "string"
-}
-
-function EventSubscribeSseValue1023(value: unknown): boolean {
-  return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value > 0
-}
-
-function EventSubscribeSseValue1021(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "targetSessionID") &&
-    EventSubscribeSseValue61(value["targetSessionID"]) &&
-    Object.hasOwn(value, "inputID") &&
-    EventSubscribeSseValue127(value["inputID"]) &&
-    Object.hasOwn(value, "operationID") &&
-    EventSubscribeSseValue256(value["operationID"]) &&
-    Object.hasOwn(value, "admittedAt") &&
-    EventSubscribeSseValue901(value["admittedAt"]) &&
-    (!Object.hasOwn(value, "taskID") || EventSubscribeSseValue1022(value["taskID"])) &&
-    (!Object.hasOwn(value, "taskRevision") || EventSubscribeSseValue1023(value["taskRevision"]))
-  )
-}
-
-function EventSubscribeSseValue1024(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "delegationID") &&
-    EventSubscribeSseValue123(value["delegationID"]) &&
-    Object.hasOwn(value, "turnID") &&
-    EventSubscribeSseValue312(value["turnID"]) &&
-    Object.hasOwn(value, "participantID") &&
-    EventSubscribeSseValue124(value["participantID"]) &&
-    Object.hasOwn(value, "deliveryOrigin") &&
-    EventSubscribeSseValue5(value["deliveryOrigin"]) &&
-    Object.hasOwn(value, "senderParticipantID") &&
-    EventSubscribeSseValue124(value["senderParticipantID"]) &&
-    Object.hasOwn(value, "attempt") &&
-    EventSubscribeSseValue450(value["attempt"]) &&
-    Object.hasOwn(value, "childSessionID") &&
-    EventSubscribeSseValue61(value["childSessionID"]) &&
-    Object.hasOwn(value, "inputID") &&
-    EventSubscribeSseValue127(value["inputID"])
-  )
-}
-
-function EventSubscribeSseValue1025(value: unknown): boolean {
-  return typeof value === "string"
-}
-
-function EventSubscribeSseValue1026(value: unknown): boolean {
-  return typeof value === "boolean"
-}
-
-function EventSubscribeSseValue1028(value: unknown): boolean {
-  return typeof value === "string"
-}
-
-function EventSubscribeSseValue1029(value: unknown): boolean {
+function EventSubscribeSseValue1015(value: unknown): boolean {
   return typeof value === "number"
 }
 
-function EventSubscribeSseValue1030(value: unknown): boolean {
-  return typeof value === "number"
+function EventSubscribeSseValue1016(value: unknown): boolean {
+  return typeof value === "string" && typeof value === "string" && value.startsWith("sco_")
 }
 
-function EventSubscribeSseValue1027(value: unknown): boolean {
+function EventSubscribeSseValue1017(value: unknown): boolean {
   return (
     isSseRecord(value) &&
-    (!Object.hasOwn(value, "owner") || EventSubscribeSseValue1028(value["owner"])) &&
-    (!Object.hasOwn(value, "expiresAt") || EventSubscribeSseValue1029(value["expiresAt"])) &&
-    Object.hasOwn(value, "attempts") &&
-    EventSubscribeSseValue428(value["attempts"]) &&
-    (!Object.hasOwn(value, "nextAttemptAt") || EventSubscribeSseValue1030(value["nextAttemptAt"]))
+    Object.hasOwn(value, "code") &&
+    EventSubscribeSseValue5(value["code"]) &&
+    Object.hasOwn(value, "message") &&
+    EventSubscribeSseValue5(value["message"])
   )
 }
 
-function EventSubscribeSseValue1031(value: unknown): boolean {
-  return typeof value === "string"
+function EventSubscribeSseValue934(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue906(value["id"]) &&
+    Object.hasOwn(value, "sessionID") &&
+    EventSubscribeSseValue61(value["sessionID"]) &&
+    Object.hasOwn(value, "kind") &&
+    EventSubscribeSseValue935(value["kind"]) &&
+    Object.hasOwn(value, "content") &&
+    EventSubscribeSseValue5(value["content"]) &&
+    Object.hasOwn(value, "dueAt") &&
+    EventSubscribeSseValue918(value["dueAt"]) &&
+    (!Object.hasOwn(value, "recurrence") || EventSubscribeSseValue940(value["recurrence"])) &&
+    Object.hasOwn(value, "timezone") &&
+    EventSubscribeSseValue5(value["timezone"]) &&
+    (!Object.hasOwn(value, "target") || EventSubscribeSseValue942(value["target"])) &&
+    Object.hasOwn(value, "executionPolicy") &&
+    EventSubscribeSseValue1001(value["executionPolicy"]) &&
+    (!Object.hasOwn(value, "sourceAgent") || EventSubscribeSseValue73(value["sourceAgent"])) &&
+    (!Object.hasOwn(value, "taskID") || EventSubscribeSseValue1008(value["taskID"])) &&
+    Object.hasOwn(value, "revision") &&
+    EventSubscribeSseValue309(value["revision"]) &&
+    Object.hasOwn(value, "status") &&
+    EventSubscribeSseValue1009(value["status"]) &&
+    (!Object.hasOwn(value, "nextDueAt") || EventSubscribeSseValue1015(value["nextDueAt"])) &&
+    (!Object.hasOwn(value, "activeOccurrenceID") || EventSubscribeSseValue1016(value["activeOccurrenceID"])) &&
+    (!Object.hasOwn(value, "boundTargetSessionID") || EventSubscribeSseValue65(value["boundTargetSessionID"])) &&
+    (!Object.hasOwn(value, "error") || EventSubscribeSseValue1017(value["error"])) &&
+    Object.hasOwn(value, "createdAt") &&
+    EventSubscribeSseValue918(value["createdAt"]) &&
+    Object.hasOwn(value, "updatedAt") &&
+    EventSubscribeSseValue918(value["updatedAt"])
+  )
 }
 
-function EventSubscribeSseValue1032(value: unknown): boolean {
-  return typeof value === "string"
-}
-
-function EventSubscribeSseValue1034(value: unknown): boolean {
-  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue127)
-}
-
-function EventSubscribeSseValue1035(value: unknown): boolean {
-  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue127)
-}
-
-function EventSubscribeSseValue1036(value: unknown): boolean {
-  return typeof value === "string" && typeof value === "string" && value.startsWith("evt_")
-}
-
-function EventSubscribeSseValue1037(value: unknown): boolean {
-  return typeof value === "string"
-}
-
-function EventSubscribeSseValue1038(value: unknown): boolean {
-  return typeof value === "string" && typeof value === "string" && new RegExp("^[a-f0-9]{64}$", "").test(value)
-}
-
-function EventSubscribeSseValue1033(value: unknown): boolean {
+function EventSubscribeSseValue933(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
     EventSubscribeSseValue61(value["sessionID"]) &&
-    Object.hasOwn(value, "inputID") &&
-    EventSubscribeSseValue127(value["inputID"]) &&
-    (!Object.hasOwn(value, "messageIDs") || EventSubscribeSseValue1034(value["messageIDs"])) &&
-    (!Object.hasOwn(value, "sharedInputs") || EventSubscribeSseValue1035(value["sharedInputs"])) &&
-    (!Object.hasOwn(value, "resultEventID") || EventSubscribeSseValue1036(value["resultEventID"])) &&
-    (!Object.hasOwn(value, "text") || EventSubscribeSseValue1037(value["text"])) &&
-    (!Object.hasOwn(value, "digest") || EventSubscribeSseValue1038(value["digest"]))
+    Object.hasOwn(value, "rule") &&
+    EventSubscribeSseValue934(value["rule"])
   )
+}
+
+function EventSubscribeSseValue930(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue2(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    EventSubscribeSseValue3(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue931(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue932(value["type"]) &&
+    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    EventSubscribeSseValue933(value["data"])
+  )
+}
+
+function EventSubscribeSseValue1019(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+  )
+}
+
+function EventSubscribeSseValue1020(value: unknown): boolean {
+  return value === "schedule.occurrence.updated"
+}
+
+function EventSubscribeSseValue1023(value: unknown): boolean {
+  return typeof value === "string" && typeof value === "string" && value.startsWith("sco_")
+}
+
+function EventSubscribeSseValue1024(value: unknown): boolean {
+  return typeof value === "number"
+}
+
+function EventSubscribeSseValue1026(value: unknown): boolean {
+  return value === "claimed"
+}
+
+function EventSubscribeSseValue1027(value: unknown): boolean {
+  return value === "admitted"
+}
+
+function EventSubscribeSseValue1028(value: unknown): boolean {
+  return value === "running"
+}
+
+function EventSubscribeSseValue1029(value: unknown): boolean {
+  return value === "completed"
+}
+
+function EventSubscribeSseValue1030(value: unknown): boolean {
+  return value === "failed"
+}
+
+function EventSubscribeSseValue1031(value: unknown): boolean {
+  return value === "cancelled"
+}
+
+function EventSubscribeSseValue1032(value: unknown): boolean {
+  return value === "blocked"
+}
+
+function EventSubscribeSseValue1033(value: unknown): boolean {
+  return value === "skipped"
+}
+
+function EventSubscribeSseValue1034(value: unknown): boolean {
+  return value === "recovery_required"
+}
+
+function EventSubscribeSseValue1025(value: unknown): boolean {
+  return (
+    EventSubscribeSseValue1026(value) ||
+    EventSubscribeSseValue1027(value) ||
+    EventSubscribeSseValue1028(value) ||
+    EventSubscribeSseValue1029(value) ||
+    EventSubscribeSseValue1030(value) ||
+    EventSubscribeSseValue1031(value) ||
+    EventSubscribeSseValue1032(value) ||
+    EventSubscribeSseValue1033(value) ||
+    EventSubscribeSseValue1034(value)
+  )
+}
+
+function EventSubscribeSseValue1035(value: unknown): boolean {
+  return typeof value === "boolean"
+}
+
+function EventSubscribeSseValue1036(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function EventSubscribeSseValue1037(value: unknown): boolean {
+  return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value > 0
 }
 
 function EventSubscribeSseValue1039(value: unknown): boolean {
   return typeof value === "string"
 }
 
-function EventSubscribeSseValue1041(value: unknown): boolean {
-  return value === "pending"
-}
-
-function EventSubscribeSseValue1042(value: unknown): boolean {
-  return value === "completed"
-}
-
-function EventSubscribeSseValue1043(value: unknown): boolean {
-  return value === "conflict"
-}
-
-function EventSubscribeSseValue1044(value: unknown): boolean {
-  return value === "cancelled"
-}
-
-function EventSubscribeSseValue1045(value: unknown): boolean {
-  return value === "unavailable"
-}
-
 function EventSubscribeSseValue1040(value: unknown): boolean {
-  return (
-    EventSubscribeSseValue1041(value) ||
-    EventSubscribeSseValue1042(value) ||
-    EventSubscribeSseValue1043(value) ||
-    EventSubscribeSseValue1044(value) ||
-    EventSubscribeSseValue1045(value)
-  )
-}
-
-function EventSubscribeSseValue1046(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "code") &&
-    EventSubscribeSseValue5(value["code"]) &&
-    Object.hasOwn(value, "message") &&
-    EventSubscribeSseValue5(value["message"])
-  )
-}
-
-function EventSubscribeSseValue1047(value: unknown): boolean {
-  return typeof value === "number"
-}
-
-function EventSubscribeSseValue1005(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue1006(value["id"]) &&
-    Object.hasOwn(value, "scheduleID") &&
-    EventSubscribeSseValue889(value["scheduleID"]) &&
-    Object.hasOwn(value, "sessionID") &&
-    EventSubscribeSseValue61(value["sessionID"]) &&
-    Object.hasOwn(value, "ruleRevision") &&
-    EventSubscribeSseValue309(value["ruleRevision"]) &&
-    Object.hasOwn(value, "snapshot") &&
-    EventSubscribeSseValue917(value["snapshot"]) &&
-    Object.hasOwn(value, "scheduledAt") &&
-    EventSubscribeSseValue901(value["scheduledAt"]) &&
-    Object.hasOwn(value, "claimedAt") &&
-    EventSubscribeSseValue901(value["claimedAt"]) &&
-    Object.hasOwn(value, "claimOwner") &&
-    EventSubscribeSseValue5(value["claimOwner"]) &&
-    Object.hasOwn(value, "caughtUp") &&
-    EventSubscribeSseValue247(value["caughtUp"]) &&
-    (!Object.hasOwn(value, "missedUntil") || EventSubscribeSseValue1007(value["missedUntil"])) &&
-    Object.hasOwn(value, "status") &&
-    EventSubscribeSseValue1008(value["status"]) &&
-    (!Object.hasOwn(value, "cancelRequested") || EventSubscribeSseValue1018(value["cancelRequested"])) &&
-    Object.hasOwn(value, "inputID") &&
-    EventSubscribeSseValue127(value["inputID"]) &&
-    Object.hasOwn(value, "operationID") &&
-    EventSubscribeSseValue256(value["operationID"]) &&
-    (!Object.hasOwn(value, "targetSessionID") || EventSubscribeSseValue65(value["targetSessionID"])) &&
-    (!Object.hasOwn(value, "taskID") || EventSubscribeSseValue1019(value["taskID"])) &&
-    (!Object.hasOwn(value, "taskRevision") || EventSubscribeSseValue1020(value["taskRevision"])) &&
-    (!Object.hasOwn(value, "admission") || EventSubscribeSseValue1021(value["admission"])) &&
-    (!Object.hasOwn(value, "actorAgent") || EventSubscribeSseValue73(value["actorAgent"])) &&
-    (!Object.hasOwn(value, "receipt") || EventSubscribeSseValue1024(value["receipt"])) &&
-    (!Object.hasOwn(value, "deliveryKey") || EventSubscribeSseValue1025(value["deliveryKey"])) &&
-    (!Object.hasOwn(value, "legacyDelivery") || EventSubscribeSseValue1026(value["legacyDelivery"])) &&
-    (!Object.hasOwn(value, "legacyClaim") || EventSubscribeSseValue1027(value["legacyClaim"])) &&
-    (!Object.hasOwn(value, "goalID") || EventSubscribeSseValue1031(value["goalID"])) &&
-    (!Object.hasOwn(value, "roundID") || EventSubscribeSseValue1032(value["roundID"])) &&
-    (!Object.hasOwn(value, "goalInputID") || EventSubscribeSseValue356(value["goalInputID"])) &&
-    (!Object.hasOwn(value, "result") || EventSubscribeSseValue1033(value["result"])) &&
-    (!Object.hasOwn(value, "output") || EventSubscribeSseValue1039(value["output"])) &&
-    (!Object.hasOwn(value, "sourceSettlement") || EventSubscribeSseValue1040(value["sourceSettlement"])) &&
-    (!Object.hasOwn(value, "error") || EventSubscribeSseValue1046(value["error"])) &&
-    (!Object.hasOwn(value, "completedAt") || EventSubscribeSseValue1047(value["completedAt"])) &&
-    Object.hasOwn(value, "createdAt") &&
-    EventSubscribeSseValue901(value["createdAt"]) &&
-    Object.hasOwn(value, "updatedAt") &&
-    EventSubscribeSseValue901(value["updatedAt"])
-  )
-}
-
-function EventSubscribeSseValue1004(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "sessionID") &&
-    EventSubscribeSseValue61(value["sessionID"]) &&
-    Object.hasOwn(value, "occurrence") &&
-    EventSubscribeSseValue1005(value["occurrence"])
-  )
-}
-
-function EventSubscribeSseValue1001(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue2(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1002(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1003(value["type"]) &&
-    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1004(value["data"])
-  )
-}
-
-function EventSubscribeSseValue1049(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
-  )
-}
-
-function EventSubscribeSseValue1050(value: unknown): boolean {
-  return value === "schedule.rule.created"
-}
-
-function EventSubscribeSseValue1052(value: unknown): boolean {
-  return value === 1
-}
-
-function EventSubscribeSseValue1051(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "aggregateID") &&
-    EventSubscribeSseValue5(value["aggregateID"]) &&
-    Object.hasOwn(value, "seq") &&
-    EventSubscribeSseValue58(value["seq"]) &&
-    Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue1052(value["version"])
-  )
-}
-
-function EventSubscribeSseValue1053(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "sessionID") &&
-    EventSubscribeSseValue61(value["sessionID"]) &&
-    Object.hasOwn(value, "rule") &&
-    EventSubscribeSseValue917(value["rule"])
-  )
-}
-
-function EventSubscribeSseValue1048(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue2(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1049(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1050(value["type"]) &&
-    Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue1051(value["durable"]) &&
-    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1053(value["data"])
-  )
-}
-
-function EventSubscribeSseValue1055(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
-  )
-}
-
-function EventSubscribeSseValue1056(value: unknown): boolean {
-  return value === "schedule.rule.changed"
-}
-
-function EventSubscribeSseValue1058(value: unknown): boolean {
-  return value === 1
-}
-
-function EventSubscribeSseValue1057(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "aggregateID") &&
-    EventSubscribeSseValue5(value["aggregateID"]) &&
-    Object.hasOwn(value, "seq") &&
-    EventSubscribeSseValue58(value["seq"]) &&
-    Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue1058(value["version"])
-  )
-}
-
-function EventSubscribeSseValue1061(value: unknown): boolean {
-  return typeof value === "string"
-}
-
-function EventSubscribeSseValue1062(value: unknown): boolean {
-  return typeof value === "number"
-}
-
-function EventSubscribeSseValue1064(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "cron") &&
-    EventSubscribeSseValue5(value["cron"]) &&
-    (!Object.hasOwn(value, "timezone") || EventSubscribeSseValue924(value["timezone"])) &&
-    Object.hasOwn(value, "enabled") &&
-    EventSubscribeSseValue247(value["enabled"])
-  )
-}
-
-function EventSubscribeSseValue1063(value: unknown): boolean {
-  return EventSubscribeSseValue1064(value) || EventSubscribeSseValue27(value)
-}
-
-function EventSubscribeSseValue1065(value: unknown): boolean {
-  return typeof value === "string"
-}
-
-function EventSubscribeSseValue1067(value: unknown): boolean {
-  return (
-    EventSubscribeSseValue926(value) ||
-    EventSubscribeSseValue928(value) ||
-    EventSubscribeSseValue977(value) ||
-    EventSubscribeSseValue979(value) ||
-    EventSubscribeSseValue982(value)
-  )
-}
-
-function EventSubscribeSseValue1066(value: unknown): boolean {
-  return EventSubscribeSseValue1067(value) || EventSubscribeSseValue27(value)
-}
-
-function EventSubscribeSseValue1068(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "delivery") &&
-    EventSubscribeSseValue985(value["delivery"]) &&
-    Object.hasOwn(value, "missed") &&
-    EventSubscribeSseValue988(value["missed"])
-  )
-}
-
-function EventSubscribeSseValue1069(value: unknown): boolean {
-  return (
-    EventSubscribeSseValue993(value) ||
-    EventSubscribeSseValue994(value) ||
-    EventSubscribeSseValue995(value) ||
-    EventSubscribeSseValue996(value) ||
-    EventSubscribeSseValue997(value)
-  )
-}
-
-function EventSubscribeSseValue1070(value: unknown): boolean {
-  return EventSubscribeSseValue901(value) || EventSubscribeSseValue27(value)
-}
-
-function EventSubscribeSseValue1071(value: unknown): boolean {
-  return EventSubscribeSseValue1006(value) || EventSubscribeSseValue27(value)
-}
-
-function EventSubscribeSseValue1072(value: unknown): boolean {
-  return EventSubscribeSseValue61(value) || EventSubscribeSseValue27(value)
-}
-
-function EventSubscribeSseValue1073(value: unknown): boolean {
-  return EventSubscribeSseValue5(value) || EventSubscribeSseValue27(value)
-}
-
-function EventSubscribeSseValue1075(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "code") &&
-    EventSubscribeSseValue5(value["code"]) &&
-    Object.hasOwn(value, "message") &&
-    EventSubscribeSseValue5(value["message"])
-  )
-}
-
-function EventSubscribeSseValue1074(value: unknown): boolean {
-  return EventSubscribeSseValue1075(value) || EventSubscribeSseValue27(value)
-}
-
-function EventSubscribeSseValue1060(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    (!Object.hasOwn(value, "content") || EventSubscribeSseValue1061(value["content"])) &&
-    (!Object.hasOwn(value, "dueAt") || EventSubscribeSseValue1062(value["dueAt"])) &&
-    (!Object.hasOwn(value, "recurrence") || EventSubscribeSseValue1063(value["recurrence"])) &&
-    (!Object.hasOwn(value, "timezone") || EventSubscribeSseValue1065(value["timezone"])) &&
-    (!Object.hasOwn(value, "target") || EventSubscribeSseValue1066(value["target"])) &&
-    (!Object.hasOwn(value, "executionPolicy") || EventSubscribeSseValue1068(value["executionPolicy"])) &&
-    (!Object.hasOwn(value, "status") || EventSubscribeSseValue1069(value["status"])) &&
-    (!Object.hasOwn(value, "nextDueAt") || EventSubscribeSseValue1070(value["nextDueAt"])) &&
-    (!Object.hasOwn(value, "activeOccurrenceID") || EventSubscribeSseValue1071(value["activeOccurrenceID"])) &&
-    (!Object.hasOwn(value, "boundTargetSessionID") || EventSubscribeSseValue1072(value["boundTargetSessionID"])) &&
-    (!Object.hasOwn(value, "taskID") || EventSubscribeSseValue1073(value["taskID"])) &&
-    (!Object.hasOwn(value, "error") || EventSubscribeSseValue1074(value["error"]))
-  )
-}
-
-function EventSubscribeSseValue1059(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "sessionID") &&
-    EventSubscribeSseValue61(value["sessionID"]) &&
-    Object.hasOwn(value, "scheduleID") &&
-    EventSubscribeSseValue889(value["scheduleID"]) &&
-    Object.hasOwn(value, "revision") &&
-    EventSubscribeSseValue309(value["revision"]) &&
-    Object.hasOwn(value, "change") &&
-    EventSubscribeSseValue1060(value["change"])
-  )
-}
-
-function EventSubscribeSseValue1054(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue2(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1055(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1056(value["type"]) &&
-    Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue1057(value["durable"]) &&
-    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1059(value["data"])
-  )
-}
-
-function EventSubscribeSseValue1077(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
-  )
-}
-
-function EventSubscribeSseValue1078(value: unknown): boolean {
-  return value === "schedule.occurrence.claimed"
-}
-
-function EventSubscribeSseValue1080(value: unknown): boolean {
-  return value === 1
-}
-
-function EventSubscribeSseValue1079(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "aggregateID") &&
-    EventSubscribeSseValue5(value["aggregateID"]) &&
-    Object.hasOwn(value, "seq") &&
-    EventSubscribeSseValue58(value["seq"]) &&
-    Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue1080(value["version"])
-  )
-}
-
-function EventSubscribeSseValue1081(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "sessionID") &&
-    EventSubscribeSseValue61(value["sessionID"]) &&
-    Object.hasOwn(value, "occurrence") &&
-    EventSubscribeSseValue1005(value["occurrence"])
-  )
-}
-
-function EventSubscribeSseValue1076(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue2(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1077(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1078(value["type"]) &&
-    Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue1079(value["durable"]) &&
-    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1081(value["data"])
-  )
-}
-
-function EventSubscribeSseValue1083(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
-  )
-}
-
-function EventSubscribeSseValue1084(value: unknown): boolean {
-  return value === "schedule.occurrence.changed"
-}
-
-function EventSubscribeSseValue1086(value: unknown): boolean {
-  return value === 1
-}
-
-function EventSubscribeSseValue1085(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "aggregateID") &&
-    EventSubscribeSseValue5(value["aggregateID"]) &&
-    Object.hasOwn(value, "seq") &&
-    EventSubscribeSseValue58(value["seq"]) &&
-    Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue1086(value["version"])
-  )
-}
-
-function EventSubscribeSseValue1089(value: unknown): boolean {
-  return (
-    EventSubscribeSseValue1009(value) ||
-    EventSubscribeSseValue1010(value) ||
-    EventSubscribeSseValue1011(value) ||
-    EventSubscribeSseValue1012(value) ||
-    EventSubscribeSseValue1013(value) ||
-    EventSubscribeSseValue1014(value) ||
-    EventSubscribeSseValue1015(value) ||
-    EventSubscribeSseValue1016(value) ||
-    EventSubscribeSseValue1017(value)
-  )
-}
-
-function EventSubscribeSseValue1090(value: unknown): boolean {
-  return typeof value === "boolean"
-}
-
-function EventSubscribeSseValue1091(value: unknown): boolean {
-  return typeof value === "string"
-}
-
-function EventSubscribeSseValue1092(value: unknown): boolean {
   return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value > 0
 }
 
-function EventSubscribeSseValue1093(value: unknown): boolean {
+function EventSubscribeSseValue1038(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "targetSessionID") &&
@@ -17665,13 +17316,13 @@ function EventSubscribeSseValue1093(value: unknown): boolean {
     Object.hasOwn(value, "operationID") &&
     EventSubscribeSseValue256(value["operationID"]) &&
     Object.hasOwn(value, "admittedAt") &&
-    EventSubscribeSseValue901(value["admittedAt"]) &&
-    (!Object.hasOwn(value, "taskID") || EventSubscribeSseValue1022(value["taskID"])) &&
-    (!Object.hasOwn(value, "taskRevision") || EventSubscribeSseValue1023(value["taskRevision"]))
+    EventSubscribeSseValue918(value["admittedAt"]) &&
+    (!Object.hasOwn(value, "taskID") || EventSubscribeSseValue1039(value["taskID"])) &&
+    (!Object.hasOwn(value, "taskRevision") || EventSubscribeSseValue1040(value["taskRevision"]))
   )
 }
 
-function EventSubscribeSseValue1094(value: unknown): boolean {
+function EventSubscribeSseValue1041(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "delegationID") &&
@@ -17693,246 +17344,816 @@ function EventSubscribeSseValue1094(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue1095(value: unknown): boolean {
+function EventSubscribeSseValue1042(value: unknown): boolean {
   return typeof value === "string"
 }
 
-function EventSubscribeSseValue1096(value: unknown): boolean {
+function EventSubscribeSseValue1043(value: unknown): boolean {
+  return typeof value === "boolean"
+}
+
+function EventSubscribeSseValue1045(value: unknown): boolean {
   return typeof value === "string"
 }
 
-function EventSubscribeSseValue1097(value: unknown): boolean {
+function EventSubscribeSseValue1046(value: unknown): boolean {
+  return typeof value === "number"
+}
+
+function EventSubscribeSseValue1047(value: unknown): boolean {
+  return typeof value === "number"
+}
+
+function EventSubscribeSseValue1044(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    (!Object.hasOwn(value, "owner") || EventSubscribeSseValue1045(value["owner"])) &&
+    (!Object.hasOwn(value, "expiresAt") || EventSubscribeSseValue1046(value["expiresAt"])) &&
+    Object.hasOwn(value, "attempts") &&
+    EventSubscribeSseValue428(value["attempts"]) &&
+    (!Object.hasOwn(value, "nextAttemptAt") || EventSubscribeSseValue1047(value["nextAttemptAt"]))
+  )
+}
+
+function EventSubscribeSseValue1048(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function EventSubscribeSseValue1049(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function EventSubscribeSseValue1051(value: unknown): boolean {
+  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue127)
+}
+
+function EventSubscribeSseValue1052(value: unknown): boolean {
+  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue127)
+}
+
+function EventSubscribeSseValue1053(value: unknown): boolean {
+  return typeof value === "string" && typeof value === "string" && value.startsWith("evt_")
+}
+
+function EventSubscribeSseValue1054(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function EventSubscribeSseValue1055(value: unknown): boolean {
+  return typeof value === "string" && typeof value === "string" && new RegExp("^[a-f0-9]{64}$", "").test(value)
+}
+
+function EventSubscribeSseValue1050(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
     EventSubscribeSseValue61(value["sessionID"]) &&
     Object.hasOwn(value, "inputID") &&
     EventSubscribeSseValue127(value["inputID"]) &&
-    (!Object.hasOwn(value, "messageIDs") || EventSubscribeSseValue1034(value["messageIDs"])) &&
-    (!Object.hasOwn(value, "sharedInputs") || EventSubscribeSseValue1035(value["sharedInputs"])) &&
-    (!Object.hasOwn(value, "resultEventID") || EventSubscribeSseValue1036(value["resultEventID"])) &&
-    (!Object.hasOwn(value, "text") || EventSubscribeSseValue1037(value["text"])) &&
-    (!Object.hasOwn(value, "digest") || EventSubscribeSseValue1038(value["digest"]))
+    (!Object.hasOwn(value, "messageIDs") || EventSubscribeSseValue1051(value["messageIDs"])) &&
+    (!Object.hasOwn(value, "sharedInputs") || EventSubscribeSseValue1052(value["sharedInputs"])) &&
+    (!Object.hasOwn(value, "resultEventID") || EventSubscribeSseValue1053(value["resultEventID"])) &&
+    (!Object.hasOwn(value, "text") || EventSubscribeSseValue1054(value["text"])) &&
+    (!Object.hasOwn(value, "digest") || EventSubscribeSseValue1055(value["digest"]))
   )
 }
 
-function EventSubscribeSseValue1098(value: unknown): boolean {
+function EventSubscribeSseValue1056(value: unknown): boolean {
   return typeof value === "string"
 }
 
-function EventSubscribeSseValue1100(value: unknown): boolean {
+function EventSubscribeSseValue1058(value: unknown): boolean {
   return value === "pending"
 }
 
-function EventSubscribeSseValue1101(value: unknown): boolean {
+function EventSubscribeSseValue1059(value: unknown): boolean {
   return value === "completed"
 }
 
-function EventSubscribeSseValue1102(value: unknown): boolean {
+function EventSubscribeSseValue1060(value: unknown): boolean {
   return value === "conflict"
 }
 
-function EventSubscribeSseValue1103(value: unknown): boolean {
+function EventSubscribeSseValue1061(value: unknown): boolean {
   return value === "cancelled"
 }
 
-function EventSubscribeSseValue1104(value: unknown): boolean {
+function EventSubscribeSseValue1062(value: unknown): boolean {
   return value === "unavailable"
 }
 
-function EventSubscribeSseValue1099(value: unknown): boolean {
+function EventSubscribeSseValue1057(value: unknown): boolean {
   return (
-    EventSubscribeSseValue1100(value) ||
-    EventSubscribeSseValue1101(value) ||
-    EventSubscribeSseValue1102(value) ||
-    EventSubscribeSseValue1103(value) ||
-    EventSubscribeSseValue1104(value)
+    EventSubscribeSseValue1058(value) ||
+    EventSubscribeSseValue1059(value) ||
+    EventSubscribeSseValue1060(value) ||
+    EventSubscribeSseValue1061(value) ||
+    EventSubscribeSseValue1062(value)
   )
 }
 
-function EventSubscribeSseValue1105(value: unknown): boolean {
-  return EventSubscribeSseValue1075(value) || EventSubscribeSseValue27(value)
+function EventSubscribeSseValue1063(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "code") &&
+    EventSubscribeSseValue5(value["code"]) &&
+    Object.hasOwn(value, "message") &&
+    EventSubscribeSseValue5(value["message"])
+  )
 }
 
-function EventSubscribeSseValue1106(value: unknown): boolean {
+function EventSubscribeSseValue1064(value: unknown): boolean {
   return typeof value === "number"
 }
 
-function EventSubscribeSseValue1088(value: unknown): boolean {
+function EventSubscribeSseValue1022(value: unknown): boolean {
   return (
     isSseRecord(value) &&
-    (!Object.hasOwn(value, "status") || EventSubscribeSseValue1089(value["status"])) &&
-    (!Object.hasOwn(value, "cancelRequested") || EventSubscribeSseValue1090(value["cancelRequested"])) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue1023(value["id"]) &&
+    Object.hasOwn(value, "scheduleID") &&
+    EventSubscribeSseValue906(value["scheduleID"]) &&
+    Object.hasOwn(value, "sessionID") &&
+    EventSubscribeSseValue61(value["sessionID"]) &&
+    Object.hasOwn(value, "ruleRevision") &&
+    EventSubscribeSseValue309(value["ruleRevision"]) &&
+    Object.hasOwn(value, "snapshot") &&
+    EventSubscribeSseValue934(value["snapshot"]) &&
+    Object.hasOwn(value, "scheduledAt") &&
+    EventSubscribeSseValue918(value["scheduledAt"]) &&
+    Object.hasOwn(value, "claimedAt") &&
+    EventSubscribeSseValue918(value["claimedAt"]) &&
+    Object.hasOwn(value, "claimOwner") &&
+    EventSubscribeSseValue5(value["claimOwner"]) &&
+    Object.hasOwn(value, "caughtUp") &&
+    EventSubscribeSseValue247(value["caughtUp"]) &&
+    (!Object.hasOwn(value, "missedUntil") || EventSubscribeSseValue1024(value["missedUntil"])) &&
+    Object.hasOwn(value, "status") &&
+    EventSubscribeSseValue1025(value["status"]) &&
+    (!Object.hasOwn(value, "cancelRequested") || EventSubscribeSseValue1035(value["cancelRequested"])) &&
+    Object.hasOwn(value, "inputID") &&
+    EventSubscribeSseValue127(value["inputID"]) &&
+    Object.hasOwn(value, "operationID") &&
+    EventSubscribeSseValue256(value["operationID"]) &&
     (!Object.hasOwn(value, "targetSessionID") || EventSubscribeSseValue65(value["targetSessionID"])) &&
-    (!Object.hasOwn(value, "taskID") || EventSubscribeSseValue1091(value["taskID"])) &&
-    (!Object.hasOwn(value, "taskRevision") || EventSubscribeSseValue1092(value["taskRevision"])) &&
-    (!Object.hasOwn(value, "admission") || EventSubscribeSseValue1093(value["admission"])) &&
+    (!Object.hasOwn(value, "taskID") || EventSubscribeSseValue1036(value["taskID"])) &&
+    (!Object.hasOwn(value, "taskRevision") || EventSubscribeSseValue1037(value["taskRevision"])) &&
+    (!Object.hasOwn(value, "admission") || EventSubscribeSseValue1038(value["admission"])) &&
     (!Object.hasOwn(value, "actorAgent") || EventSubscribeSseValue73(value["actorAgent"])) &&
-    (!Object.hasOwn(value, "receipt") || EventSubscribeSseValue1094(value["receipt"])) &&
-    (!Object.hasOwn(value, "goalID") || EventSubscribeSseValue1095(value["goalID"])) &&
-    (!Object.hasOwn(value, "roundID") || EventSubscribeSseValue1096(value["roundID"])) &&
+    (!Object.hasOwn(value, "receipt") || EventSubscribeSseValue1041(value["receipt"])) &&
+    (!Object.hasOwn(value, "deliveryKey") || EventSubscribeSseValue1042(value["deliveryKey"])) &&
+    (!Object.hasOwn(value, "legacyDelivery") || EventSubscribeSseValue1043(value["legacyDelivery"])) &&
+    (!Object.hasOwn(value, "legacyClaim") || EventSubscribeSseValue1044(value["legacyClaim"])) &&
+    (!Object.hasOwn(value, "goalID") || EventSubscribeSseValue1048(value["goalID"])) &&
+    (!Object.hasOwn(value, "roundID") || EventSubscribeSseValue1049(value["roundID"])) &&
     (!Object.hasOwn(value, "goalInputID") || EventSubscribeSseValue356(value["goalInputID"])) &&
-    (!Object.hasOwn(value, "result") || EventSubscribeSseValue1097(value["result"])) &&
-    (!Object.hasOwn(value, "output") || EventSubscribeSseValue1098(value["output"])) &&
-    (!Object.hasOwn(value, "sourceSettlement") || EventSubscribeSseValue1099(value["sourceSettlement"])) &&
-    (!Object.hasOwn(value, "error") || EventSubscribeSseValue1105(value["error"])) &&
-    (!Object.hasOwn(value, "completedAt") || EventSubscribeSseValue1106(value["completedAt"]))
+    (!Object.hasOwn(value, "result") || EventSubscribeSseValue1050(value["result"])) &&
+    (!Object.hasOwn(value, "output") || EventSubscribeSseValue1056(value["output"])) &&
+    (!Object.hasOwn(value, "sourceSettlement") || EventSubscribeSseValue1057(value["sourceSettlement"])) &&
+    (!Object.hasOwn(value, "error") || EventSubscribeSseValue1063(value["error"])) &&
+    (!Object.hasOwn(value, "completedAt") || EventSubscribeSseValue1064(value["completedAt"])) &&
+    Object.hasOwn(value, "createdAt") &&
+    EventSubscribeSseValue918(value["createdAt"]) &&
+    Object.hasOwn(value, "updatedAt") &&
+    EventSubscribeSseValue918(value["updatedAt"])
   )
 }
 
-function EventSubscribeSseValue1087(value: unknown): boolean {
+function EventSubscribeSseValue1021(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
     EventSubscribeSseValue61(value["sessionID"]) &&
-    Object.hasOwn(value, "occurrenceID") &&
-    EventSubscribeSseValue1006(value["occurrenceID"]) &&
-    Object.hasOwn(value, "change") &&
-    EventSubscribeSseValue1088(value["change"])
+    Object.hasOwn(value, "occurrence") &&
+    EventSubscribeSseValue1022(value["occurrence"])
   )
 }
 
-function EventSubscribeSseValue1082(value: unknown): boolean {
+function EventSubscribeSseValue1018(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1083(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1019(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1084(value["type"]) &&
-    Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue1085(value["durable"]) &&
+    EventSubscribeSseValue1020(value["type"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1087(value["data"])
+    EventSubscribeSseValue1021(value["data"])
   )
 }
 
-function EventSubscribeSseValue1108(value: unknown): boolean {
+function EventSubscribeSseValue1066(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
+function EventSubscribeSseValue1067(value: unknown): boolean {
+  return value === "schedule.rule.created"
+}
+
+function EventSubscribeSseValue1069(value: unknown): boolean {
+  return value === 1
+}
+
+function EventSubscribeSseValue1068(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "aggregateID") &&
+    EventSubscribeSseValue5(value["aggregateID"]) &&
+    Object.hasOwn(value, "seq") &&
+    EventSubscribeSseValue58(value["seq"]) &&
+    Object.hasOwn(value, "version") &&
+    EventSubscribeSseValue1069(value["version"])
+  )
+}
+
+function EventSubscribeSseValue1070(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "sessionID") &&
+    EventSubscribeSseValue61(value["sessionID"]) &&
+    Object.hasOwn(value, "rule") &&
+    EventSubscribeSseValue934(value["rule"])
+  )
+}
+
+function EventSubscribeSseValue1065(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue2(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    EventSubscribeSseValue3(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1066(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue1067(value["type"]) &&
+    Object.hasOwn(value, "durable") &&
+    EventSubscribeSseValue1068(value["durable"]) &&
+    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    EventSubscribeSseValue1070(value["data"])
+  )
+}
+
+function EventSubscribeSseValue1072(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+  )
+}
+
+function EventSubscribeSseValue1073(value: unknown): boolean {
+  return value === "schedule.rule.changed"
+}
+
+function EventSubscribeSseValue1075(value: unknown): boolean {
+  return value === 1
+}
+
+function EventSubscribeSseValue1074(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "aggregateID") &&
+    EventSubscribeSseValue5(value["aggregateID"]) &&
+    Object.hasOwn(value, "seq") &&
+    EventSubscribeSseValue58(value["seq"]) &&
+    Object.hasOwn(value, "version") &&
+    EventSubscribeSseValue1075(value["version"])
+  )
+}
+
+function EventSubscribeSseValue1078(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function EventSubscribeSseValue1079(value: unknown): boolean {
+  return typeof value === "number"
+}
+
+function EventSubscribeSseValue1081(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "cron") &&
+    EventSubscribeSseValue5(value["cron"]) &&
+    (!Object.hasOwn(value, "timezone") || EventSubscribeSseValue941(value["timezone"])) &&
+    Object.hasOwn(value, "enabled") &&
+    EventSubscribeSseValue247(value["enabled"])
+  )
+}
+
+function EventSubscribeSseValue1080(value: unknown): boolean {
+  return EventSubscribeSseValue1081(value) || EventSubscribeSseValue27(value)
+}
+
+function EventSubscribeSseValue1082(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function EventSubscribeSseValue1084(value: unknown): boolean {
+  return (
+    EventSubscribeSseValue943(value) ||
+    EventSubscribeSseValue945(value) ||
+    EventSubscribeSseValue994(value) ||
+    EventSubscribeSseValue996(value) ||
+    EventSubscribeSseValue999(value)
+  )
+}
+
+function EventSubscribeSseValue1083(value: unknown): boolean {
+  return EventSubscribeSseValue1084(value) || EventSubscribeSseValue27(value)
+}
+
+function EventSubscribeSseValue1085(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "delivery") &&
+    EventSubscribeSseValue1002(value["delivery"]) &&
+    Object.hasOwn(value, "missed") &&
+    EventSubscribeSseValue1005(value["missed"])
+  )
+}
+
+function EventSubscribeSseValue1086(value: unknown): boolean {
+  return (
+    EventSubscribeSseValue1010(value) ||
+    EventSubscribeSseValue1011(value) ||
+    EventSubscribeSseValue1012(value) ||
+    EventSubscribeSseValue1013(value) ||
+    EventSubscribeSseValue1014(value)
+  )
+}
+
+function EventSubscribeSseValue1087(value: unknown): boolean {
+  return EventSubscribeSseValue918(value) || EventSubscribeSseValue27(value)
+}
+
+function EventSubscribeSseValue1088(value: unknown): boolean {
+  return EventSubscribeSseValue1023(value) || EventSubscribeSseValue27(value)
+}
+
+function EventSubscribeSseValue1089(value: unknown): boolean {
+  return EventSubscribeSseValue61(value) || EventSubscribeSseValue27(value)
+}
+
+function EventSubscribeSseValue1090(value: unknown): boolean {
+  return EventSubscribeSseValue5(value) || EventSubscribeSseValue27(value)
+}
+
+function EventSubscribeSseValue1092(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "code") &&
+    EventSubscribeSseValue5(value["code"]) &&
+    Object.hasOwn(value, "message") &&
+    EventSubscribeSseValue5(value["message"])
+  )
+}
+
+function EventSubscribeSseValue1091(value: unknown): boolean {
+  return EventSubscribeSseValue1092(value) || EventSubscribeSseValue27(value)
+}
+
+function EventSubscribeSseValue1077(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    (!Object.hasOwn(value, "content") || EventSubscribeSseValue1078(value["content"])) &&
+    (!Object.hasOwn(value, "dueAt") || EventSubscribeSseValue1079(value["dueAt"])) &&
+    (!Object.hasOwn(value, "recurrence") || EventSubscribeSseValue1080(value["recurrence"])) &&
+    (!Object.hasOwn(value, "timezone") || EventSubscribeSseValue1082(value["timezone"])) &&
+    (!Object.hasOwn(value, "target") || EventSubscribeSseValue1083(value["target"])) &&
+    (!Object.hasOwn(value, "executionPolicy") || EventSubscribeSseValue1085(value["executionPolicy"])) &&
+    (!Object.hasOwn(value, "status") || EventSubscribeSseValue1086(value["status"])) &&
+    (!Object.hasOwn(value, "nextDueAt") || EventSubscribeSseValue1087(value["nextDueAt"])) &&
+    (!Object.hasOwn(value, "activeOccurrenceID") || EventSubscribeSseValue1088(value["activeOccurrenceID"])) &&
+    (!Object.hasOwn(value, "boundTargetSessionID") || EventSubscribeSseValue1089(value["boundTargetSessionID"])) &&
+    (!Object.hasOwn(value, "taskID") || EventSubscribeSseValue1090(value["taskID"])) &&
+    (!Object.hasOwn(value, "error") || EventSubscribeSseValue1091(value["error"]))
+  )
+}
+
+function EventSubscribeSseValue1076(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "sessionID") &&
+    EventSubscribeSseValue61(value["sessionID"]) &&
+    Object.hasOwn(value, "scheduleID") &&
+    EventSubscribeSseValue906(value["scheduleID"]) &&
+    Object.hasOwn(value, "revision") &&
+    EventSubscribeSseValue309(value["revision"]) &&
+    Object.hasOwn(value, "change") &&
+    EventSubscribeSseValue1077(value["change"])
+  )
+}
+
+function EventSubscribeSseValue1071(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue2(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    EventSubscribeSseValue3(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1072(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue1073(value["type"]) &&
+    Object.hasOwn(value, "durable") &&
+    EventSubscribeSseValue1074(value["durable"]) &&
+    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    EventSubscribeSseValue1076(value["data"])
+  )
+}
+
+function EventSubscribeSseValue1094(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+  )
+}
+
+function EventSubscribeSseValue1095(value: unknown): boolean {
+  return value === "schedule.occurrence.claimed"
+}
+
+function EventSubscribeSseValue1097(value: unknown): boolean {
+  return value === 1
+}
+
+function EventSubscribeSseValue1096(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "aggregateID") &&
+    EventSubscribeSseValue5(value["aggregateID"]) &&
+    Object.hasOwn(value, "seq") &&
+    EventSubscribeSseValue58(value["seq"]) &&
+    Object.hasOwn(value, "version") &&
+    EventSubscribeSseValue1097(value["version"])
+  )
+}
+
+function EventSubscribeSseValue1098(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "sessionID") &&
+    EventSubscribeSseValue61(value["sessionID"]) &&
+    Object.hasOwn(value, "occurrence") &&
+    EventSubscribeSseValue1022(value["occurrence"])
+  )
+}
+
+function EventSubscribeSseValue1093(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue2(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    EventSubscribeSseValue3(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1094(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue1095(value["type"]) &&
+    Object.hasOwn(value, "durable") &&
+    EventSubscribeSseValue1096(value["durable"]) &&
+    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    EventSubscribeSseValue1098(value["data"])
+  )
+}
+
+function EventSubscribeSseValue1100(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+  )
+}
+
+function EventSubscribeSseValue1101(value: unknown): boolean {
+  return value === "schedule.occurrence.changed"
+}
+
+function EventSubscribeSseValue1103(value: unknown): boolean {
+  return value === 1
+}
+
+function EventSubscribeSseValue1102(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "aggregateID") &&
+    EventSubscribeSseValue5(value["aggregateID"]) &&
+    Object.hasOwn(value, "seq") &&
+    EventSubscribeSseValue58(value["seq"]) &&
+    Object.hasOwn(value, "version") &&
+    EventSubscribeSseValue1103(value["version"])
+  )
+}
+
+function EventSubscribeSseValue1106(value: unknown): boolean {
+  return (
+    EventSubscribeSseValue1026(value) ||
+    EventSubscribeSseValue1027(value) ||
+    EventSubscribeSseValue1028(value) ||
+    EventSubscribeSseValue1029(value) ||
+    EventSubscribeSseValue1030(value) ||
+    EventSubscribeSseValue1031(value) ||
+    EventSubscribeSseValue1032(value) ||
+    EventSubscribeSseValue1033(value) ||
+    EventSubscribeSseValue1034(value)
+  )
+}
+
+function EventSubscribeSseValue1107(value: unknown): boolean {
+  return typeof value === "boolean"
+}
+
+function EventSubscribeSseValue1108(value: unknown): boolean {
+  return typeof value === "string"
+}
+
 function EventSubscribeSseValue1109(value: unknown): boolean {
-  return value === "filesystem.changed"
-}
-
-function EventSubscribeSseValue1112(value: unknown): boolean {
-  return value === "add"
-}
-
-function EventSubscribeSseValue1113(value: unknown): boolean {
-  return value === "change"
-}
-
-function EventSubscribeSseValue1114(value: unknown): boolean {
-  return value === "unlink"
-}
-
-function EventSubscribeSseValue1111(value: unknown): boolean {
-  return EventSubscribeSseValue1112(value) || EventSubscribeSseValue1113(value) || EventSubscribeSseValue1114(value)
+  return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value > 0
 }
 
 function EventSubscribeSseValue1110(value: unknown): boolean {
   return (
     isSseRecord(value) &&
-    Object.hasOwn(value, "file") &&
-    EventSubscribeSseValue5(value["file"]) &&
-    Object.hasOwn(value, "event") &&
-    EventSubscribeSseValue1111(value["event"])
+    Object.hasOwn(value, "targetSessionID") &&
+    EventSubscribeSseValue61(value["targetSessionID"]) &&
+    Object.hasOwn(value, "inputID") &&
+    EventSubscribeSseValue127(value["inputID"]) &&
+    Object.hasOwn(value, "operationID") &&
+    EventSubscribeSseValue256(value["operationID"]) &&
+    Object.hasOwn(value, "admittedAt") &&
+    EventSubscribeSseValue918(value["admittedAt"]) &&
+    (!Object.hasOwn(value, "taskID") || EventSubscribeSseValue1039(value["taskID"])) &&
+    (!Object.hasOwn(value, "taskRevision") || EventSubscribeSseValue1040(value["taskRevision"]))
   )
 }
 
-function EventSubscribeSseValue1107(value: unknown): boolean {
+function EventSubscribeSseValue1111(value: unknown): boolean {
   return (
     isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue2(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1108(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1109(value["type"]) &&
-    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1110(value["data"])
+    Object.hasOwn(value, "delegationID") &&
+    EventSubscribeSseValue123(value["delegationID"]) &&
+    Object.hasOwn(value, "turnID") &&
+    EventSubscribeSseValue312(value["turnID"]) &&
+    Object.hasOwn(value, "participantID") &&
+    EventSubscribeSseValue124(value["participantID"]) &&
+    Object.hasOwn(value, "deliveryOrigin") &&
+    EventSubscribeSseValue5(value["deliveryOrigin"]) &&
+    Object.hasOwn(value, "senderParticipantID") &&
+    EventSubscribeSseValue124(value["senderParticipantID"]) &&
+    Object.hasOwn(value, "attempt") &&
+    EventSubscribeSseValue450(value["attempt"]) &&
+    Object.hasOwn(value, "childSessionID") &&
+    EventSubscribeSseValue61(value["childSessionID"]) &&
+    Object.hasOwn(value, "inputID") &&
+    EventSubscribeSseValue127(value["inputID"])
   )
+}
+
+function EventSubscribeSseValue1112(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function EventSubscribeSseValue1113(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function EventSubscribeSseValue1114(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "sessionID") &&
+    EventSubscribeSseValue61(value["sessionID"]) &&
+    Object.hasOwn(value, "inputID") &&
+    EventSubscribeSseValue127(value["inputID"]) &&
+    (!Object.hasOwn(value, "messageIDs") || EventSubscribeSseValue1051(value["messageIDs"])) &&
+    (!Object.hasOwn(value, "sharedInputs") || EventSubscribeSseValue1052(value["sharedInputs"])) &&
+    (!Object.hasOwn(value, "resultEventID") || EventSubscribeSseValue1053(value["resultEventID"])) &&
+    (!Object.hasOwn(value, "text") || EventSubscribeSseValue1054(value["text"])) &&
+    (!Object.hasOwn(value, "digest") || EventSubscribeSseValue1055(value["digest"]))
+  )
+}
+
+function EventSubscribeSseValue1115(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function EventSubscribeSseValue1117(value: unknown): boolean {
+  return value === "pending"
+}
+
+function EventSubscribeSseValue1118(value: unknown): boolean {
+  return value === "completed"
+}
+
+function EventSubscribeSseValue1119(value: unknown): boolean {
+  return value === "conflict"
+}
+
+function EventSubscribeSseValue1120(value: unknown): boolean {
+  return value === "cancelled"
+}
+
+function EventSubscribeSseValue1121(value: unknown): boolean {
+  return value === "unavailable"
 }
 
 function EventSubscribeSseValue1116(value: unknown): boolean {
   return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+    EventSubscribeSseValue1117(value) ||
+    EventSubscribeSseValue1118(value) ||
+    EventSubscribeSseValue1119(value) ||
+    EventSubscribeSseValue1120(value) ||
+    EventSubscribeSseValue1121(value)
   )
 }
 
-function EventSubscribeSseValue1117(value: unknown): boolean {
-  return value === "reference.updated"
+function EventSubscribeSseValue1122(value: unknown): boolean {
+  return EventSubscribeSseValue1092(value) || EventSubscribeSseValue27(value)
 }
 
-function EventSubscribeSseValue1118(value: unknown): boolean {
-  return value !== null && value !== undefined
+function EventSubscribeSseValue1123(value: unknown): boolean {
+  return typeof value === "number"
 }
 
-function EventSubscribeSseValue1115(value: unknown): boolean {
+function EventSubscribeSseValue1105(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    (!Object.hasOwn(value, "status") || EventSubscribeSseValue1106(value["status"])) &&
+    (!Object.hasOwn(value, "cancelRequested") || EventSubscribeSseValue1107(value["cancelRequested"])) &&
+    (!Object.hasOwn(value, "targetSessionID") || EventSubscribeSseValue65(value["targetSessionID"])) &&
+    (!Object.hasOwn(value, "taskID") || EventSubscribeSseValue1108(value["taskID"])) &&
+    (!Object.hasOwn(value, "taskRevision") || EventSubscribeSseValue1109(value["taskRevision"])) &&
+    (!Object.hasOwn(value, "admission") || EventSubscribeSseValue1110(value["admission"])) &&
+    (!Object.hasOwn(value, "actorAgent") || EventSubscribeSseValue73(value["actorAgent"])) &&
+    (!Object.hasOwn(value, "receipt") || EventSubscribeSseValue1111(value["receipt"])) &&
+    (!Object.hasOwn(value, "goalID") || EventSubscribeSseValue1112(value["goalID"])) &&
+    (!Object.hasOwn(value, "roundID") || EventSubscribeSseValue1113(value["roundID"])) &&
+    (!Object.hasOwn(value, "goalInputID") || EventSubscribeSseValue356(value["goalInputID"])) &&
+    (!Object.hasOwn(value, "result") || EventSubscribeSseValue1114(value["result"])) &&
+    (!Object.hasOwn(value, "output") || EventSubscribeSseValue1115(value["output"])) &&
+    (!Object.hasOwn(value, "sourceSettlement") || EventSubscribeSseValue1116(value["sourceSettlement"])) &&
+    (!Object.hasOwn(value, "error") || EventSubscribeSseValue1122(value["error"])) &&
+    (!Object.hasOwn(value, "completedAt") || EventSubscribeSseValue1123(value["completedAt"]))
+  )
+}
+
+function EventSubscribeSseValue1104(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "sessionID") &&
+    EventSubscribeSseValue61(value["sessionID"]) &&
+    Object.hasOwn(value, "occurrenceID") &&
+    EventSubscribeSseValue1023(value["occurrenceID"]) &&
+    Object.hasOwn(value, "change") &&
+    EventSubscribeSseValue1105(value["change"])
+  )
+}
+
+function EventSubscribeSseValue1099(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1116(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1100(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1117(value["type"]) &&
+    EventSubscribeSseValue1101(value["type"]) &&
+    Object.hasOwn(value, "durable") &&
+    EventSubscribeSseValue1102(value["durable"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1118(value["data"])
+    EventSubscribeSseValue1104(value["data"])
   )
-}
-
-function EventSubscribeSseValue1120(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
-  )
-}
-
-function EventSubscribeSseValue1121(value: unknown): boolean {
-  return value === "permission.asked"
-}
-
-function EventSubscribeSseValue1123(value: unknown): boolean {
-  return typeof value === "string" && typeof value === "string" && value.startsWith("per")
-}
-
-function EventSubscribeSseValue1124(value: unknown): boolean {
-  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue5)
 }
 
 function EventSubscribeSseValue1125(value: unknown): boolean {
-  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue5)
-}
-
-function EventSubscribeSseValue1126(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
+function EventSubscribeSseValue1126(value: unknown): boolean {
+  return value === "filesystem.changed"
+}
+
 function EventSubscribeSseValue1129(value: unknown): boolean {
-  return value === "tool"
+  return value === "add"
+}
+
+function EventSubscribeSseValue1130(value: unknown): boolean {
+  return value === "change"
+}
+
+function EventSubscribeSseValue1131(value: unknown): boolean {
+  return value === "unlink"
 }
 
 function EventSubscribeSseValue1128(value: unknown): boolean {
+  return EventSubscribeSseValue1129(value) || EventSubscribeSseValue1130(value) || EventSubscribeSseValue1131(value)
+}
+
+function EventSubscribeSseValue1127(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "file") &&
+    EventSubscribeSseValue5(value["file"]) &&
+    Object.hasOwn(value, "event") &&
+    EventSubscribeSseValue1128(value["event"])
+  )
+}
+
+function EventSubscribeSseValue1124(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue2(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    EventSubscribeSseValue3(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1125(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue1126(value["type"]) &&
+    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    EventSubscribeSseValue1127(value["data"])
+  )
+}
+
+function EventSubscribeSseValue1133(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+  )
+}
+
+function EventSubscribeSseValue1134(value: unknown): boolean {
+  return value === "reference.updated"
+}
+
+function EventSubscribeSseValue1135(value: unknown): boolean {
+  return value !== null && value !== undefined
+}
+
+function EventSubscribeSseValue1132(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue2(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    EventSubscribeSseValue3(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1133(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue1134(value["type"]) &&
+    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    EventSubscribeSseValue1135(value["data"])
+  )
+}
+
+function EventSubscribeSseValue1137(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+  )
+}
+
+function EventSubscribeSseValue1138(value: unknown): boolean {
+  return value === "permission.asked"
+}
+
+function EventSubscribeSseValue1140(value: unknown): boolean {
+  return typeof value === "string" && typeof value === "string" && value.startsWith("per")
+}
+
+function EventSubscribeSseValue1141(value: unknown): boolean {
+  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue5)
+}
+
+function EventSubscribeSseValue1142(value: unknown): boolean {
+  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue5)
+}
+
+function EventSubscribeSseValue1143(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+  )
+}
+
+function EventSubscribeSseValue1146(value: unknown): boolean {
+  return value === "tool"
+}
+
+function EventSubscribeSseValue1145(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1129(value["type"]) &&
+    EventSubscribeSseValue1146(value["type"]) &&
     Object.hasOwn(value, "messageID") &&
     EventSubscribeSseValue5(value["messageID"]) &&
     Object.hasOwn(value, "id") &&
@@ -17940,15 +18161,15 @@ function EventSubscribeSseValue1128(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue1131(value: unknown): boolean {
+function EventSubscribeSseValue1148(value: unknown): boolean {
   return value === "operation"
 }
 
-function EventSubscribeSseValue1130(value: unknown): boolean {
+function EventSubscribeSseValue1147(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1131(value["type"]) &&
+    EventSubscribeSseValue1148(value["type"]) &&
     Object.hasOwn(value, "sessionID") &&
     EventSubscribeSseValue61(value["sessionID"]) &&
     Object.hasOwn(value, "operationID") &&
@@ -17956,183 +18177,183 @@ function EventSubscribeSseValue1130(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue1127(value: unknown): boolean {
-  return EventSubscribeSseValue1128(value) || EventSubscribeSseValue1130(value)
+function EventSubscribeSseValue1144(value: unknown): boolean {
+  return EventSubscribeSseValue1145(value) || EventSubscribeSseValue1147(value)
 }
 
-function EventSubscribeSseValue1132(value: unknown): boolean {
+function EventSubscribeSseValue1149(value: unknown): boolean {
   return typeof value === "string"
 }
 
-function EventSubscribeSseValue1122(value: unknown): boolean {
+function EventSubscribeSseValue1139(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue1123(value["id"]) &&
+    EventSubscribeSseValue1140(value["id"]) &&
     Object.hasOwn(value, "sessionID") &&
     EventSubscribeSseValue61(value["sessionID"]) &&
     Object.hasOwn(value, "action") &&
     EventSubscribeSseValue5(value["action"]) &&
     Object.hasOwn(value, "resources") &&
-    EventSubscribeSseValue1124(value["resources"]) &&
-    (!Object.hasOwn(value, "save") || EventSubscribeSseValue1125(value["save"])) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1126(value["metadata"])) &&
-    (!Object.hasOwn(value, "source") || EventSubscribeSseValue1127(value["source"])) &&
-    (!Object.hasOwn(value, "message") || EventSubscribeSseValue1132(value["message"]))
+    EventSubscribeSseValue1141(value["resources"]) &&
+    (!Object.hasOwn(value, "save") || EventSubscribeSseValue1142(value["save"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1143(value["metadata"])) &&
+    (!Object.hasOwn(value, "source") || EventSubscribeSseValue1144(value["source"])) &&
+    (!Object.hasOwn(value, "message") || EventSubscribeSseValue1149(value["message"]))
   )
-}
-
-function EventSubscribeSseValue1119(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue2(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1120(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1121(value["type"]) &&
-    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1122(value["data"])
-  )
-}
-
-function EventSubscribeSseValue1134(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
-  )
-}
-
-function EventSubscribeSseValue1135(value: unknown): boolean {
-  return value === "permission.replied"
-}
-
-function EventSubscribeSseValue1138(value: unknown): boolean {
-  return value === "once"
-}
-
-function EventSubscribeSseValue1139(value: unknown): boolean {
-  return value === "always"
-}
-
-function EventSubscribeSseValue1140(value: unknown): boolean {
-  return value === "reject"
-}
-
-function EventSubscribeSseValue1137(value: unknown): boolean {
-  return EventSubscribeSseValue1138(value) || EventSubscribeSseValue1139(value) || EventSubscribeSseValue1140(value)
 }
 
 function EventSubscribeSseValue1136(value: unknown): boolean {
   return (
     isSseRecord(value) &&
-    Object.hasOwn(value, "sessionID") &&
-    EventSubscribeSseValue61(value["sessionID"]) &&
-    Object.hasOwn(value, "requestID") &&
-    EventSubscribeSseValue1123(value["requestID"]) &&
-    Object.hasOwn(value, "reply") &&
-    EventSubscribeSseValue1137(value["reply"])
-  )
-}
-
-function EventSubscribeSseValue1133(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1134(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1137(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1135(value["type"]) &&
+    EventSubscribeSseValue1138(value["type"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1136(value["data"])
+    EventSubscribeSseValue1139(value["data"])
   )
-}
-
-function EventSubscribeSseValue1142(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
-  )
-}
-
-function EventSubscribeSseValue1143(value: unknown): boolean {
-  return value === "plugin.updated"
-}
-
-function EventSubscribeSseValue1144(value: unknown): boolean {
-  return value !== null && value !== undefined
-}
-
-function EventSubscribeSseValue1141(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue2(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1142(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1143(value["type"]) &&
-    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1144(value["data"])
-  )
-}
-
-function EventSubscribeSseValue1146(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
-  )
-}
-
-function EventSubscribeSseValue1147(value: unknown): boolean {
-  return value === "project.updated"
-}
-
-function EventSubscribeSseValue1149(value: unknown): boolean {
-  return typeof value === "string" && typeof value === "string" && new RegExp("^[a-z][a-z0-9._-]*$", "u").test(value)
-}
-
-function EventSubscribeSseValue1150(value: unknown): boolean {
-  return typeof value === "string"
-}
-
-function EventSubscribeSseValue1152(value: unknown): boolean {
-  return typeof value === "string"
-}
-
-function EventSubscribeSseValue1153(value: unknown): boolean {
-  return typeof value === "string"
-}
-
-function EventSubscribeSseValue1154(value: unknown): boolean {
-  return typeof value === "string"
 }
 
 function EventSubscribeSseValue1151(value: unknown): boolean {
   return (
     isSseRecord(value) &&
-    (!Object.hasOwn(value, "url") || EventSubscribeSseValue1152(value["url"])) &&
-    (!Object.hasOwn(value, "override") || EventSubscribeSseValue1153(value["override"])) &&
-    (!Object.hasOwn(value, "color") || EventSubscribeSseValue1154(value["color"]))
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
-function EventSubscribeSseValue1156(value: unknown): boolean {
-  return typeof value === "string"
+function EventSubscribeSseValue1152(value: unknown): boolean {
+  return value === "permission.replied"
 }
 
 function EventSubscribeSseValue1155(value: unknown): boolean {
-  return isSseRecord(value) && (!Object.hasOwn(value, "start") || EventSubscribeSseValue1156(value["start"]))
+  return value === "once"
+}
+
+function EventSubscribeSseValue1156(value: unknown): boolean {
+  return value === "always"
 }
 
 function EventSubscribeSseValue1157(value: unknown): boolean {
+  return value === "reject"
+}
+
+function EventSubscribeSseValue1154(value: unknown): boolean {
+  return EventSubscribeSseValue1155(value) || EventSubscribeSseValue1156(value) || EventSubscribeSseValue1157(value)
+}
+
+function EventSubscribeSseValue1153(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "sessionID") &&
+    EventSubscribeSseValue61(value["sessionID"]) &&
+    Object.hasOwn(value, "requestID") &&
+    EventSubscribeSseValue1140(value["requestID"]) &&
+    Object.hasOwn(value, "reply") &&
+    EventSubscribeSseValue1154(value["reply"])
+  )
+}
+
+function EventSubscribeSseValue1150(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue2(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    EventSubscribeSseValue3(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1151(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue1152(value["type"]) &&
+    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    EventSubscribeSseValue1153(value["data"])
+  )
+}
+
+function EventSubscribeSseValue1159(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+  )
+}
+
+function EventSubscribeSseValue1160(value: unknown): boolean {
+  return value === "plugin.updated"
+}
+
+function EventSubscribeSseValue1161(value: unknown): boolean {
+  return value !== null && value !== undefined
+}
+
+function EventSubscribeSseValue1158(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue2(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    EventSubscribeSseValue3(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1159(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue1160(value["type"]) &&
+    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    EventSubscribeSseValue1161(value["data"])
+  )
+}
+
+function EventSubscribeSseValue1163(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+  )
+}
+
+function EventSubscribeSseValue1164(value: unknown): boolean {
+  return value === "project.updated"
+}
+
+function EventSubscribeSseValue1166(value: unknown): boolean {
+  return typeof value === "string" && typeof value === "string" && new RegExp("^[a-z][a-z0-9._-]*$", "u").test(value)
+}
+
+function EventSubscribeSseValue1167(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function EventSubscribeSseValue1169(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function EventSubscribeSseValue1170(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function EventSubscribeSseValue1171(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function EventSubscribeSseValue1168(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    (!Object.hasOwn(value, "url") || EventSubscribeSseValue1169(value["url"])) &&
+    (!Object.hasOwn(value, "override") || EventSubscribeSseValue1170(value["override"])) &&
+    (!Object.hasOwn(value, "color") || EventSubscribeSseValue1171(value["color"]))
+  )
+}
+
+function EventSubscribeSseValue1173(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function EventSubscribeSseValue1172(value: unknown): boolean {
+  return isSseRecord(value) && (!Object.hasOwn(value, "start") || EventSubscribeSseValue1173(value["start"]))
+}
+
+function EventSubscribeSseValue1174(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "created") &&
@@ -18144,91 +18365,91 @@ function EventSubscribeSseValue1157(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue1158(value: unknown): boolean {
+function EventSubscribeSseValue1175(value: unknown): boolean {
   return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue5)
 }
 
-function EventSubscribeSseValue1148(value: unknown): boolean {
+function EventSubscribeSseValue1165(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue62(value["id"]) &&
     Object.hasOwn(value, "canonical") &&
     EventSubscribeSseValue9(value["canonical"]) &&
-    (!Object.hasOwn(value, "vcs") || EventSubscribeSseValue1149(value["vcs"])) &&
-    (!Object.hasOwn(value, "name") || EventSubscribeSseValue1150(value["name"])) &&
-    (!Object.hasOwn(value, "icon") || EventSubscribeSseValue1151(value["icon"])) &&
-    (!Object.hasOwn(value, "commands") || EventSubscribeSseValue1155(value["commands"])) &&
+    (!Object.hasOwn(value, "vcs") || EventSubscribeSseValue1166(value["vcs"])) &&
+    (!Object.hasOwn(value, "name") || EventSubscribeSseValue1167(value["name"])) &&
+    (!Object.hasOwn(value, "icon") || EventSubscribeSseValue1168(value["icon"])) &&
+    (!Object.hasOwn(value, "commands") || EventSubscribeSseValue1172(value["commands"])) &&
     Object.hasOwn(value, "time") &&
-    EventSubscribeSseValue1157(value["time"]) &&
+    EventSubscribeSseValue1174(value["time"]) &&
     Object.hasOwn(value, "sandboxes") &&
-    EventSubscribeSseValue1158(value["sandboxes"])
+    EventSubscribeSseValue1175(value["sandboxes"])
   )
-}
-
-function EventSubscribeSseValue1145(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue2(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1146(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1147(value["type"]) &&
-    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1148(value["data"])
-  )
-}
-
-function EventSubscribeSseValue1160(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
-  )
-}
-
-function EventSubscribeSseValue1161(value: unknown): boolean {
-  return value === "worktree.updated"
 }
 
 function EventSubscribeSseValue1162(value: unknown): boolean {
-  return isSseRecord(value) && Object.hasOwn(value, "projectID") && EventSubscribeSseValue62(value["projectID"])
-}
-
-function EventSubscribeSseValue1159(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1160(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1163(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1161(value["type"]) &&
+    EventSubscribeSseValue1164(value["type"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1162(value["data"])
+    EventSubscribeSseValue1165(value["data"])
   )
 }
 
-function EventSubscribeSseValue1164(value: unknown): boolean {
+function EventSubscribeSseValue1177(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
-function EventSubscribeSseValue1165(value: unknown): boolean {
+function EventSubscribeSseValue1178(value: unknown): boolean {
+  return value === "worktree.updated"
+}
+
+function EventSubscribeSseValue1179(value: unknown): boolean {
+  return isSseRecord(value) && Object.hasOwn(value, "projectID") && EventSubscribeSseValue62(value["projectID"])
+}
+
+function EventSubscribeSseValue1176(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue2(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    EventSubscribeSseValue3(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1177(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue1178(value["type"]) &&
+    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    EventSubscribeSseValue1179(value["data"])
+  )
+}
+
+function EventSubscribeSseValue1181(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+  )
+}
+
+function EventSubscribeSseValue1182(value: unknown): boolean {
   return value === "worktree.resolved"
 }
 
-function EventSubscribeSseValue1167(value: unknown): boolean {
+function EventSubscribeSseValue1184(value: unknown): boolean {
   return value === 1
 }
 
-function EventSubscribeSseValue1166(value: unknown): boolean {
+function EventSubscribeSseValue1183(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -18236,15 +18457,15 @@ function EventSubscribeSseValue1166(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     EventSubscribeSseValue58(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue1167(value["version"])
+    EventSubscribeSseValue1184(value["version"])
   )
 }
 
-function EventSubscribeSseValue1169(value: unknown): boolean {
+function EventSubscribeSseValue1186(value: unknown): boolean {
   return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue62)
 }
 
-function EventSubscribeSseValue1168(value: unknown): boolean {
+function EventSubscribeSseValue1185(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "projectID") &&
@@ -18253,312 +18474,312 @@ function EventSubscribeSseValue1168(value: unknown): boolean {
     EventSubscribeSseValue9(value["directory"]) &&
     Object.hasOwn(value, "previous") &&
     EventSubscribeSseValue62(value["previous"]) &&
-    (!Object.hasOwn(value, "adopted") || EventSubscribeSseValue1169(value["adopted"]))
-  )
-}
-
-function EventSubscribeSseValue1163(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue2(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1164(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1165(value["type"]) &&
-    Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue1166(value["durable"]) &&
-    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1168(value["data"])
-  )
-}
-
-function EventSubscribeSseValue1171(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
-  )
-}
-
-function EventSubscribeSseValue1172(value: unknown): boolean {
-  return value === "command.updated"
-}
-
-function EventSubscribeSseValue1173(value: unknown): boolean {
-  return value !== null && value !== undefined
-}
-
-function EventSubscribeSseValue1170(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue2(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1171(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1172(value["type"]) &&
-    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1173(value["data"])
-  )
-}
-
-function EventSubscribeSseValue1175(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
-  )
-}
-
-function EventSubscribeSseValue1176(value: unknown): boolean {
-  return value === "config.updated"
-}
-
-function EventSubscribeSseValue1177(value: unknown): boolean {
-  return value !== null && value !== undefined
-}
-
-function EventSubscribeSseValue1174(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue2(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1175(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1176(value["type"]) &&
-    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1177(value["data"])
-  )
-}
-
-function EventSubscribeSseValue1179(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+    (!Object.hasOwn(value, "adopted") || EventSubscribeSseValue1186(value["adopted"]))
   )
 }
 
 function EventSubscribeSseValue1180(value: unknown): boolean {
-  return value === "skill.updated"
-}
-
-function EventSubscribeSseValue1181(value: unknown): boolean {
-  return value !== null && value !== undefined
-}
-
-function EventSubscribeSseValue1178(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1179(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1181(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1180(value["type"]) &&
-    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1181(value["data"])
-  )
-}
-
-function EventSubscribeSseValue1183(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
-  )
-}
-
-function EventSubscribeSseValue1184(value: unknown): boolean {
-  return value === "pty.created"
-}
-
-function EventSubscribeSseValue1187(value: unknown): boolean {
-  return typeof value === "string" && typeof value === "string" && value.startsWith("pty")
-}
-
-function EventSubscribeSseValue1188(value: unknown): boolean {
-  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue5)
-}
-
-function EventSubscribeSseValue1190(value: unknown): boolean {
-  return value === "running"
-}
-
-function EventSubscribeSseValue1191(value: unknown): boolean {
-  return value === "exited"
-}
-
-function EventSubscribeSseValue1189(value: unknown): boolean {
-  return EventSubscribeSseValue1190(value) || EventSubscribeSseValue1191(value)
-}
-
-function EventSubscribeSseValue1192(value: unknown): boolean {
-  return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value >= 0
-}
-
-function EventSubscribeSseValue1186(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue1187(value["id"]) &&
-    Object.hasOwn(value, "title") &&
-    EventSubscribeSseValue5(value["title"]) &&
-    Object.hasOwn(value, "command") &&
-    EventSubscribeSseValue5(value["command"]) &&
-    Object.hasOwn(value, "args") &&
-    EventSubscribeSseValue1188(value["args"]) &&
-    Object.hasOwn(value, "cwd") &&
-    EventSubscribeSseValue5(value["cwd"]) &&
-    Object.hasOwn(value, "status") &&
-    EventSubscribeSseValue1189(value["status"]) &&
-    Object.hasOwn(value, "pid") &&
-    EventSubscribeSseValue428(value["pid"]) &&
-    (!Object.hasOwn(value, "exitCode") || EventSubscribeSseValue1192(value["exitCode"]))
-  )
-}
-
-function EventSubscribeSseValue1185(value: unknown): boolean {
-  return isSseRecord(value) && Object.hasOwn(value, "info") && EventSubscribeSseValue1186(value["info"])
-}
-
-function EventSubscribeSseValue1182(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue2(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1183(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1184(value["type"]) &&
+    EventSubscribeSseValue1182(value["type"]) &&
+    Object.hasOwn(value, "durable") &&
+    EventSubscribeSseValue1183(value["durable"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
     EventSubscribeSseValue1185(value["data"])
   )
 }
 
-function EventSubscribeSseValue1194(value: unknown): boolean {
+function EventSubscribeSseValue1188(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
-function EventSubscribeSseValue1195(value: unknown): boolean {
-  return value === "pty.updated"
+function EventSubscribeSseValue1189(value: unknown): boolean {
+  return value === "command.updated"
 }
 
-function EventSubscribeSseValue1196(value: unknown): boolean {
-  return isSseRecord(value) && Object.hasOwn(value, "info") && EventSubscribeSseValue1186(value["info"])
+function EventSubscribeSseValue1190(value: unknown): boolean {
+  return value !== null && value !== undefined
 }
 
-function EventSubscribeSseValue1193(value: unknown): boolean {
+function EventSubscribeSseValue1187(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1194(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1188(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1195(value["type"]) &&
+    EventSubscribeSseValue1189(value["type"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1196(value["data"])
+    EventSubscribeSseValue1190(value["data"])
   )
 }
 
-function EventSubscribeSseValue1198(value: unknown): boolean {
+function EventSubscribeSseValue1192(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
-function EventSubscribeSseValue1199(value: unknown): boolean {
-  return value === "pty.exited"
+function EventSubscribeSseValue1193(value: unknown): boolean {
+  return value === "config.updated"
+}
+
+function EventSubscribeSseValue1194(value: unknown): boolean {
+  return value !== null && value !== undefined
+}
+
+function EventSubscribeSseValue1191(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue2(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    EventSubscribeSseValue3(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1192(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue1193(value["type"]) &&
+    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    EventSubscribeSseValue1194(value["data"])
+  )
+}
+
+function EventSubscribeSseValue1196(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+  )
+}
+
+function EventSubscribeSseValue1197(value: unknown): boolean {
+  return value === "skill.updated"
+}
+
+function EventSubscribeSseValue1198(value: unknown): boolean {
+  return value !== null && value !== undefined
+}
+
+function EventSubscribeSseValue1195(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue2(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    EventSubscribeSseValue3(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1196(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue1197(value["type"]) &&
+    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    EventSubscribeSseValue1198(value["data"])
+  )
 }
 
 function EventSubscribeSseValue1200(value: unknown): boolean {
   return (
     isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+  )
+}
+
+function EventSubscribeSseValue1201(value: unknown): boolean {
+  return value === "pty.created"
+}
+
+function EventSubscribeSseValue1204(value: unknown): boolean {
+  return typeof value === "string" && typeof value === "string" && value.startsWith("pty")
+}
+
+function EventSubscribeSseValue1205(value: unknown): boolean {
+  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue5)
+}
+
+function EventSubscribeSseValue1207(value: unknown): boolean {
+  return value === "running"
+}
+
+function EventSubscribeSseValue1208(value: unknown): boolean {
+  return value === "exited"
+}
+
+function EventSubscribeSseValue1206(value: unknown): boolean {
+  return EventSubscribeSseValue1207(value) || EventSubscribeSseValue1208(value)
+}
+
+function EventSubscribeSseValue1209(value: unknown): boolean {
+  return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value >= 0
+}
+
+function EventSubscribeSseValue1203(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue1187(value["id"]) &&
+    EventSubscribeSseValue1204(value["id"]) &&
+    Object.hasOwn(value, "title") &&
+    EventSubscribeSseValue5(value["title"]) &&
+    Object.hasOwn(value, "command") &&
+    EventSubscribeSseValue5(value["command"]) &&
+    Object.hasOwn(value, "args") &&
+    EventSubscribeSseValue1205(value["args"]) &&
+    Object.hasOwn(value, "cwd") &&
+    EventSubscribeSseValue5(value["cwd"]) &&
+    Object.hasOwn(value, "status") &&
+    EventSubscribeSseValue1206(value["status"]) &&
+    Object.hasOwn(value, "pid") &&
+    EventSubscribeSseValue428(value["pid"]) &&
+    (!Object.hasOwn(value, "exitCode") || EventSubscribeSseValue1209(value["exitCode"]))
+  )
+}
+
+function EventSubscribeSseValue1202(value: unknown): boolean {
+  return isSseRecord(value) && Object.hasOwn(value, "info") && EventSubscribeSseValue1203(value["info"])
+}
+
+function EventSubscribeSseValue1199(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue2(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    EventSubscribeSseValue3(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1200(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue1201(value["type"]) &&
+    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    EventSubscribeSseValue1202(value["data"])
+  )
+}
+
+function EventSubscribeSseValue1211(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+  )
+}
+
+function EventSubscribeSseValue1212(value: unknown): boolean {
+  return value === "pty.updated"
+}
+
+function EventSubscribeSseValue1213(value: unknown): boolean {
+  return isSseRecord(value) && Object.hasOwn(value, "info") && EventSubscribeSseValue1203(value["info"])
+}
+
+function EventSubscribeSseValue1210(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue2(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    EventSubscribeSseValue3(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1211(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue1212(value["type"]) &&
+    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    EventSubscribeSseValue1213(value["data"])
+  )
+}
+
+function EventSubscribeSseValue1215(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+  )
+}
+
+function EventSubscribeSseValue1216(value: unknown): boolean {
+  return value === "pty.exited"
+}
+
+function EventSubscribeSseValue1217(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue1204(value["id"]) &&
     Object.hasOwn(value, "exitCode") &&
     EventSubscribeSseValue428(value["exitCode"])
   )
 }
 
-function EventSubscribeSseValue1197(value: unknown): boolean {
+function EventSubscribeSseValue1214(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1198(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1215(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1199(value["type"]) &&
+    EventSubscribeSseValue1216(value["type"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1200(value["data"])
+    EventSubscribeSseValue1217(value["data"])
   )
 }
 
-function EventSubscribeSseValue1202(value: unknown): boolean {
+function EventSubscribeSseValue1219(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
-function EventSubscribeSseValue1203(value: unknown): boolean {
+function EventSubscribeSseValue1220(value: unknown): boolean {
   return value === "pty.deleted"
 }
 
-function EventSubscribeSseValue1204(value: unknown): boolean {
-  return isSseRecord(value) && Object.hasOwn(value, "id") && EventSubscribeSseValue1187(value["id"])
+function EventSubscribeSseValue1221(value: unknown): boolean {
+  return isSseRecord(value) && Object.hasOwn(value, "id") && EventSubscribeSseValue1204(value["id"])
 }
 
-function EventSubscribeSseValue1201(value: unknown): boolean {
+function EventSubscribeSseValue1218(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1202(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1219(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1203(value["type"]) &&
+    EventSubscribeSseValue1220(value["type"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1204(value["data"])
+    EventSubscribeSseValue1221(value["data"])
   )
 }
 
-function EventSubscribeSseValue1206(value: unknown): boolean {
+function EventSubscribeSseValue1223(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
-function EventSubscribeSseValue1207(value: unknown): boolean {
+function EventSubscribeSseValue1224(value: unknown): boolean {
   return value === "persistent-pty.added"
 }
 
-function EventSubscribeSseValue1210(value: unknown): boolean {
+function EventSubscribeSseValue1227(value: unknown): boolean {
   return EventSubscribeSseValue5(value) || EventSubscribeSseValue27(value)
 }
 
-function EventSubscribeSseValue1211(value: unknown): boolean {
+function EventSubscribeSseValue1228(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "cols") &&
@@ -18568,7 +18789,7 @@ function EventSubscribeSseValue1211(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue1212(value: unknown): boolean {
+function EventSubscribeSseValue1229(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "head") &&
@@ -18578,199 +18799,58 @@ function EventSubscribeSseValue1212(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue1209(value: unknown): boolean {
+function EventSubscribeSseValue1226(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue1187(value["id"]) &&
+    EventSubscribeSseValue1204(value["id"]) &&
     Object.hasOwn(value, "title") &&
     EventSubscribeSseValue5(value["title"]) &&
     Object.hasOwn(value, "command") &&
     EventSubscribeSseValue5(value["command"]) &&
     Object.hasOwn(value, "args") &&
-    EventSubscribeSseValue1188(value["args"]) &&
+    EventSubscribeSseValue1205(value["args"]) &&
     Object.hasOwn(value, "cwd") &&
     EventSubscribeSseValue5(value["cwd"]) &&
     Object.hasOwn(value, "status") &&
-    EventSubscribeSseValue1189(value["status"]) &&
+    EventSubscribeSseValue1206(value["status"]) &&
     Object.hasOwn(value, "pid") &&
     EventSubscribeSseValue428(value["pid"]) &&
-    (!Object.hasOwn(value, "exitCode") || EventSubscribeSseValue1192(value["exitCode"])) &&
+    (!Object.hasOwn(value, "exitCode") || EventSubscribeSseValue1209(value["exitCode"])) &&
     Object.hasOwn(value, "sessionID") &&
     EventSubscribeSseValue61(value["sessionID"]) &&
     Object.hasOwn(value, "foregroundProcess") &&
-    EventSubscribeSseValue1210(value["foregroundProcess"]) &&
+    EventSubscribeSseValue1227(value["foregroundProcess"]) &&
     Object.hasOwn(value, "size") &&
-    EventSubscribeSseValue1211(value["size"]) &&
+    EventSubscribeSseValue1228(value["size"]) &&
     Object.hasOwn(value, "output") &&
-    EventSubscribeSseValue1212(value["output"])
+    EventSubscribeSseValue1229(value["output"])
   )
 }
 
-function EventSubscribeSseValue1208(value: unknown): boolean {
+function EventSubscribeSseValue1225(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
     EventSubscribeSseValue61(value["sessionID"]) &&
     Object.hasOwn(value, "terminal") &&
-    EventSubscribeSseValue1209(value["terminal"])
-  )
-}
-
-function EventSubscribeSseValue1205(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue2(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1206(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1207(value["type"]) &&
-    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1208(value["data"])
-  )
-}
-
-function EventSubscribeSseValue1214(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
-  )
-}
-
-function EventSubscribeSseValue1215(value: unknown): boolean {
-  return value === "persistent-pty.removed"
-}
-
-function EventSubscribeSseValue1216(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "sessionID") &&
-    EventSubscribeSseValue61(value["sessionID"]) &&
-    Object.hasOwn(value, "ptyID") &&
-    EventSubscribeSseValue1187(value["ptyID"])
-  )
-}
-
-function EventSubscribeSseValue1213(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue2(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1214(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1215(value["type"]) &&
-    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1216(value["data"])
-  )
-}
-
-function EventSubscribeSseValue1218(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
-  )
-}
-
-function EventSubscribeSseValue1219(value: unknown): boolean {
-  return value === "shell.created"
-}
-
-function EventSubscribeSseValue1220(value: unknown): boolean {
-  return isSseRecord(value) && Object.hasOwn(value, "info") && EventSubscribeSseValue407(value["info"])
-}
-
-function EventSubscribeSseValue1217(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue2(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1218(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1219(value["type"]) &&
-    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1220(value["data"])
+    EventSubscribeSseValue1226(value["terminal"])
   )
 }
 
 function EventSubscribeSseValue1222(value: unknown): boolean {
   return (
     isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
-  )
-}
-
-function EventSubscribeSseValue1223(value: unknown): boolean {
-  return value === "shell.exited"
-}
-
-function EventSubscribeSseValue1225(value: unknown): boolean {
-  return typeof value === "number" && Number.isFinite(value)
-}
-
-function EventSubscribeSseValue1224(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue408(value["id"]) &&
-    (!Object.hasOwn(value, "exit") || EventSubscribeSseValue1225(value["exit"])) &&
-    Object.hasOwn(value, "status") &&
-    EventSubscribeSseValue409(value["status"])
-  )
-}
-
-function EventSubscribeSseValue1221(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1222(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1223(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1223(value["type"]) &&
+    EventSubscribeSseValue1224(value["type"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1224(value["data"])
-  )
-}
-
-function EventSubscribeSseValue1227(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
-  )
-}
-
-function EventSubscribeSseValue1228(value: unknown): boolean {
-  return value === "shell.deleted"
-}
-
-function EventSubscribeSseValue1229(value: unknown): boolean {
-  return isSseRecord(value) && Object.hasOwn(value, "id") && EventSubscribeSseValue408(value["id"])
-}
-
-function EventSubscribeSseValue1226(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue2(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1227(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1228(value["type"]) &&
-    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1229(value["data"])
+    EventSubscribeSseValue1225(value["data"])
   )
 }
 
@@ -18782,363 +18862,17 @@ function EventSubscribeSseValue1231(value: unknown): boolean {
 }
 
 function EventSubscribeSseValue1232(value: unknown): boolean {
-  return value === "form.created"
-}
-
-function EventSubscribeSseValue1235(value: unknown): boolean {
-  return typeof value === "string" && typeof value === "string" && value.startsWith("frm_")
-}
-
-function EventSubscribeSseValue1236(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
-  )
-}
-
-function EventSubscribeSseValue1240(value: unknown): boolean {
-  return typeof value === "string"
-}
-
-function EventSubscribeSseValue1241(value: unknown): boolean {
-  return typeof value === "string"
-}
-
-function EventSubscribeSseValue1242(value: unknown): boolean {
-  return typeof value === "boolean"
-}
-
-function EventSubscribeSseValue1243(value: unknown): boolean {
-  return typeof value === "boolean"
-}
-
-function EventSubscribeSseValue1247(value: unknown): boolean {
-  return value === "eq"
-}
-
-function EventSubscribeSseValue1248(value: unknown): boolean {
-  return value === "neq"
-}
-
-function EventSubscribeSseValue1246(value: unknown): boolean {
-  return EventSubscribeSseValue1247(value) || EventSubscribeSseValue1248(value)
-}
-
-function EventSubscribeSseValue1249(value: unknown): boolean {
-  return EventSubscribeSseValue5(value) || EventSubscribeSseValue901(value) || EventSubscribeSseValue247(value)
-}
-
-function EventSubscribeSseValue1245(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "key") &&
-    EventSubscribeSseValue5(value["key"]) &&
-    Object.hasOwn(value, "op") &&
-    EventSubscribeSseValue1246(value["op"]) &&
-    Object.hasOwn(value, "value") &&
-    EventSubscribeSseValue1249(value["value"])
-  )
-}
-
-function EventSubscribeSseValue1244(value: unknown): boolean {
-  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue1245)
-}
-
-function EventSubscribeSseValue1250(value: unknown): boolean {
-  return value === "string"
-}
-
-function EventSubscribeSseValue1252(value: unknown): boolean {
-  return value === "email"
-}
-
-function EventSubscribeSseValue1253(value: unknown): boolean {
-  return value === "uri"
-}
-
-function EventSubscribeSseValue1254(value: unknown): boolean {
-  return value === "date"
-}
-
-function EventSubscribeSseValue1255(value: unknown): boolean {
-  return value === "date-time"
-}
-
-function EventSubscribeSseValue1251(value: unknown): boolean {
-  return (
-    EventSubscribeSseValue1252(value) ||
-    EventSubscribeSseValue1253(value) ||
-    EventSubscribeSseValue1254(value) ||
-    EventSubscribeSseValue1255(value)
-  )
-}
-
-function EventSubscribeSseValue1256(value: unknown): boolean {
-  return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value >= 0
-}
-
-function EventSubscribeSseValue1257(value: unknown): boolean {
-  return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value >= 0
-}
-
-function EventSubscribeSseValue1258(value: unknown): boolean {
-  return typeof value === "string"
-}
-
-function EventSubscribeSseValue1259(value: unknown): boolean {
-  return typeof value === "string"
-}
-
-function EventSubscribeSseValue1260(value: unknown): boolean {
-  return typeof value === "string"
-}
-
-function EventSubscribeSseValue1263(value: unknown): boolean {
-  return typeof value === "string"
-}
-
-function EventSubscribeSseValue1262(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "value") &&
-    EventSubscribeSseValue5(value["value"]) &&
-    Object.hasOwn(value, "label") &&
-    EventSubscribeSseValue5(value["label"]) &&
-    (!Object.hasOwn(value, "description") || EventSubscribeSseValue1263(value["description"]))
-  )
-}
-
-function EventSubscribeSseValue1261(value: unknown): boolean {
-  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue1262)
-}
-
-function EventSubscribeSseValue1264(value: unknown): boolean {
-  return typeof value === "boolean"
-}
-
-function EventSubscribeSseValue1239(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "key") &&
-    EventSubscribeSseValue5(value["key"]) &&
-    (!Object.hasOwn(value, "title") || EventSubscribeSseValue1240(value["title"])) &&
-    (!Object.hasOwn(value, "description") || EventSubscribeSseValue1241(value["description"])) &&
-    (!Object.hasOwn(value, "required") || EventSubscribeSseValue1242(value["required"])) &&
-    (!Object.hasOwn(value, "hidden") || EventSubscribeSseValue1243(value["hidden"])) &&
-    (!Object.hasOwn(value, "when") || EventSubscribeSseValue1244(value["when"])) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1250(value["type"]) &&
-    (!Object.hasOwn(value, "format") || EventSubscribeSseValue1251(value["format"])) &&
-    (!Object.hasOwn(value, "minLength") || EventSubscribeSseValue1256(value["minLength"])) &&
-    (!Object.hasOwn(value, "maxLength") || EventSubscribeSseValue1257(value["maxLength"])) &&
-    (!Object.hasOwn(value, "pattern") || EventSubscribeSseValue1258(value["pattern"])) &&
-    (!Object.hasOwn(value, "placeholder") || EventSubscribeSseValue1259(value["placeholder"])) &&
-    (!Object.hasOwn(value, "default") || EventSubscribeSseValue1260(value["default"])) &&
-    (!Object.hasOwn(value, "options") || EventSubscribeSseValue1261(value["options"])) &&
-    (!Object.hasOwn(value, "custom") || EventSubscribeSseValue1264(value["custom"]))
-  )
-}
-
-function EventSubscribeSseValue1266(value: unknown): boolean {
-  return value === "number"
-}
-
-function EventSubscribeSseValue1267(value: unknown): boolean {
-  return typeof value === "number"
-}
-
-function EventSubscribeSseValue1268(value: unknown): boolean {
-  return typeof value === "number"
-}
-
-function EventSubscribeSseValue1269(value: unknown): boolean {
-  return typeof value === "number"
-}
-
-function EventSubscribeSseValue1265(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "key") &&
-    EventSubscribeSseValue5(value["key"]) &&
-    (!Object.hasOwn(value, "title") || EventSubscribeSseValue1240(value["title"])) &&
-    (!Object.hasOwn(value, "description") || EventSubscribeSseValue1241(value["description"])) &&
-    (!Object.hasOwn(value, "required") || EventSubscribeSseValue1242(value["required"])) &&
-    (!Object.hasOwn(value, "hidden") || EventSubscribeSseValue1243(value["hidden"])) &&
-    (!Object.hasOwn(value, "when") || EventSubscribeSseValue1244(value["when"])) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1266(value["type"]) &&
-    (!Object.hasOwn(value, "minimum") || EventSubscribeSseValue1267(value["minimum"])) &&
-    (!Object.hasOwn(value, "maximum") || EventSubscribeSseValue1268(value["maximum"])) &&
-    (!Object.hasOwn(value, "default") || EventSubscribeSseValue1269(value["default"]))
-  )
-}
-
-function EventSubscribeSseValue1271(value: unknown): boolean {
-  return value === "integer"
-}
-
-function EventSubscribeSseValue1272(value: unknown): boolean {
-  return typeof value === "number"
-}
-
-function EventSubscribeSseValue1273(value: unknown): boolean {
-  return typeof value === "number"
-}
-
-function EventSubscribeSseValue1274(value: unknown): boolean {
-  return typeof value === "number"
-}
-
-function EventSubscribeSseValue1270(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "key") &&
-    EventSubscribeSseValue5(value["key"]) &&
-    (!Object.hasOwn(value, "title") || EventSubscribeSseValue1240(value["title"])) &&
-    (!Object.hasOwn(value, "description") || EventSubscribeSseValue1241(value["description"])) &&
-    (!Object.hasOwn(value, "required") || EventSubscribeSseValue1242(value["required"])) &&
-    (!Object.hasOwn(value, "hidden") || EventSubscribeSseValue1243(value["hidden"])) &&
-    (!Object.hasOwn(value, "when") || EventSubscribeSseValue1244(value["when"])) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1271(value["type"]) &&
-    (!Object.hasOwn(value, "minimum") || EventSubscribeSseValue1272(value["minimum"])) &&
-    (!Object.hasOwn(value, "maximum") || EventSubscribeSseValue1273(value["maximum"])) &&
-    (!Object.hasOwn(value, "default") || EventSubscribeSseValue1274(value["default"]))
-  )
-}
-
-function EventSubscribeSseValue1276(value: unknown): boolean {
-  return value === "boolean"
-}
-
-function EventSubscribeSseValue1277(value: unknown): boolean {
-  return typeof value === "boolean"
-}
-
-function EventSubscribeSseValue1275(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "key") &&
-    EventSubscribeSseValue5(value["key"]) &&
-    (!Object.hasOwn(value, "title") || EventSubscribeSseValue1240(value["title"])) &&
-    (!Object.hasOwn(value, "description") || EventSubscribeSseValue1241(value["description"])) &&
-    (!Object.hasOwn(value, "required") || EventSubscribeSseValue1242(value["required"])) &&
-    (!Object.hasOwn(value, "hidden") || EventSubscribeSseValue1243(value["hidden"])) &&
-    (!Object.hasOwn(value, "when") || EventSubscribeSseValue1244(value["when"])) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1276(value["type"]) &&
-    (!Object.hasOwn(value, "default") || EventSubscribeSseValue1277(value["default"]))
-  )
-}
-
-function EventSubscribeSseValue1279(value: unknown): boolean {
-  return value === "multiselect"
-}
-
-function EventSubscribeSseValue1280(value: unknown): boolean {
-  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue1262)
-}
-
-function EventSubscribeSseValue1281(value: unknown): boolean {
-  return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value >= 0
-}
-
-function EventSubscribeSseValue1282(value: unknown): boolean {
-  return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value >= 0
-}
-
-function EventSubscribeSseValue1283(value: unknown): boolean {
-  return typeof value === "boolean"
-}
-
-function EventSubscribeSseValue1284(value: unknown): boolean {
-  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue5)
-}
-
-function EventSubscribeSseValue1278(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "key") &&
-    EventSubscribeSseValue5(value["key"]) &&
-    (!Object.hasOwn(value, "title") || EventSubscribeSseValue1240(value["title"])) &&
-    (!Object.hasOwn(value, "description") || EventSubscribeSseValue1241(value["description"])) &&
-    (!Object.hasOwn(value, "required") || EventSubscribeSseValue1242(value["required"])) &&
-    (!Object.hasOwn(value, "hidden") || EventSubscribeSseValue1243(value["hidden"])) &&
-    (!Object.hasOwn(value, "when") || EventSubscribeSseValue1244(value["when"])) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1279(value["type"]) &&
-    Object.hasOwn(value, "options") &&
-    EventSubscribeSseValue1280(value["options"]) &&
-    (!Object.hasOwn(value, "minItems") || EventSubscribeSseValue1281(value["minItems"])) &&
-    (!Object.hasOwn(value, "maxItems") || EventSubscribeSseValue1282(value["maxItems"])) &&
-    (!Object.hasOwn(value, "custom") || EventSubscribeSseValue1283(value["custom"])) &&
-    (!Object.hasOwn(value, "default") || EventSubscribeSseValue1284(value["default"]))
-  )
-}
-
-function EventSubscribeSseValue1286(value: unknown): boolean {
-  return value === "external"
-}
-
-function EventSubscribeSseValue1287(value: unknown): boolean {
-  return typeof value === "string"
-}
-
-function EventSubscribeSseValue1288(value: unknown): boolean {
-  return typeof value === "string"
-}
-
-function EventSubscribeSseValue1285(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "key") &&
-    EventSubscribeSseValue5(value["key"]) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1286(value["type"]) &&
-    Object.hasOwn(value, "url") &&
-    EventSubscribeSseValue5(value["url"]) &&
-    (!Object.hasOwn(value, "title") || EventSubscribeSseValue1287(value["title"])) &&
-    (!Object.hasOwn(value, "description") || EventSubscribeSseValue1288(value["description"]))
-  )
-}
-
-function EventSubscribeSseValue1238(value: unknown): boolean {
-  return (
-    EventSubscribeSseValue1239(value) ||
-    EventSubscribeSseValue1265(value) ||
-    EventSubscribeSseValue1270(value) ||
-    EventSubscribeSseValue1275(value) ||
-    EventSubscribeSseValue1278(value) ||
-    EventSubscribeSseValue1285(value)
-  )
-}
-
-function EventSubscribeSseValue1237(value: unknown): boolean {
-  return (
-    isSseArray(value) &&
-    value.length >= 1 &&
-    EventSubscribeSseValue1238(value[0]) &&
-    value.slice(1).every(EventSubscribeSseValue1238)
-  )
-}
-
-function EventSubscribeSseValue1234(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue1235(value["id"]) &&
-    Object.hasOwn(value, "sessionID") &&
-    EventSubscribeSseValue5(value["sessionID"]) &&
-    Object.hasOwn(value, "title") &&
-    EventSubscribeSseValue5(value["title"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1236(value["metadata"])) &&
-    Object.hasOwn(value, "fields") &&
-    EventSubscribeSseValue1237(value["fields"])
-  )
+  return value === "persistent-pty.removed"
 }
 
 function EventSubscribeSseValue1233(value: unknown): boolean {
-  return isSseRecord(value) && Object.hasOwn(value, "form") && EventSubscribeSseValue1234(value["form"])
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "sessionID") &&
+    EventSubscribeSseValue61(value["sessionID"]) &&
+    Object.hasOwn(value, "ptyID") &&
+    EventSubscribeSseValue1204(value["ptyID"])
+  )
 }
 
 function EventSubscribeSseValue1230(value: unknown): boolean {
@@ -19157,118 +18891,605 @@ function EventSubscribeSseValue1230(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue1290(value: unknown): boolean {
+function EventSubscribeSseValue1235(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
-function EventSubscribeSseValue1291(value: unknown): boolean {
-  return value === "form.replied"
+function EventSubscribeSseValue1236(value: unknown): boolean {
+  return value === "shell.created"
 }
 
-function EventSubscribeSseValue1295(value: unknown): boolean {
-  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue5)
+function EventSubscribeSseValue1237(value: unknown): boolean {
+  return isSseRecord(value) && Object.hasOwn(value, "info") && EventSubscribeSseValue407(value["info"])
 }
 
-function EventSubscribeSseValue1294(value: unknown): boolean {
+function EventSubscribeSseValue1234(value: unknown): boolean {
   return (
-    EventSubscribeSseValue5(value) ||
-    EventSubscribeSseValue901(value) ||
-    EventSubscribeSseValue247(value) ||
-    EventSubscribeSseValue1295(value)
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue2(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    EventSubscribeSseValue3(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1235(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue1236(value["type"]) &&
+    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    EventSubscribeSseValue1237(value["data"])
+  )
+}
+
+function EventSubscribeSseValue1239(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+  )
+}
+
+function EventSubscribeSseValue1240(value: unknown): boolean {
+  return value === "shell.exited"
+}
+
+function EventSubscribeSseValue1242(value: unknown): boolean {
+  return typeof value === "number" && Number.isFinite(value)
+}
+
+function EventSubscribeSseValue1241(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue408(value["id"]) &&
+    (!Object.hasOwn(value, "exit") || EventSubscribeSseValue1242(value["exit"])) &&
+    Object.hasOwn(value, "status") &&
+    EventSubscribeSseValue409(value["status"])
+  )
+}
+
+function EventSubscribeSseValue1238(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue2(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    EventSubscribeSseValue3(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1239(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue1240(value["type"]) &&
+    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    EventSubscribeSseValue1241(value["data"])
+  )
+}
+
+function EventSubscribeSseValue1244(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+  )
+}
+
+function EventSubscribeSseValue1245(value: unknown): boolean {
+  return value === "shell.deleted"
+}
+
+function EventSubscribeSseValue1246(value: unknown): boolean {
+  return isSseRecord(value) && Object.hasOwn(value, "id") && EventSubscribeSseValue408(value["id"])
+}
+
+function EventSubscribeSseValue1243(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue2(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    EventSubscribeSseValue3(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1244(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue1245(value["type"]) &&
+    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    EventSubscribeSseValue1246(value["data"])
+  )
+}
+
+function EventSubscribeSseValue1248(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+  )
+}
+
+function EventSubscribeSseValue1249(value: unknown): boolean {
+  return value === "form.created"
+}
+
+function EventSubscribeSseValue1252(value: unknown): boolean {
+  return typeof value === "string" && typeof value === "string" && value.startsWith("frm_")
+}
+
+function EventSubscribeSseValue1253(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+  )
+}
+
+function EventSubscribeSseValue1257(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function EventSubscribeSseValue1258(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function EventSubscribeSseValue1259(value: unknown): boolean {
+  return typeof value === "boolean"
+}
+
+function EventSubscribeSseValue1260(value: unknown): boolean {
+  return typeof value === "boolean"
+}
+
+function EventSubscribeSseValue1264(value: unknown): boolean {
+  return value === "eq"
+}
+
+function EventSubscribeSseValue1265(value: unknown): boolean {
+  return value === "neq"
+}
+
+function EventSubscribeSseValue1263(value: unknown): boolean {
+  return EventSubscribeSseValue1264(value) || EventSubscribeSseValue1265(value)
+}
+
+function EventSubscribeSseValue1266(value: unknown): boolean {
+  return EventSubscribeSseValue5(value) || EventSubscribeSseValue918(value) || EventSubscribeSseValue247(value)
+}
+
+function EventSubscribeSseValue1262(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "key") &&
+    EventSubscribeSseValue5(value["key"]) &&
+    Object.hasOwn(value, "op") &&
+    EventSubscribeSseValue1263(value["op"]) &&
+    Object.hasOwn(value, "value") &&
+    EventSubscribeSseValue1266(value["value"])
+  )
+}
+
+function EventSubscribeSseValue1261(value: unknown): boolean {
+  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue1262)
+}
+
+function EventSubscribeSseValue1267(value: unknown): boolean {
+  return value === "string"
+}
+
+function EventSubscribeSseValue1269(value: unknown): boolean {
+  return value === "email"
+}
+
+function EventSubscribeSseValue1270(value: unknown): boolean {
+  return value === "uri"
+}
+
+function EventSubscribeSseValue1271(value: unknown): boolean {
+  return value === "date"
+}
+
+function EventSubscribeSseValue1272(value: unknown): boolean {
+  return value === "date-time"
+}
+
+function EventSubscribeSseValue1268(value: unknown): boolean {
+  return (
+    EventSubscribeSseValue1269(value) ||
+    EventSubscribeSseValue1270(value) ||
+    EventSubscribeSseValue1271(value) ||
+    EventSubscribeSseValue1272(value)
+  )
+}
+
+function EventSubscribeSseValue1273(value: unknown): boolean {
+  return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value >= 0
+}
+
+function EventSubscribeSseValue1274(value: unknown): boolean {
+  return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value >= 0
+}
+
+function EventSubscribeSseValue1275(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function EventSubscribeSseValue1276(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function EventSubscribeSseValue1277(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function EventSubscribeSseValue1280(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function EventSubscribeSseValue1279(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "value") &&
+    EventSubscribeSseValue5(value["value"]) &&
+    Object.hasOwn(value, "label") &&
+    EventSubscribeSseValue5(value["label"]) &&
+    (!Object.hasOwn(value, "description") || EventSubscribeSseValue1280(value["description"]))
+  )
+}
+
+function EventSubscribeSseValue1278(value: unknown): boolean {
+  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue1279)
+}
+
+function EventSubscribeSseValue1281(value: unknown): boolean {
+  return typeof value === "boolean"
+}
+
+function EventSubscribeSseValue1256(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "key") &&
+    EventSubscribeSseValue5(value["key"]) &&
+    (!Object.hasOwn(value, "title") || EventSubscribeSseValue1257(value["title"])) &&
+    (!Object.hasOwn(value, "description") || EventSubscribeSseValue1258(value["description"])) &&
+    (!Object.hasOwn(value, "required") || EventSubscribeSseValue1259(value["required"])) &&
+    (!Object.hasOwn(value, "hidden") || EventSubscribeSseValue1260(value["hidden"])) &&
+    (!Object.hasOwn(value, "when") || EventSubscribeSseValue1261(value["when"])) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue1267(value["type"]) &&
+    (!Object.hasOwn(value, "format") || EventSubscribeSseValue1268(value["format"])) &&
+    (!Object.hasOwn(value, "minLength") || EventSubscribeSseValue1273(value["minLength"])) &&
+    (!Object.hasOwn(value, "maxLength") || EventSubscribeSseValue1274(value["maxLength"])) &&
+    (!Object.hasOwn(value, "pattern") || EventSubscribeSseValue1275(value["pattern"])) &&
+    (!Object.hasOwn(value, "placeholder") || EventSubscribeSseValue1276(value["placeholder"])) &&
+    (!Object.hasOwn(value, "default") || EventSubscribeSseValue1277(value["default"])) &&
+    (!Object.hasOwn(value, "options") || EventSubscribeSseValue1278(value["options"])) &&
+    (!Object.hasOwn(value, "custom") || EventSubscribeSseValue1281(value["custom"]))
+  )
+}
+
+function EventSubscribeSseValue1283(value: unknown): boolean {
+  return value === "number"
+}
+
+function EventSubscribeSseValue1284(value: unknown): boolean {
+  return typeof value === "number"
+}
+
+function EventSubscribeSseValue1285(value: unknown): boolean {
+  return typeof value === "number"
+}
+
+function EventSubscribeSseValue1286(value: unknown): boolean {
+  return typeof value === "number"
+}
+
+function EventSubscribeSseValue1282(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "key") &&
+    EventSubscribeSseValue5(value["key"]) &&
+    (!Object.hasOwn(value, "title") || EventSubscribeSseValue1257(value["title"])) &&
+    (!Object.hasOwn(value, "description") || EventSubscribeSseValue1258(value["description"])) &&
+    (!Object.hasOwn(value, "required") || EventSubscribeSseValue1259(value["required"])) &&
+    (!Object.hasOwn(value, "hidden") || EventSubscribeSseValue1260(value["hidden"])) &&
+    (!Object.hasOwn(value, "when") || EventSubscribeSseValue1261(value["when"])) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue1283(value["type"]) &&
+    (!Object.hasOwn(value, "minimum") || EventSubscribeSseValue1284(value["minimum"])) &&
+    (!Object.hasOwn(value, "maximum") || EventSubscribeSseValue1285(value["maximum"])) &&
+    (!Object.hasOwn(value, "default") || EventSubscribeSseValue1286(value["default"]))
+  )
+}
+
+function EventSubscribeSseValue1288(value: unknown): boolean {
+  return value === "integer"
+}
+
+function EventSubscribeSseValue1289(value: unknown): boolean {
+  return typeof value === "number"
+}
+
+function EventSubscribeSseValue1290(value: unknown): boolean {
+  return typeof value === "number"
+}
+
+function EventSubscribeSseValue1291(value: unknown): boolean {
+  return typeof value === "number"
+}
+
+function EventSubscribeSseValue1287(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "key") &&
+    EventSubscribeSseValue5(value["key"]) &&
+    (!Object.hasOwn(value, "title") || EventSubscribeSseValue1257(value["title"])) &&
+    (!Object.hasOwn(value, "description") || EventSubscribeSseValue1258(value["description"])) &&
+    (!Object.hasOwn(value, "required") || EventSubscribeSseValue1259(value["required"])) &&
+    (!Object.hasOwn(value, "hidden") || EventSubscribeSseValue1260(value["hidden"])) &&
+    (!Object.hasOwn(value, "when") || EventSubscribeSseValue1261(value["when"])) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue1288(value["type"]) &&
+    (!Object.hasOwn(value, "minimum") || EventSubscribeSseValue1289(value["minimum"])) &&
+    (!Object.hasOwn(value, "maximum") || EventSubscribeSseValue1290(value["maximum"])) &&
+    (!Object.hasOwn(value, "default") || EventSubscribeSseValue1291(value["default"]))
   )
 }
 
 function EventSubscribeSseValue1293(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue1294(item))
-  )
+  return value === "boolean"
+}
+
+function EventSubscribeSseValue1294(value: unknown): boolean {
+  return typeof value === "boolean"
 }
 
 function EventSubscribeSseValue1292(value: unknown): boolean {
   return (
     isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue1235(value["id"]) &&
-    Object.hasOwn(value, "sessionID") &&
-    EventSubscribeSseValue5(value["sessionID"]) &&
-    Object.hasOwn(value, "answer") &&
-    EventSubscribeSseValue1293(value["answer"])
+    Object.hasOwn(value, "key") &&
+    EventSubscribeSseValue5(value["key"]) &&
+    (!Object.hasOwn(value, "title") || EventSubscribeSseValue1257(value["title"])) &&
+    (!Object.hasOwn(value, "description") || EventSubscribeSseValue1258(value["description"])) &&
+    (!Object.hasOwn(value, "required") || EventSubscribeSseValue1259(value["required"])) &&
+    (!Object.hasOwn(value, "hidden") || EventSubscribeSseValue1260(value["hidden"])) &&
+    (!Object.hasOwn(value, "when") || EventSubscribeSseValue1261(value["when"])) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue1293(value["type"]) &&
+    (!Object.hasOwn(value, "default") || EventSubscribeSseValue1294(value["default"]))
   )
 }
 
-function EventSubscribeSseValue1289(value: unknown): boolean {
+function EventSubscribeSseValue1296(value: unknown): boolean {
+  return value === "multiselect"
+}
+
+function EventSubscribeSseValue1297(value: unknown): boolean {
+  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue1279)
+}
+
+function EventSubscribeSseValue1298(value: unknown): boolean {
+  return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value >= 0
+}
+
+function EventSubscribeSseValue1299(value: unknown): boolean {
+  return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value >= 0
+}
+
+function EventSubscribeSseValue1300(value: unknown): boolean {
+  return typeof value === "boolean"
+}
+
+function EventSubscribeSseValue1301(value: unknown): boolean {
+  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue5)
+}
+
+function EventSubscribeSseValue1295(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "key") &&
+    EventSubscribeSseValue5(value["key"]) &&
+    (!Object.hasOwn(value, "title") || EventSubscribeSseValue1257(value["title"])) &&
+    (!Object.hasOwn(value, "description") || EventSubscribeSseValue1258(value["description"])) &&
+    (!Object.hasOwn(value, "required") || EventSubscribeSseValue1259(value["required"])) &&
+    (!Object.hasOwn(value, "hidden") || EventSubscribeSseValue1260(value["hidden"])) &&
+    (!Object.hasOwn(value, "when") || EventSubscribeSseValue1261(value["when"])) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue1296(value["type"]) &&
+    Object.hasOwn(value, "options") &&
+    EventSubscribeSseValue1297(value["options"]) &&
+    (!Object.hasOwn(value, "minItems") || EventSubscribeSseValue1298(value["minItems"])) &&
+    (!Object.hasOwn(value, "maxItems") || EventSubscribeSseValue1299(value["maxItems"])) &&
+    (!Object.hasOwn(value, "custom") || EventSubscribeSseValue1300(value["custom"])) &&
+    (!Object.hasOwn(value, "default") || EventSubscribeSseValue1301(value["default"]))
+  )
+}
+
+function EventSubscribeSseValue1303(value: unknown): boolean {
+  return value === "external"
+}
+
+function EventSubscribeSseValue1304(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function EventSubscribeSseValue1305(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function EventSubscribeSseValue1302(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "key") &&
+    EventSubscribeSseValue5(value["key"]) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue1303(value["type"]) &&
+    Object.hasOwn(value, "url") &&
+    EventSubscribeSseValue5(value["url"]) &&
+    (!Object.hasOwn(value, "title") || EventSubscribeSseValue1304(value["title"])) &&
+    (!Object.hasOwn(value, "description") || EventSubscribeSseValue1305(value["description"]))
+  )
+}
+
+function EventSubscribeSseValue1255(value: unknown): boolean {
+  return (
+    EventSubscribeSseValue1256(value) ||
+    EventSubscribeSseValue1282(value) ||
+    EventSubscribeSseValue1287(value) ||
+    EventSubscribeSseValue1292(value) ||
+    EventSubscribeSseValue1295(value) ||
+    EventSubscribeSseValue1302(value)
+  )
+}
+
+function EventSubscribeSseValue1254(value: unknown): boolean {
+  return (
+    isSseArray(value) &&
+    value.length >= 1 &&
+    EventSubscribeSseValue1255(value[0]) &&
+    value.slice(1).every(EventSubscribeSseValue1255)
+  )
+}
+
+function EventSubscribeSseValue1251(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue1252(value["id"]) &&
+    Object.hasOwn(value, "sessionID") &&
+    EventSubscribeSseValue5(value["sessionID"]) &&
+    Object.hasOwn(value, "title") &&
+    EventSubscribeSseValue5(value["title"]) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1253(value["metadata"])) &&
+    Object.hasOwn(value, "fields") &&
+    EventSubscribeSseValue1254(value["fields"])
+  )
+}
+
+function EventSubscribeSseValue1250(value: unknown): boolean {
+  return isSseRecord(value) && Object.hasOwn(value, "form") && EventSubscribeSseValue1251(value["form"])
+}
+
+function EventSubscribeSseValue1247(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1290(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1248(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1291(value["type"]) &&
+    EventSubscribeSseValue1249(value["type"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1292(value["data"])
+    EventSubscribeSseValue1250(value["data"])
   )
 }
 
-function EventSubscribeSseValue1297(value: unknown): boolean {
+function EventSubscribeSseValue1307(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
-function EventSubscribeSseValue1298(value: unknown): boolean {
-  return value === "form.cancelled"
+function EventSubscribeSseValue1308(value: unknown): boolean {
+  return value === "form.replied"
 }
 
-function EventSubscribeSseValue1299(value: unknown): boolean {
+function EventSubscribeSseValue1312(value: unknown): boolean {
+  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue5)
+}
+
+function EventSubscribeSseValue1311(value: unknown): boolean {
+  return (
+    EventSubscribeSseValue5(value) ||
+    EventSubscribeSseValue918(value) ||
+    EventSubscribeSseValue247(value) ||
+    EventSubscribeSseValue1312(value)
+  )
+}
+
+function EventSubscribeSseValue1310(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue1311(item))
+  )
+}
+
+function EventSubscribeSseValue1309(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue1235(value["id"]) &&
+    EventSubscribeSseValue1252(value["id"]) &&
+    Object.hasOwn(value, "sessionID") &&
+    EventSubscribeSseValue5(value["sessionID"]) &&
+    Object.hasOwn(value, "answer") &&
+    EventSubscribeSseValue1310(value["answer"])
+  )
+}
+
+function EventSubscribeSseValue1306(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue2(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    EventSubscribeSseValue3(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1307(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue1308(value["type"]) &&
+    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    EventSubscribeSseValue1309(value["data"])
+  )
+}
+
+function EventSubscribeSseValue1314(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+  )
+}
+
+function EventSubscribeSseValue1315(value: unknown): boolean {
+  return value === "form.cancelled"
+}
+
+function EventSubscribeSseValue1316(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue1252(value["id"]) &&
     Object.hasOwn(value, "sessionID") &&
     EventSubscribeSseValue5(value["sessionID"])
   )
 }
 
-function EventSubscribeSseValue1296(value: unknown): boolean {
+function EventSubscribeSseValue1313(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1297(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1314(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1298(value["type"]) &&
+    EventSubscribeSseValue1315(value["type"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1299(value["data"])
+    EventSubscribeSseValue1316(value["data"])
   )
 }
 
-function EventSubscribeSseValue1301(value: unknown): boolean {
+function EventSubscribeSseValue1318(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
-function EventSubscribeSseValue1302(value: unknown): boolean {
+function EventSubscribeSseValue1319(value: unknown): boolean {
   return value === "workflow.run.updated"
 }
 
-function EventSubscribeSseValue1304(value: unknown): boolean {
+function EventSubscribeSseValue1321(value: unknown): boolean {
   return value === 1
 }
 
-function EventSubscribeSseValue1303(value: unknown): boolean {
+function EventSubscribeSseValue1320(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -19276,124 +19497,124 @@ function EventSubscribeSseValue1303(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     EventSubscribeSseValue58(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue1304(value["version"])
+    EventSubscribeSseValue1321(value["version"])
   )
-}
-
-function EventSubscribeSseValue1307(value: unknown): boolean {
-  return value === "pending"
-}
-
-function EventSubscribeSseValue1308(value: unknown): boolean {
-  return value === "running"
-}
-
-function EventSubscribeSseValue1309(value: unknown): boolean {
-  return value === "cancelling"
-}
-
-function EventSubscribeSseValue1310(value: unknown): boolean {
-  return value === "completed"
-}
-
-function EventSubscribeSseValue1311(value: unknown): boolean {
-  return value === "partial_success"
-}
-
-function EventSubscribeSseValue1312(value: unknown): boolean {
-  return value === "failed"
-}
-
-function EventSubscribeSseValue1313(value: unknown): boolean {
-  return value === "cancelled"
-}
-
-function EventSubscribeSseValue1314(value: unknown): boolean {
-  return value === "recovery_required"
-}
-
-function EventSubscribeSseValue1306(value: unknown): boolean {
-  return (
-    EventSubscribeSseValue1307(value) ||
-    EventSubscribeSseValue1308(value) ||
-    EventSubscribeSseValue1309(value) ||
-    EventSubscribeSseValue1310(value) ||
-    EventSubscribeSseValue1311(value) ||
-    EventSubscribeSseValue1312(value) ||
-    EventSubscribeSseValue1313(value) ||
-    EventSubscribeSseValue1314(value)
-  )
-}
-
-function EventSubscribeSseValue1315(value: unknown): boolean {
-  return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value >= 1
-}
-
-function EventSubscribeSseValue1316(value: unknown): boolean {
-  return typeof value === "string"
-}
-
-function EventSubscribeSseValue1318(value: unknown): boolean {
-  return value === "invalid_branch_output"
-}
-
-function EventSubscribeSseValue1319(value: unknown): boolean {
-  return value === "step_timeout"
-}
-
-function EventSubscribeSseValue1320(value: unknown): boolean {
-  return value === "step_failed"
-}
-
-function EventSubscribeSseValue1321(value: unknown): boolean {
-  return value === "step_cancelled"
-}
-
-function EventSubscribeSseValue1322(value: unknown): boolean {
-  return value === "max_attempts_exceeded"
-}
-
-function EventSubscribeSseValue1323(value: unknown): boolean {
-  return value === "custom_mode_disabled"
 }
 
 function EventSubscribeSseValue1324(value: unknown): boolean {
-  return value === "agent_not_allowed"
+  return value === "pending"
 }
 
 function EventSubscribeSseValue1325(value: unknown): boolean {
-  return value === "executor_unavailable"
+  return value === "running"
 }
 
 function EventSubscribeSseValue1326(value: unknown): boolean {
-  return value === "root_handoff_failed"
+  return value === "cancelling"
 }
 
 function EventSubscribeSseValue1327(value: unknown): boolean {
-  return value === "execution_unknown"
+  return value === "completed"
 }
 
 function EventSubscribeSseValue1328(value: unknown): boolean {
-  return value === "unknown_error"
+  return value === "partial_success"
 }
 
-function EventSubscribeSseValue1317(value: unknown): boolean {
+function EventSubscribeSseValue1329(value: unknown): boolean {
+  return value === "failed"
+}
+
+function EventSubscribeSseValue1330(value: unknown): boolean {
+  return value === "cancelled"
+}
+
+function EventSubscribeSseValue1331(value: unknown): boolean {
+  return value === "recovery_required"
+}
+
+function EventSubscribeSseValue1323(value: unknown): boolean {
   return (
-    EventSubscribeSseValue1318(value) ||
-    EventSubscribeSseValue1319(value) ||
-    EventSubscribeSseValue1320(value) ||
-    EventSubscribeSseValue1321(value) ||
-    EventSubscribeSseValue1322(value) ||
-    EventSubscribeSseValue1323(value) ||
     EventSubscribeSseValue1324(value) ||
     EventSubscribeSseValue1325(value) ||
     EventSubscribeSseValue1326(value) ||
     EventSubscribeSseValue1327(value) ||
-    EventSubscribeSseValue1328(value)
+    EventSubscribeSseValue1328(value) ||
+    EventSubscribeSseValue1329(value) ||
+    EventSubscribeSseValue1330(value) ||
+    EventSubscribeSseValue1331(value)
   )
 }
 
-function EventSubscribeSseValue1305(value: unknown): boolean {
+function EventSubscribeSseValue1332(value: unknown): boolean {
+  return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value >= 1
+}
+
+function EventSubscribeSseValue1333(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function EventSubscribeSseValue1335(value: unknown): boolean {
+  return value === "invalid_branch_output"
+}
+
+function EventSubscribeSseValue1336(value: unknown): boolean {
+  return value === "step_timeout"
+}
+
+function EventSubscribeSseValue1337(value: unknown): boolean {
+  return value === "step_failed"
+}
+
+function EventSubscribeSseValue1338(value: unknown): boolean {
+  return value === "step_cancelled"
+}
+
+function EventSubscribeSseValue1339(value: unknown): boolean {
+  return value === "max_attempts_exceeded"
+}
+
+function EventSubscribeSseValue1340(value: unknown): boolean {
+  return value === "custom_mode_disabled"
+}
+
+function EventSubscribeSseValue1341(value: unknown): boolean {
+  return value === "agent_not_allowed"
+}
+
+function EventSubscribeSseValue1342(value: unknown): boolean {
+  return value === "executor_unavailable"
+}
+
+function EventSubscribeSseValue1343(value: unknown): boolean {
+  return value === "root_handoff_failed"
+}
+
+function EventSubscribeSseValue1344(value: unknown): boolean {
+  return value === "execution_unknown"
+}
+
+function EventSubscribeSseValue1345(value: unknown): boolean {
+  return value === "unknown_error"
+}
+
+function EventSubscribeSseValue1334(value: unknown): boolean {
+  return (
+    EventSubscribeSseValue1335(value) ||
+    EventSubscribeSseValue1336(value) ||
+    EventSubscribeSseValue1337(value) ||
+    EventSubscribeSseValue1338(value) ||
+    EventSubscribeSseValue1339(value) ||
+    EventSubscribeSseValue1340(value) ||
+    EventSubscribeSseValue1341(value) ||
+    EventSubscribeSseValue1342(value) ||
+    EventSubscribeSseValue1343(value) ||
+    EventSubscribeSseValue1344(value) ||
+    EventSubscribeSseValue1345(value)
+  )
+}
+
+function EventSubscribeSseValue1322(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "runID") &&
@@ -19401,50 +19622,50 @@ function EventSubscribeSseValue1305(value: unknown): boolean {
     Object.hasOwn(value, "sessionID") &&
     EventSubscribeSseValue5(value["sessionID"]) &&
     Object.hasOwn(value, "status") &&
-    EventSubscribeSseValue1306(value["status"]) &&
+    EventSubscribeSseValue1323(value["status"]) &&
     Object.hasOwn(value, "revision") &&
-    EventSubscribeSseValue1315(value["revision"]) &&
-    (!Object.hasOwn(value, "currentStepId") || EventSubscribeSseValue1316(value["currentStepId"])) &&
-    (!Object.hasOwn(value, "errorCategory") || EventSubscribeSseValue1317(value["errorCategory"])) &&
+    EventSubscribeSseValue1332(value["revision"]) &&
+    (!Object.hasOwn(value, "currentStepId") || EventSubscribeSseValue1333(value["currentStepId"])) &&
+    (!Object.hasOwn(value, "errorCategory") || EventSubscribeSseValue1334(value["errorCategory"])) &&
     Object.hasOwn(value, "timeUpdated") &&
     EventSubscribeSseValue3(value["timeUpdated"])
   )
 }
 
-function EventSubscribeSseValue1300(value: unknown): boolean {
+function EventSubscribeSseValue1317(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1301(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1318(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1302(value["type"]) &&
+    EventSubscribeSseValue1319(value["type"]) &&
     Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue1303(value["durable"]) &&
+    EventSubscribeSseValue1320(value["durable"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1305(value["data"])
+    EventSubscribeSseValue1322(value["data"])
   )
 }
 
-function EventSubscribeSseValue1330(value: unknown): boolean {
+function EventSubscribeSseValue1347(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
-function EventSubscribeSseValue1331(value: unknown): boolean {
+function EventSubscribeSseValue1348(value: unknown): boolean {
   return value === "delegation.created"
 }
 
-function EventSubscribeSseValue1333(value: unknown): boolean {
+function EventSubscribeSseValue1350(value: unknown): boolean {
   return value === 1
 }
 
-function EventSubscribeSseValue1332(value: unknown): boolean {
+function EventSubscribeSseValue1349(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -19452,15 +19673,15 @@ function EventSubscribeSseValue1332(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     EventSubscribeSseValue58(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue1333(value["version"])
+    EventSubscribeSseValue1350(value["version"])
   )
 }
 
-function EventSubscribeSseValue1335(value: unknown): boolean {
+function EventSubscribeSseValue1352(value: unknown): boolean {
   return typeof value === "string"
 }
 
-function EventSubscribeSseValue1336(value: unknown): boolean {
+function EventSubscribeSseValue1353(value: unknown): boolean {
   return (
     typeof value === "string" &&
     (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
@@ -19472,117 +19693,117 @@ function EventSubscribeSseValue1336(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue1338(value: unknown): boolean {
+function EventSubscribeSseValue1355(value: unknown): boolean {
   return value === "draft"
 }
 
-function EventSubscribeSseValue1339(value: unknown): boolean {
+function EventSubscribeSseValue1356(value: unknown): boolean {
   return value === "running"
 }
 
-function EventSubscribeSseValue1340(value: unknown): boolean {
+function EventSubscribeSseValue1357(value: unknown): boolean {
   return value === "waiting_review"
 }
 
-function EventSubscribeSseValue1341(value: unknown): boolean {
+function EventSubscribeSseValue1358(value: unknown): boolean {
   return value === "changes_requested"
 }
 
-function EventSubscribeSseValue1342(value: unknown): boolean {
+function EventSubscribeSseValue1359(value: unknown): boolean {
   return value === "approved"
 }
 
-function EventSubscribeSseValue1343(value: unknown): boolean {
+function EventSubscribeSseValue1360(value: unknown): boolean {
   return value === "failed"
 }
 
-function EventSubscribeSseValue1344(value: unknown): boolean {
+function EventSubscribeSseValue1361(value: unknown): boolean {
   return value === "recovery_required"
 }
 
-function EventSubscribeSseValue1345(value: unknown): boolean {
+function EventSubscribeSseValue1362(value: unknown): boolean {
   return value === "closing"
 }
 
-function EventSubscribeSseValue1346(value: unknown): boolean {
+function EventSubscribeSseValue1363(value: unknown): boolean {
   return value === "completed"
 }
 
-function EventSubscribeSseValue1347(value: unknown): boolean {
+function EventSubscribeSseValue1364(value: unknown): boolean {
   return value === "archived"
 }
 
-function EventSubscribeSseValue1348(value: unknown): boolean {
+function EventSubscribeSseValue1365(value: unknown): boolean {
   return value === "cancelled"
 }
 
-function EventSubscribeSseValue1337(value: unknown): boolean {
+function EventSubscribeSseValue1354(value: unknown): boolean {
   return (
-    EventSubscribeSseValue1338(value) ||
-    EventSubscribeSseValue1339(value) ||
-    EventSubscribeSseValue1340(value) ||
-    EventSubscribeSseValue1341(value) ||
-    EventSubscribeSseValue1342(value) ||
-    EventSubscribeSseValue1343(value) ||
-    EventSubscribeSseValue1344(value) ||
-    EventSubscribeSseValue1345(value) ||
-    EventSubscribeSseValue1346(value) ||
-    EventSubscribeSseValue1347(value) ||
-    EventSubscribeSseValue1348(value)
+    EventSubscribeSseValue1355(value) ||
+    EventSubscribeSseValue1356(value) ||
+    EventSubscribeSseValue1357(value) ||
+    EventSubscribeSseValue1358(value) ||
+    EventSubscribeSseValue1359(value) ||
+    EventSubscribeSseValue1360(value) ||
+    EventSubscribeSseValue1361(value) ||
+    EventSubscribeSseValue1362(value) ||
+    EventSubscribeSseValue1363(value) ||
+    EventSubscribeSseValue1364(value) ||
+    EventSubscribeSseValue1365(value)
   )
 }
 
-function EventSubscribeSseValue1334(value: unknown): boolean {
+function EventSubscribeSseValue1351(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "delegationID") &&
     EventSubscribeSseValue123(value["delegationID"]) &&
     Object.hasOwn(value, "parentSessionID") &&
     EventSubscribeSseValue61(value["parentSessionID"]) &&
-    (!Object.hasOwn(value, "metaAgentID") || EventSubscribeSseValue1335(value["metaAgentID"])) &&
+    (!Object.hasOwn(value, "metaAgentID") || EventSubscribeSseValue1352(value["metaAgentID"])) &&
     Object.hasOwn(value, "title") &&
-    EventSubscribeSseValue1336(value["title"]) &&
+    EventSubscribeSseValue1353(value["title"]) &&
     Object.hasOwn(value, "status") &&
-    EventSubscribeSseValue1337(value["status"]) &&
+    EventSubscribeSseValue1354(value["status"]) &&
     Object.hasOwn(value, "timestamp") &&
-    EventSubscribeSseValue901(value["timestamp"])
+    EventSubscribeSseValue918(value["timestamp"])
   )
 }
 
-function EventSubscribeSseValue1329(value: unknown): boolean {
+function EventSubscribeSseValue1346(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1330(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1347(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1331(value["type"]) &&
+    EventSubscribeSseValue1348(value["type"]) &&
     Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue1332(value["durable"]) &&
+    EventSubscribeSseValue1349(value["durable"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1334(value["data"])
+    EventSubscribeSseValue1351(value["data"])
   )
 }
 
-function EventSubscribeSseValue1350(value: unknown): boolean {
+function EventSubscribeSseValue1367(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
-function EventSubscribeSseValue1351(value: unknown): boolean {
+function EventSubscribeSseValue1368(value: unknown): boolean {
   return value === "delegation.participant_added"
 }
 
-function EventSubscribeSseValue1353(value: unknown): boolean {
+function EventSubscribeSseValue1370(value: unknown): boolean {
   return value === 1
 }
 
-function EventSubscribeSseValue1352(value: unknown): boolean {
+function EventSubscribeSseValue1369(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -19590,11 +19811,11 @@ function EventSubscribeSseValue1352(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     EventSubscribeSseValue58(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue1353(value["version"])
+    EventSubscribeSseValue1370(value["version"])
   )
 }
 
-function EventSubscribeSseValue1355(value: unknown): boolean {
+function EventSubscribeSseValue1372(value: unknown): boolean {
   return (
     typeof value === "string" &&
     (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
@@ -19603,7 +19824,7 @@ function EventSubscribeSseValue1355(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue1356(value: unknown): boolean {
+function EventSubscribeSseValue1373(value: unknown): boolean {
   return (
     typeof value === "string" &&
     (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
@@ -19612,69 +19833,69 @@ function EventSubscribeSseValue1356(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue1358(value: unknown): boolean {
+function EventSubscribeSseValue1375(value: unknown): boolean {
   return value === "implementer"
 }
 
-function EventSubscribeSseValue1359(value: unknown): boolean {
+function EventSubscribeSseValue1376(value: unknown): boolean {
   return value === "reviewer"
 }
 
-function EventSubscribeSseValue1360(value: unknown): boolean {
+function EventSubscribeSseValue1377(value: unknown): boolean {
   return value === "approver"
 }
 
-function EventSubscribeSseValue1361(value: unknown): boolean {
+function EventSubscribeSseValue1378(value: unknown): boolean {
   return value === "observer"
 }
 
-function EventSubscribeSseValue1357(value: unknown): boolean {
+function EventSubscribeSseValue1374(value: unknown): boolean {
   return (
-    EventSubscribeSseValue1358(value) ||
-    EventSubscribeSseValue1359(value) ||
-    EventSubscribeSseValue1360(value) ||
-    EventSubscribeSseValue1361(value)
+    EventSubscribeSseValue1375(value) ||
+    EventSubscribeSseValue1376(value) ||
+    EventSubscribeSseValue1377(value) ||
+    EventSubscribeSseValue1378(value)
   )
 }
 
-function EventSubscribeSseValue1363(value: unknown): boolean {
+function EventSubscribeSseValue1380(value: unknown): boolean {
   return value === "fresh"
 }
 
-function EventSubscribeSseValue1364(value: unknown): boolean {
+function EventSubscribeSseValue1381(value: unknown): boolean {
   return value === "fork"
 }
 
-function EventSubscribeSseValue1362(value: unknown): boolean {
-  return EventSubscribeSseValue1363(value) || EventSubscribeSseValue1364(value)
+function EventSubscribeSseValue1379(value: unknown): boolean {
+  return EventSubscribeSseValue1380(value) || EventSubscribeSseValue1381(value)
 }
 
-function EventSubscribeSseValue1366(value: unknown): boolean {
+function EventSubscribeSseValue1383(value: unknown): boolean {
   return value === "provisioning"
 }
 
-function EventSubscribeSseValue1367(value: unknown): boolean {
+function EventSubscribeSseValue1384(value: unknown): boolean {
   return value === "active"
 }
 
-function EventSubscribeSseValue1368(value: unknown): boolean {
+function EventSubscribeSseValue1385(value: unknown): boolean {
   return value === "failed"
 }
 
-function EventSubscribeSseValue1369(value: unknown): boolean {
+function EventSubscribeSseValue1386(value: unknown): boolean {
   return value === "closed"
 }
 
-function EventSubscribeSseValue1365(value: unknown): boolean {
+function EventSubscribeSseValue1382(value: unknown): boolean {
   return (
-    EventSubscribeSseValue1366(value) ||
-    EventSubscribeSseValue1367(value) ||
-    EventSubscribeSseValue1368(value) ||
-    EventSubscribeSseValue1369(value)
+    EventSubscribeSseValue1383(value) ||
+    EventSubscribeSseValue1384(value) ||
+    EventSubscribeSseValue1385(value) ||
+    EventSubscribeSseValue1386(value)
   )
 }
 
-function EventSubscribeSseValue1370(value: unknown): boolean {
+function EventSubscribeSseValue1387(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "agent") &&
@@ -19687,11 +19908,11 @@ function EventSubscribeSseValue1370(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue1371(value: unknown): boolean {
+function EventSubscribeSseValue1388(value: unknown): boolean {
   return typeof value === "string"
 }
 
-function EventSubscribeSseValue1354(value: unknown): boolean {
+function EventSubscribeSseValue1371(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "delegationID") &&
@@ -19699,57 +19920,57 @@ function EventSubscribeSseValue1354(value: unknown): boolean {
     Object.hasOwn(value, "participantID") &&
     EventSubscribeSseValue124(value["participantID"]) &&
     Object.hasOwn(value, "provider") &&
-    EventSubscribeSseValue1355(value["provider"]) &&
+    EventSubscribeSseValue1372(value["provider"]) &&
     Object.hasOwn(value, "target") &&
-    EventSubscribeSseValue1356(value["target"]) &&
+    EventSubscribeSseValue1373(value["target"]) &&
     Object.hasOwn(value, "role") &&
-    EventSubscribeSseValue1357(value["role"]) &&
+    EventSubscribeSseValue1374(value["role"]) &&
     Object.hasOwn(value, "context") &&
-    EventSubscribeSseValue1362(value["context"]) &&
+    EventSubscribeSseValue1379(value["context"]) &&
     Object.hasOwn(value, "phase") &&
-    EventSubscribeSseValue1365(value["phase"]) &&
+    EventSubscribeSseValue1382(value["phase"]) &&
     (!Object.hasOwn(value, "childSessionID") || EventSubscribeSseValue65(value["childSessionID"])) &&
-    (!Object.hasOwn(value, "executor") || EventSubscribeSseValue1370(value["executor"])) &&
-    (!Object.hasOwn(value, "externalThreadID") || EventSubscribeSseValue1371(value["externalThreadID"])) &&
+    (!Object.hasOwn(value, "executor") || EventSubscribeSseValue1387(value["executor"])) &&
+    (!Object.hasOwn(value, "externalThreadID") || EventSubscribeSseValue1388(value["externalThreadID"])) &&
     Object.hasOwn(value, "timestamp") &&
-    EventSubscribeSseValue901(value["timestamp"])
+    EventSubscribeSseValue918(value["timestamp"])
   )
 }
 
-function EventSubscribeSseValue1349(value: unknown): boolean {
+function EventSubscribeSseValue1366(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1350(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1367(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1351(value["type"]) &&
+    EventSubscribeSseValue1368(value["type"]) &&
     Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue1352(value["durable"]) &&
+    EventSubscribeSseValue1369(value["durable"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1354(value["data"])
+    EventSubscribeSseValue1371(value["data"])
   )
 }
 
-function EventSubscribeSseValue1373(value: unknown): boolean {
+function EventSubscribeSseValue1390(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
-function EventSubscribeSseValue1374(value: unknown): boolean {
+function EventSubscribeSseValue1391(value: unknown): boolean {
   return value === "delegation.participant_bound"
 }
 
-function EventSubscribeSseValue1376(value: unknown): boolean {
+function EventSubscribeSseValue1393(value: unknown): boolean {
   return value === 1
 }
 
-function EventSubscribeSseValue1375(value: unknown): boolean {
+function EventSubscribeSseValue1392(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -19757,11 +19978,11 @@ function EventSubscribeSseValue1375(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     EventSubscribeSseValue58(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue1376(value["version"])
+    EventSubscribeSseValue1393(value["version"])
   )
 }
 
-function EventSubscribeSseValue1378(value: unknown): boolean {
+function EventSubscribeSseValue1395(value: unknown): boolean {
   return (
     typeof value === "string" &&
     (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
@@ -19770,7 +19991,7 @@ function EventSubscribeSseValue1378(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue1377(value: unknown): boolean {
+function EventSubscribeSseValue1394(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "delegationID") &&
@@ -19778,125 +19999,58 @@ function EventSubscribeSseValue1377(value: unknown): boolean {
     Object.hasOwn(value, "participantID") &&
     EventSubscribeSseValue124(value["participantID"]) &&
     (!Object.hasOwn(value, "childSessionID") || EventSubscribeSseValue65(value["childSessionID"])) &&
-    (!Object.hasOwn(value, "externalThreadID") || EventSubscribeSseValue1378(value["externalThreadID"])) &&
+    (!Object.hasOwn(value, "externalThreadID") || EventSubscribeSseValue1395(value["externalThreadID"])) &&
     Object.hasOwn(value, "timestamp") &&
-    EventSubscribeSseValue901(value["timestamp"])
+    EventSubscribeSseValue918(value["timestamp"])
   )
-}
-
-function EventSubscribeSseValue1372(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue2(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1373(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1374(value["type"]) &&
-    Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue1375(value["durable"]) &&
-    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1377(value["data"])
-  )
-}
-
-function EventSubscribeSseValue1380(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
-  )
-}
-
-function EventSubscribeSseValue1381(value: unknown): boolean {
-  return value === "delegation.participant_interrupted"
-}
-
-function EventSubscribeSseValue1383(value: unknown): boolean {
-  return value === 1
-}
-
-function EventSubscribeSseValue1382(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "aggregateID") &&
-    EventSubscribeSseValue5(value["aggregateID"]) &&
-    Object.hasOwn(value, "seq") &&
-    EventSubscribeSseValue58(value["seq"]) &&
-    Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue1383(value["version"])
-  )
-}
-
-function EventSubscribeSseValue1385(value: unknown): boolean {
-  return (
-    typeof value === "string" &&
-    (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
-    typeof value.length === "number" &&
-    value.length <= 1000
-  )
-}
-
-function EventSubscribeSseValue1384(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "delegationID") &&
-    EventSubscribeSseValue123(value["delegationID"]) &&
-    Object.hasOwn(value, "participantID") &&
-    EventSubscribeSseValue124(value["participantID"]) &&
-    (!Object.hasOwn(value, "reason") || EventSubscribeSseValue1385(value["reason"])) &&
-    Object.hasOwn(value, "timestamp") &&
-    EventSubscribeSseValue901(value["timestamp"])
-  )
-}
-
-function EventSubscribeSseValue1379(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue2(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1380(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1381(value["type"]) &&
-    Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue1382(value["durable"]) &&
-    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1384(value["data"])
-  )
-}
-
-function EventSubscribeSseValue1387(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
-  )
-}
-
-function EventSubscribeSseValue1388(value: unknown): boolean {
-  return value === "delegation.participant_closed"
-}
-
-function EventSubscribeSseValue1390(value: unknown): boolean {
-  return value === 1
 }
 
 function EventSubscribeSseValue1389(value: unknown): boolean {
   return (
     isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue2(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    EventSubscribeSseValue3(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1390(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue1391(value["type"]) &&
+    Object.hasOwn(value, "durable") &&
+    EventSubscribeSseValue1392(value["durable"]) &&
+    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    EventSubscribeSseValue1394(value["data"])
+  )
+}
+
+function EventSubscribeSseValue1397(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+  )
+}
+
+function EventSubscribeSseValue1398(value: unknown): boolean {
+  return value === "delegation.participant_interrupted"
+}
+
+function EventSubscribeSseValue1400(value: unknown): boolean {
+  return value === 1
+}
+
+function EventSubscribeSseValue1399(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
     EventSubscribeSseValue5(value["aggregateID"]) &&
     Object.hasOwn(value, "seq") &&
     EventSubscribeSseValue58(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue1390(value["version"])
+    EventSubscribeSseValue1400(value["version"])
   )
 }
 
-function EventSubscribeSseValue1392(value: unknown): boolean {
+function EventSubscribeSseValue1402(value: unknown): boolean {
   return (
     typeof value === "string" &&
     (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
@@ -19905,188 +20059,53 @@ function EventSubscribeSseValue1392(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue1391(value: unknown): boolean {
+function EventSubscribeSseValue1401(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "delegationID") &&
     EventSubscribeSseValue123(value["delegationID"]) &&
     Object.hasOwn(value, "participantID") &&
     EventSubscribeSseValue124(value["participantID"]) &&
-    (!Object.hasOwn(value, "reason") || EventSubscribeSseValue1392(value["reason"])) &&
+    (!Object.hasOwn(value, "reason") || EventSubscribeSseValue1402(value["reason"])) &&
     Object.hasOwn(value, "timestamp") &&
-    EventSubscribeSseValue901(value["timestamp"])
+    EventSubscribeSseValue918(value["timestamp"])
   )
-}
-
-function EventSubscribeSseValue1386(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue2(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1387(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1388(value["type"]) &&
-    Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue1389(value["durable"]) &&
-    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1391(value["data"])
-  )
-}
-
-function EventSubscribeSseValue1394(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
-  )
-}
-
-function EventSubscribeSseValue1395(value: unknown): boolean {
-  return value === "delegation.turn_admitted"
-}
-
-function EventSubscribeSseValue1397(value: unknown): boolean {
-  return value === 1
 }
 
 function EventSubscribeSseValue1396(value: unknown): boolean {
   return (
     isSseRecord(value) &&
-    Object.hasOwn(value, "aggregateID") &&
-    EventSubscribeSseValue5(value["aggregateID"]) &&
-    Object.hasOwn(value, "seq") &&
-    EventSubscribeSseValue58(value["seq"]) &&
-    Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue1397(value["version"])
-  )
-}
-
-function EventSubscribeSseValue1399(value: unknown): boolean {
-  return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value >= 0
-}
-
-function EventSubscribeSseValue1401(value: unknown): boolean {
-  return value === "task"
-}
-
-function EventSubscribeSseValue1402(value: unknown): boolean {
-  return value === "evidence"
-}
-
-function EventSubscribeSseValue1403(value: unknown): boolean {
-  return value === "review"
-}
-
-function EventSubscribeSseValue1404(value: unknown): boolean {
-  return value === "repair"
-}
-
-function EventSubscribeSseValue1405(value: unknown): boolean {
-  return value === "close"
-}
-
-function EventSubscribeSseValue1400(value: unknown): boolean {
-  return (
-    EventSubscribeSseValue1401(value) ||
-    EventSubscribeSseValue1402(value) ||
-    EventSubscribeSseValue1403(value) ||
-    EventSubscribeSseValue1404(value) ||
-    EventSubscribeSseValue1405(value)
-  )
-}
-
-function EventSubscribeSseValue1406(value: unknown): boolean {
-  return (
-    typeof value === "string" &&
-    (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
-    typeof value.length === "number" &&
-    value.length <= 1024
-  )
-}
-
-function EventSubscribeSseValue1407(value: unknown): boolean {
-  return typeof value === "string"
-}
-
-function EventSubscribeSseValue1408(value: unknown): boolean {
-  return typeof value === "string" && typeof value === "string" && new RegExp("^rev_[a-f0-9]{64}$", "").test(value)
-}
-
-function EventSubscribeSseValue1409(value: unknown): boolean {
-  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue124)
-}
-
-function EventSubscribeSseValue1411(value: unknown): boolean {
-  return value === "steer"
-}
-
-function EventSubscribeSseValue1412(value: unknown): boolean {
-  return value === "queue"
-}
-
-function EventSubscribeSseValue1410(value: unknown): boolean {
-  return EventSubscribeSseValue1411(value) || EventSubscribeSseValue1412(value)
-}
-
-function EventSubscribeSseValue1398(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "delegationID") &&
-    EventSubscribeSseValue123(value["delegationID"]) &&
-    Object.hasOwn(value, "turnID") &&
-    EventSubscribeSseValue312(value["turnID"]) &&
-    Object.hasOwn(value, "seq") &&
-    EventSubscribeSseValue1399(value["seq"]) &&
-    Object.hasOwn(value, "kind") &&
-    EventSubscribeSseValue1400(value["kind"]) &&
-    (!Object.hasOwn(value, "promptSummary") || EventSubscribeSseValue1406(value["promptSummary"])) &&
-    (!Object.hasOwn(value, "evidenceDigest") || EventSubscribeSseValue1407(value["evidenceDigest"])) &&
-    (!Object.hasOwn(value, "revisionDigest") || EventSubscribeSseValue1408(value["revisionDigest"])) &&
-    Object.hasOwn(value, "participantIDs") &&
-    EventSubscribeSseValue1409(value["participantIDs"]) &&
-    Object.hasOwn(value, "delivery") &&
-    EventSubscribeSseValue1410(value["delivery"]) &&
-    Object.hasOwn(value, "timestamp") &&
-    EventSubscribeSseValue901(value["timestamp"])
-  )
-}
-
-function EventSubscribeSseValue1393(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1394(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1397(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1395(value["type"]) &&
+    EventSubscribeSseValue1398(value["type"]) &&
     Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue1396(value["durable"]) &&
+    EventSubscribeSseValue1399(value["durable"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1398(value["data"])
+    EventSubscribeSseValue1401(value["data"])
   )
 }
 
-function EventSubscribeSseValue1414(value: unknown): boolean {
+function EventSubscribeSseValue1404(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
-function EventSubscribeSseValue1415(value: unknown): boolean {
-  return value === "delegation.turn_appended"
+function EventSubscribeSseValue1405(value: unknown): boolean {
+  return value === "delegation.participant_closed"
 }
 
-function EventSubscribeSseValue1417(value: unknown): boolean {
+function EventSubscribeSseValue1407(value: unknown): boolean {
   return value === 1
 }
 
-function EventSubscribeSseValue1416(value: unknown): boolean {
+function EventSubscribeSseValue1406(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -20094,276 +20113,302 @@ function EventSubscribeSseValue1416(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     EventSubscribeSseValue58(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue1417(value["version"])
+    EventSubscribeSseValue1407(value["version"])
   )
 }
 
-function EventSubscribeSseValue1419(value: unknown): boolean {
-  return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value >= 0
-}
-
-function EventSubscribeSseValue1420(value: unknown): boolean {
+function EventSubscribeSseValue1409(value: unknown): boolean {
   return (
     typeof value === "string" &&
     (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
     typeof value.length === "number" &&
-    value.length <= 1024
+    value.length <= 1000
   )
 }
 
-function EventSubscribeSseValue1421(value: unknown): boolean {
-  return typeof value === "string"
-}
-
-function EventSubscribeSseValue1422(value: unknown): boolean {
-  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue124)
-}
-
-function EventSubscribeSseValue1418(value: unknown): boolean {
+function EventSubscribeSseValue1408(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "delegationID") &&
     EventSubscribeSseValue123(value["delegationID"]) &&
-    Object.hasOwn(value, "turnID") &&
-    EventSubscribeSseValue312(value["turnID"]) &&
-    Object.hasOwn(value, "seq") &&
-    EventSubscribeSseValue1419(value["seq"]) &&
-    Object.hasOwn(value, "kind") &&
-    EventSubscribeSseValue1400(value["kind"]) &&
-    (!Object.hasOwn(value, "promptSummary") || EventSubscribeSseValue1420(value["promptSummary"])) &&
-    (!Object.hasOwn(value, "evidenceDigest") || EventSubscribeSseValue1421(value["evidenceDigest"])) &&
-    (!Object.hasOwn(value, "revisionDigest") || EventSubscribeSseValue1408(value["revisionDigest"])) &&
-    Object.hasOwn(value, "participantIDs") &&
-    EventSubscribeSseValue1422(value["participantIDs"]) &&
-    Object.hasOwn(value, "delivery") &&
-    EventSubscribeSseValue1410(value["delivery"]) &&
+    Object.hasOwn(value, "participantID") &&
+    EventSubscribeSseValue124(value["participantID"]) &&
+    (!Object.hasOwn(value, "reason") || EventSubscribeSseValue1409(value["reason"])) &&
     Object.hasOwn(value, "timestamp") &&
-    EventSubscribeSseValue901(value["timestamp"])
+    EventSubscribeSseValue918(value["timestamp"])
   )
+}
+
+function EventSubscribeSseValue1403(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue2(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    EventSubscribeSseValue3(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1404(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue1405(value["type"]) &&
+    Object.hasOwn(value, "durable") &&
+    EventSubscribeSseValue1406(value["durable"]) &&
+    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    EventSubscribeSseValue1408(value["data"])
+  )
+}
+
+function EventSubscribeSseValue1411(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+  )
+}
+
+function EventSubscribeSseValue1412(value: unknown): boolean {
+  return value === "delegation.turn_admitted"
+}
+
+function EventSubscribeSseValue1414(value: unknown): boolean {
+  return value === 1
 }
 
 function EventSubscribeSseValue1413(value: unknown): boolean {
   return (
     isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue2(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1414(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1415(value["type"]) &&
-    Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue1416(value["durable"]) &&
-    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1418(value["data"])
-  )
-}
-
-function EventSubscribeSseValue1424(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
-  )
-}
-
-function EventSubscribeSseValue1425(value: unknown): boolean {
-  return value === "delegation.delivery_admitted"
-}
-
-function EventSubscribeSseValue1427(value: unknown): boolean {
-  return value === 1
-}
-
-function EventSubscribeSseValue1426(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
     EventSubscribeSseValue5(value["aggregateID"]) &&
     Object.hasOwn(value, "seq") &&
     EventSubscribeSseValue58(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue1427(value["version"])
+    EventSubscribeSseValue1414(value["version"])
   )
 }
 
-function EventSubscribeSseValue1429(value: unknown): boolean {
+function EventSubscribeSseValue1416(value: unknown): boolean {
+  return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value >= 0
+}
+
+function EventSubscribeSseValue1418(value: unknown): boolean {
+  return value === "task"
+}
+
+function EventSubscribeSseValue1419(value: unknown): boolean {
+  return value === "evidence"
+}
+
+function EventSubscribeSseValue1420(value: unknown): boolean {
+  return value === "review"
+}
+
+function EventSubscribeSseValue1421(value: unknown): boolean {
+  return value === "repair"
+}
+
+function EventSubscribeSseValue1422(value: unknown): boolean {
+  return value === "close"
+}
+
+function EventSubscribeSseValue1417(value: unknown): boolean {
   return (
-    typeof value === "string" &&
-    (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
-    typeof value.length === "number" &&
-    value.length >= 1 &&
-    (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
-    typeof value.length === "number" &&
-    value.length <= 512
-  )
-}
-
-function EventSubscribeSseValue1430(value: unknown): boolean {
-  return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value >= 1
-}
-
-function EventSubscribeSseValue1432(value: unknown): boolean {
-  return value === "admitted"
-}
-
-function EventSubscribeSseValue1433(value: unknown): boolean {
-  return value === "queued"
-}
-
-function EventSubscribeSseValue1431(value: unknown): boolean {
-  return EventSubscribeSseValue1432(value) || EventSubscribeSseValue1433(value)
-}
-
-function EventSubscribeSseValue1428(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "delegationID") &&
-    EventSubscribeSseValue123(value["delegationID"]) &&
-    Object.hasOwn(value, "turnID") &&
-    EventSubscribeSseValue312(value["turnID"]) &&
-    Object.hasOwn(value, "participantID") &&
-    EventSubscribeSseValue124(value["participantID"]) &&
-    Object.hasOwn(value, "deliveryOrigin") &&
-    EventSubscribeSseValue1429(value["deliveryOrigin"]) &&
-    Object.hasOwn(value, "senderParticipantID") &&
-    EventSubscribeSseValue124(value["senderParticipantID"]) &&
-    Object.hasOwn(value, "attempt") &&
-    EventSubscribeSseValue1430(value["attempt"]) &&
-    Object.hasOwn(value, "status") &&
-    EventSubscribeSseValue1431(value["status"]) &&
-    Object.hasOwn(value, "timestamp") &&
-    EventSubscribeSseValue901(value["timestamp"])
+    EventSubscribeSseValue1418(value) ||
+    EventSubscribeSseValue1419(value) ||
+    EventSubscribeSseValue1420(value) ||
+    EventSubscribeSseValue1421(value) ||
+    EventSubscribeSseValue1422(value)
   )
 }
 
 function EventSubscribeSseValue1423(value: unknown): boolean {
   return (
+    typeof value === "string" &&
+    (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
+    typeof value.length === "number" &&
+    value.length <= 1024
+  )
+}
+
+function EventSubscribeSseValue1424(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function EventSubscribeSseValue1425(value: unknown): boolean {
+  return typeof value === "string" && typeof value === "string" && new RegExp("^rev_[a-f0-9]{64}$", "").test(value)
+}
+
+function EventSubscribeSseValue1426(value: unknown): boolean {
+  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue124)
+}
+
+function EventSubscribeSseValue1428(value: unknown): boolean {
+  return value === "steer"
+}
+
+function EventSubscribeSseValue1429(value: unknown): boolean {
+  return value === "queue"
+}
+
+function EventSubscribeSseValue1427(value: unknown): boolean {
+  return EventSubscribeSseValue1428(value) || EventSubscribeSseValue1429(value)
+}
+
+function EventSubscribeSseValue1415(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "delegationID") &&
+    EventSubscribeSseValue123(value["delegationID"]) &&
+    Object.hasOwn(value, "turnID") &&
+    EventSubscribeSseValue312(value["turnID"]) &&
+    Object.hasOwn(value, "seq") &&
+    EventSubscribeSseValue1416(value["seq"]) &&
+    Object.hasOwn(value, "kind") &&
+    EventSubscribeSseValue1417(value["kind"]) &&
+    (!Object.hasOwn(value, "promptSummary") || EventSubscribeSseValue1423(value["promptSummary"])) &&
+    (!Object.hasOwn(value, "evidenceDigest") || EventSubscribeSseValue1424(value["evidenceDigest"])) &&
+    (!Object.hasOwn(value, "revisionDigest") || EventSubscribeSseValue1425(value["revisionDigest"])) &&
+    Object.hasOwn(value, "participantIDs") &&
+    EventSubscribeSseValue1426(value["participantIDs"]) &&
+    Object.hasOwn(value, "delivery") &&
+    EventSubscribeSseValue1427(value["delivery"]) &&
+    Object.hasOwn(value, "timestamp") &&
+    EventSubscribeSseValue918(value["timestamp"])
+  )
+}
+
+function EventSubscribeSseValue1410(value: unknown): boolean {
+  return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1424(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1411(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1425(value["type"]) &&
+    EventSubscribeSseValue1412(value["type"]) &&
     Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue1426(value["durable"]) &&
+    EventSubscribeSseValue1413(value["durable"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1428(value["data"])
+    EventSubscribeSseValue1415(value["data"])
   )
+}
+
+function EventSubscribeSseValue1431(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+  )
+}
+
+function EventSubscribeSseValue1432(value: unknown): boolean {
+  return value === "delegation.turn_appended"
+}
+
+function EventSubscribeSseValue1434(value: unknown): boolean {
+  return value === 1
+}
+
+function EventSubscribeSseValue1433(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "aggregateID") &&
+    EventSubscribeSseValue5(value["aggregateID"]) &&
+    Object.hasOwn(value, "seq") &&
+    EventSubscribeSseValue58(value["seq"]) &&
+    Object.hasOwn(value, "version") &&
+    EventSubscribeSseValue1434(value["version"])
+  )
+}
+
+function EventSubscribeSseValue1436(value: unknown): boolean {
+  return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value >= 0
+}
+
+function EventSubscribeSseValue1437(value: unknown): boolean {
+  return (
+    typeof value === "string" &&
+    (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
+    typeof value.length === "number" &&
+    value.length <= 1024
+  )
+}
+
+function EventSubscribeSseValue1438(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function EventSubscribeSseValue1439(value: unknown): boolean {
+  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue124)
 }
 
 function EventSubscribeSseValue1435(value: unknown): boolean {
   return (
     isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
-  )
-}
-
-function EventSubscribeSseValue1436(value: unknown): boolean {
-  return value === "delegation.delivery_started"
-}
-
-function EventSubscribeSseValue1438(value: unknown): boolean {
-  return value === 1
-}
-
-function EventSubscribeSseValue1437(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "aggregateID") &&
-    EventSubscribeSseValue5(value["aggregateID"]) &&
-    Object.hasOwn(value, "seq") &&
-    EventSubscribeSseValue58(value["seq"]) &&
-    Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue1438(value["version"])
-  )
-}
-
-function EventSubscribeSseValue1440(value: unknown): boolean {
-  return (
-    typeof value === "string" &&
-    (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
-    typeof value.length === "number" &&
-    value.length >= 1 &&
-    (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
-    typeof value.length === "number" &&
-    value.length <= 512
-  )
-}
-
-function EventSubscribeSseValue1441(value: unknown): boolean {
-  return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value >= 1
-}
-
-function EventSubscribeSseValue1439(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
     Object.hasOwn(value, "delegationID") &&
     EventSubscribeSseValue123(value["delegationID"]) &&
     Object.hasOwn(value, "turnID") &&
     EventSubscribeSseValue312(value["turnID"]) &&
-    Object.hasOwn(value, "participantID") &&
-    EventSubscribeSseValue124(value["participantID"]) &&
-    Object.hasOwn(value, "deliveryOrigin") &&
-    EventSubscribeSseValue1440(value["deliveryOrigin"]) &&
-    Object.hasOwn(value, "senderParticipantID") &&
-    EventSubscribeSseValue124(value["senderParticipantID"]) &&
-    Object.hasOwn(value, "attempt") &&
-    EventSubscribeSseValue1441(value["attempt"]) &&
+    Object.hasOwn(value, "seq") &&
+    EventSubscribeSseValue1436(value["seq"]) &&
+    Object.hasOwn(value, "kind") &&
+    EventSubscribeSseValue1417(value["kind"]) &&
+    (!Object.hasOwn(value, "promptSummary") || EventSubscribeSseValue1437(value["promptSummary"])) &&
+    (!Object.hasOwn(value, "evidenceDigest") || EventSubscribeSseValue1438(value["evidenceDigest"])) &&
+    (!Object.hasOwn(value, "revisionDigest") || EventSubscribeSseValue1425(value["revisionDigest"])) &&
+    Object.hasOwn(value, "participantIDs") &&
+    EventSubscribeSseValue1439(value["participantIDs"]) &&
+    Object.hasOwn(value, "delivery") &&
+    EventSubscribeSseValue1427(value["delivery"]) &&
     Object.hasOwn(value, "timestamp") &&
-    EventSubscribeSseValue901(value["timestamp"])
+    EventSubscribeSseValue918(value["timestamp"])
   )
 }
 
-function EventSubscribeSseValue1434(value: unknown): boolean {
+function EventSubscribeSseValue1430(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1435(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1431(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1436(value["type"]) &&
+    EventSubscribeSseValue1432(value["type"]) &&
     Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue1437(value["durable"]) &&
+    EventSubscribeSseValue1433(value["durable"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1439(value["data"])
+    EventSubscribeSseValue1435(value["data"])
   )
+}
+
+function EventSubscribeSseValue1441(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+  )
+}
+
+function EventSubscribeSseValue1442(value: unknown): boolean {
+  return value === "delegation.delivery_admitted"
+}
+
+function EventSubscribeSseValue1444(value: unknown): boolean {
+  return value === 1
 }
 
 function EventSubscribeSseValue1443(value: unknown): boolean {
   return (
     isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
-  )
-}
-
-function EventSubscribeSseValue1444(value: unknown): boolean {
-  return value === "delegation.delivery_completed"
-}
-
-function EventSubscribeSseValue1446(value: unknown): boolean {
-  return value === 1
-}
-
-function EventSubscribeSseValue1445(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
     EventSubscribeSseValue5(value["aggregateID"]) &&
     Object.hasOwn(value, "seq") &&
     EventSubscribeSseValue58(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue1446(value["version"])
+    EventSubscribeSseValue1444(value["version"])
   )
 }
 
-function EventSubscribeSseValue1448(value: unknown): boolean {
+function EventSubscribeSseValue1446(value: unknown): boolean {
   return (
     typeof value === "string" &&
     (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
@@ -20375,24 +20420,23 @@ function EventSubscribeSseValue1448(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue1449(value: unknown): boolean {
+function EventSubscribeSseValue1447(value: unknown): boolean {
   return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value >= 1
 }
 
+function EventSubscribeSseValue1449(value: unknown): boolean {
+  return value === "admitted"
+}
+
 function EventSubscribeSseValue1450(value: unknown): boolean {
-  return typeof value === "string"
+  return value === "queued"
 }
 
-function EventSubscribeSseValue1451(value: unknown): boolean {
-  return (
-    typeof value === "string" &&
-    (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
-    typeof value.length === "number" &&
-    value.length <= 4096
-  )
+function EventSubscribeSseValue1448(value: unknown): boolean {
+  return EventSubscribeSseValue1449(value) || EventSubscribeSseValue1450(value)
 }
 
-function EventSubscribeSseValue1447(value: unknown): boolean {
+function EventSubscribeSseValue1445(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "delegationID") &&
@@ -20402,153 +20446,52 @@ function EventSubscribeSseValue1447(value: unknown): boolean {
     Object.hasOwn(value, "participantID") &&
     EventSubscribeSseValue124(value["participantID"]) &&
     Object.hasOwn(value, "deliveryOrigin") &&
-    EventSubscribeSseValue1448(value["deliveryOrigin"]) &&
+    EventSubscribeSseValue1446(value["deliveryOrigin"]) &&
     Object.hasOwn(value, "senderParticipantID") &&
     EventSubscribeSseValue124(value["senderParticipantID"]) &&
     Object.hasOwn(value, "attempt") &&
-    EventSubscribeSseValue1449(value["attempt"]) &&
-    (!Object.hasOwn(value, "externalTurnID") || EventSubscribeSseValue1450(value["externalTurnID"])) &&
-    (!Object.hasOwn(value, "summary") || EventSubscribeSseValue1451(value["summary"])) &&
+    EventSubscribeSseValue1447(value["attempt"]) &&
+    Object.hasOwn(value, "status") &&
+    EventSubscribeSseValue1448(value["status"]) &&
     Object.hasOwn(value, "timestamp") &&
-    EventSubscribeSseValue901(value["timestamp"])
+    EventSubscribeSseValue918(value["timestamp"])
   )
 }
 
-function EventSubscribeSseValue1442(value: unknown): boolean {
+function EventSubscribeSseValue1440(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1443(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1441(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1444(value["type"]) &&
+    EventSubscribeSseValue1442(value["type"]) &&
     Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue1445(value["durable"]) &&
+    EventSubscribeSseValue1443(value["durable"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1447(value["data"])
-  )
-}
-
-function EventSubscribeSseValue1453(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
-  )
-}
-
-function EventSubscribeSseValue1454(value: unknown): boolean {
-  return value === "delegation.delivery_failed"
-}
-
-function EventSubscribeSseValue1456(value: unknown): boolean {
-  return value === 1
-}
-
-function EventSubscribeSseValue1455(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "aggregateID") &&
-    EventSubscribeSseValue5(value["aggregateID"]) &&
-    Object.hasOwn(value, "seq") &&
-    EventSubscribeSseValue58(value["seq"]) &&
-    Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue1456(value["version"])
-  )
-}
-
-function EventSubscribeSseValue1458(value: unknown): boolean {
-  return (
-    typeof value === "string" &&
-    (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
-    typeof value.length === "number" &&
-    value.length >= 1 &&
-    (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
-    typeof value.length === "number" &&
-    value.length <= 512
-  )
-}
-
-function EventSubscribeSseValue1459(value: unknown): boolean {
-  return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value >= 1
-}
-
-function EventSubscribeSseValue1460(value: unknown): boolean {
-  return (
-    typeof value === "string" &&
-    (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
-    typeof value.length === "number" &&
-    value.length <= 256
-  )
-}
-
-function EventSubscribeSseValue1461(value: unknown): boolean {
-  return (
-    typeof value === "string" &&
-    (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
-    typeof value.length === "number" &&
-    value.length <= 4096
-  )
-}
-
-function EventSubscribeSseValue1457(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "delegationID") &&
-    EventSubscribeSseValue123(value["delegationID"]) &&
-    Object.hasOwn(value, "turnID") &&
-    EventSubscribeSseValue312(value["turnID"]) &&
-    Object.hasOwn(value, "participantID") &&
-    EventSubscribeSseValue124(value["participantID"]) &&
-    Object.hasOwn(value, "deliveryOrigin") &&
-    EventSubscribeSseValue1458(value["deliveryOrigin"]) &&
-    Object.hasOwn(value, "senderParticipantID") &&
-    EventSubscribeSseValue124(value["senderParticipantID"]) &&
-    Object.hasOwn(value, "attempt") &&
-    EventSubscribeSseValue1459(value["attempt"]) &&
-    (!Object.hasOwn(value, "errorCode") || EventSubscribeSseValue1460(value["errorCode"])) &&
-    (!Object.hasOwn(value, "summary") || EventSubscribeSseValue1461(value["summary"])) &&
-    Object.hasOwn(value, "timestamp") &&
-    EventSubscribeSseValue901(value["timestamp"])
+    EventSubscribeSseValue1445(value["data"])
   )
 }
 
 function EventSubscribeSseValue1452(value: unknown): boolean {
   return (
     isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue2(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1453(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1454(value["type"]) &&
-    Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue1455(value["durable"]) &&
-    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1457(value["data"])
-  )
-}
-
-function EventSubscribeSseValue1463(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
-function EventSubscribeSseValue1464(value: unknown): boolean {
-  return value === "delegation.delivery_cancelled"
+function EventSubscribeSseValue1453(value: unknown): boolean {
+  return value === "delegation.delivery_started"
 }
 
-function EventSubscribeSseValue1466(value: unknown): boolean {
+function EventSubscribeSseValue1455(value: unknown): boolean {
   return value === 1
 }
 
-function EventSubscribeSseValue1465(value: unknown): boolean {
+function EventSubscribeSseValue1454(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -20556,8 +20499,109 @@ function EventSubscribeSseValue1465(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     EventSubscribeSseValue58(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue1466(value["version"])
+    EventSubscribeSseValue1455(value["version"])
   )
+}
+
+function EventSubscribeSseValue1457(value: unknown): boolean {
+  return (
+    typeof value === "string" &&
+    (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
+    typeof value.length === "number" &&
+    value.length >= 1 &&
+    (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
+    typeof value.length === "number" &&
+    value.length <= 512
+  )
+}
+
+function EventSubscribeSseValue1458(value: unknown): boolean {
+  return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value >= 1
+}
+
+function EventSubscribeSseValue1456(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "delegationID") &&
+    EventSubscribeSseValue123(value["delegationID"]) &&
+    Object.hasOwn(value, "turnID") &&
+    EventSubscribeSseValue312(value["turnID"]) &&
+    Object.hasOwn(value, "participantID") &&
+    EventSubscribeSseValue124(value["participantID"]) &&
+    Object.hasOwn(value, "deliveryOrigin") &&
+    EventSubscribeSseValue1457(value["deliveryOrigin"]) &&
+    Object.hasOwn(value, "senderParticipantID") &&
+    EventSubscribeSseValue124(value["senderParticipantID"]) &&
+    Object.hasOwn(value, "attempt") &&
+    EventSubscribeSseValue1458(value["attempt"]) &&
+    Object.hasOwn(value, "timestamp") &&
+    EventSubscribeSseValue918(value["timestamp"])
+  )
+}
+
+function EventSubscribeSseValue1451(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue2(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    EventSubscribeSseValue3(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1452(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue1453(value["type"]) &&
+    Object.hasOwn(value, "durable") &&
+    EventSubscribeSseValue1454(value["durable"]) &&
+    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    EventSubscribeSseValue1456(value["data"])
+  )
+}
+
+function EventSubscribeSseValue1460(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+  )
+}
+
+function EventSubscribeSseValue1461(value: unknown): boolean {
+  return value === "delegation.delivery_completed"
+}
+
+function EventSubscribeSseValue1463(value: unknown): boolean {
+  return value === 1
+}
+
+function EventSubscribeSseValue1462(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "aggregateID") &&
+    EventSubscribeSseValue5(value["aggregateID"]) &&
+    Object.hasOwn(value, "seq") &&
+    EventSubscribeSseValue58(value["seq"]) &&
+    Object.hasOwn(value, "version") &&
+    EventSubscribeSseValue1463(value["version"])
+  )
+}
+
+function EventSubscribeSseValue1465(value: unknown): boolean {
+  return (
+    typeof value === "string" &&
+    (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
+    typeof value.length === "number" &&
+    value.length >= 1 &&
+    (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
+    typeof value.length === "number" &&
+    value.length <= 512
+  )
+}
+
+function EventSubscribeSseValue1466(value: unknown): boolean {
+  return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value >= 1
+}
+
+function EventSubscribeSseValue1467(value: unknown): boolean {
+  return typeof value === "string"
 }
 
 function EventSubscribeSseValue1468(value: unknown): boolean {
@@ -20565,27 +20609,11 @@ function EventSubscribeSseValue1468(value: unknown): boolean {
     typeof value === "string" &&
     (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
     typeof value.length === "number" &&
-    value.length >= 1 &&
-    (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
-    typeof value.length === "number" &&
-    value.length <= 512
-  )
-}
-
-function EventSubscribeSseValue1469(value: unknown): boolean {
-  return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value >= 1
-}
-
-function EventSubscribeSseValue1470(value: unknown): boolean {
-  return (
-    typeof value === "string" &&
-    (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
-    typeof value.length === "number" &&
     value.length <= 4096
   )
 }
 
-function EventSubscribeSseValue1467(value: unknown): boolean {
+function EventSubscribeSseValue1464(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "delegationID") &&
@@ -20595,51 +20623,52 @@ function EventSubscribeSseValue1467(value: unknown): boolean {
     Object.hasOwn(value, "participantID") &&
     EventSubscribeSseValue124(value["participantID"]) &&
     Object.hasOwn(value, "deliveryOrigin") &&
-    EventSubscribeSseValue1468(value["deliveryOrigin"]) &&
+    EventSubscribeSseValue1465(value["deliveryOrigin"]) &&
     Object.hasOwn(value, "senderParticipantID") &&
     EventSubscribeSseValue124(value["senderParticipantID"]) &&
     Object.hasOwn(value, "attempt") &&
-    EventSubscribeSseValue1469(value["attempt"]) &&
-    (!Object.hasOwn(value, "summary") || EventSubscribeSseValue1470(value["summary"])) &&
+    EventSubscribeSseValue1466(value["attempt"]) &&
+    (!Object.hasOwn(value, "externalTurnID") || EventSubscribeSseValue1467(value["externalTurnID"])) &&
+    (!Object.hasOwn(value, "summary") || EventSubscribeSseValue1468(value["summary"])) &&
     Object.hasOwn(value, "timestamp") &&
-    EventSubscribeSseValue901(value["timestamp"])
+    EventSubscribeSseValue918(value["timestamp"])
   )
 }
 
-function EventSubscribeSseValue1462(value: unknown): boolean {
+function EventSubscribeSseValue1459(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1463(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1460(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1464(value["type"]) &&
+    EventSubscribeSseValue1461(value["type"]) &&
     Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue1465(value["durable"]) &&
+    EventSubscribeSseValue1462(value["durable"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1467(value["data"])
+    EventSubscribeSseValue1464(value["data"])
   )
 }
 
-function EventSubscribeSseValue1472(value: unknown): boolean {
+function EventSubscribeSseValue1470(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
-function EventSubscribeSseValue1473(value: unknown): boolean {
-  return value === "delegation.delivery_recovery_required"
+function EventSubscribeSseValue1471(value: unknown): boolean {
+  return value === "delegation.delivery_failed"
 }
 
-function EventSubscribeSseValue1475(value: unknown): boolean {
+function EventSubscribeSseValue1473(value: unknown): boolean {
   return value === 1
 }
 
-function EventSubscribeSseValue1474(value: unknown): boolean {
+function EventSubscribeSseValue1472(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -20647,11 +20676,11 @@ function EventSubscribeSseValue1474(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     EventSubscribeSseValue58(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue1475(value["version"])
+    EventSubscribeSseValue1473(value["version"])
   )
 }
 
-function EventSubscribeSseValue1477(value: unknown): boolean {
+function EventSubscribeSseValue1475(value: unknown): boolean {
   return (
     typeof value === "string" &&
     (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
@@ -20663,11 +20692,11 @@ function EventSubscribeSseValue1477(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue1478(value: unknown): boolean {
+function EventSubscribeSseValue1476(value: unknown): boolean {
   return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value >= 1
 }
 
-function EventSubscribeSseValue1479(value: unknown): boolean {
+function EventSubscribeSseValue1477(value: unknown): boolean {
   return (
     typeof value === "string" &&
     (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
@@ -20676,7 +20705,7 @@ function EventSubscribeSseValue1479(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue1480(value: unknown): boolean {
+function EventSubscribeSseValue1478(value: unknown): boolean {
   return (
     typeof value === "string" &&
     (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
@@ -20685,7 +20714,7 @@ function EventSubscribeSseValue1480(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue1476(value: unknown): boolean {
+function EventSubscribeSseValue1474(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "delegationID") &&
@@ -20695,52 +20724,52 @@ function EventSubscribeSseValue1476(value: unknown): boolean {
     Object.hasOwn(value, "participantID") &&
     EventSubscribeSseValue124(value["participantID"]) &&
     Object.hasOwn(value, "deliveryOrigin") &&
-    EventSubscribeSseValue1477(value["deliveryOrigin"]) &&
+    EventSubscribeSseValue1475(value["deliveryOrigin"]) &&
     Object.hasOwn(value, "senderParticipantID") &&
     EventSubscribeSseValue124(value["senderParticipantID"]) &&
     Object.hasOwn(value, "attempt") &&
-    EventSubscribeSseValue1478(value["attempt"]) &&
-    (!Object.hasOwn(value, "errorCode") || EventSubscribeSseValue1479(value["errorCode"])) &&
-    (!Object.hasOwn(value, "summary") || EventSubscribeSseValue1480(value["summary"])) &&
+    EventSubscribeSseValue1476(value["attempt"]) &&
+    (!Object.hasOwn(value, "errorCode") || EventSubscribeSseValue1477(value["errorCode"])) &&
+    (!Object.hasOwn(value, "summary") || EventSubscribeSseValue1478(value["summary"])) &&
     Object.hasOwn(value, "timestamp") &&
-    EventSubscribeSseValue901(value["timestamp"])
+    EventSubscribeSseValue918(value["timestamp"])
   )
 }
 
-function EventSubscribeSseValue1471(value: unknown): boolean {
+function EventSubscribeSseValue1469(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1472(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1470(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1473(value["type"]) &&
+    EventSubscribeSseValue1471(value["type"]) &&
     Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue1474(value["durable"]) &&
+    EventSubscribeSseValue1472(value["durable"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1476(value["data"])
+    EventSubscribeSseValue1474(value["data"])
   )
 }
 
-function EventSubscribeSseValue1482(value: unknown): boolean {
+function EventSubscribeSseValue1480(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
-function EventSubscribeSseValue1483(value: unknown): boolean {
-  return value === "delegation.revision_recorded"
+function EventSubscribeSseValue1481(value: unknown): boolean {
+  return value === "delegation.delivery_cancelled"
 }
 
-function EventSubscribeSseValue1485(value: unknown): boolean {
+function EventSubscribeSseValue1483(value: unknown): boolean {
   return value === 1
 }
 
-function EventSubscribeSseValue1484(value: unknown): boolean {
+function EventSubscribeSseValue1482(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -20748,11 +20777,203 @@ function EventSubscribeSseValue1484(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     EventSubscribeSseValue58(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue1485(value["version"])
+    EventSubscribeSseValue1483(value["version"])
   )
 }
 
+function EventSubscribeSseValue1485(value: unknown): boolean {
+  return (
+    typeof value === "string" &&
+    (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
+    typeof value.length === "number" &&
+    value.length >= 1 &&
+    (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
+    typeof value.length === "number" &&
+    value.length <= 512
+  )
+}
+
+function EventSubscribeSseValue1486(value: unknown): boolean {
+  return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value >= 1
+}
+
 function EventSubscribeSseValue1487(value: unknown): boolean {
+  return (
+    typeof value === "string" &&
+    (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
+    typeof value.length === "number" &&
+    value.length <= 4096
+  )
+}
+
+function EventSubscribeSseValue1484(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "delegationID") &&
+    EventSubscribeSseValue123(value["delegationID"]) &&
+    Object.hasOwn(value, "turnID") &&
+    EventSubscribeSseValue312(value["turnID"]) &&
+    Object.hasOwn(value, "participantID") &&
+    EventSubscribeSseValue124(value["participantID"]) &&
+    Object.hasOwn(value, "deliveryOrigin") &&
+    EventSubscribeSseValue1485(value["deliveryOrigin"]) &&
+    Object.hasOwn(value, "senderParticipantID") &&
+    EventSubscribeSseValue124(value["senderParticipantID"]) &&
+    Object.hasOwn(value, "attempt") &&
+    EventSubscribeSseValue1486(value["attempt"]) &&
+    (!Object.hasOwn(value, "summary") || EventSubscribeSseValue1487(value["summary"])) &&
+    Object.hasOwn(value, "timestamp") &&
+    EventSubscribeSseValue918(value["timestamp"])
+  )
+}
+
+function EventSubscribeSseValue1479(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue2(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    EventSubscribeSseValue3(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1480(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue1481(value["type"]) &&
+    Object.hasOwn(value, "durable") &&
+    EventSubscribeSseValue1482(value["durable"]) &&
+    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    EventSubscribeSseValue1484(value["data"])
+  )
+}
+
+function EventSubscribeSseValue1489(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+  )
+}
+
+function EventSubscribeSseValue1490(value: unknown): boolean {
+  return value === "delegation.delivery_recovery_required"
+}
+
+function EventSubscribeSseValue1492(value: unknown): boolean {
+  return value === 1
+}
+
+function EventSubscribeSseValue1491(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "aggregateID") &&
+    EventSubscribeSseValue5(value["aggregateID"]) &&
+    Object.hasOwn(value, "seq") &&
+    EventSubscribeSseValue58(value["seq"]) &&
+    Object.hasOwn(value, "version") &&
+    EventSubscribeSseValue1492(value["version"])
+  )
+}
+
+function EventSubscribeSseValue1494(value: unknown): boolean {
+  return (
+    typeof value === "string" &&
+    (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
+    typeof value.length === "number" &&
+    value.length >= 1 &&
+    (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
+    typeof value.length === "number" &&
+    value.length <= 512
+  )
+}
+
+function EventSubscribeSseValue1495(value: unknown): boolean {
+  return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value >= 1
+}
+
+function EventSubscribeSseValue1496(value: unknown): boolean {
+  return (
+    typeof value === "string" &&
+    (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
+    typeof value.length === "number" &&
+    value.length <= 256
+  )
+}
+
+function EventSubscribeSseValue1497(value: unknown): boolean {
+  return (
+    typeof value === "string" &&
+    (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
+    typeof value.length === "number" &&
+    value.length <= 4096
+  )
+}
+
+function EventSubscribeSseValue1493(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "delegationID") &&
+    EventSubscribeSseValue123(value["delegationID"]) &&
+    Object.hasOwn(value, "turnID") &&
+    EventSubscribeSseValue312(value["turnID"]) &&
+    Object.hasOwn(value, "participantID") &&
+    EventSubscribeSseValue124(value["participantID"]) &&
+    Object.hasOwn(value, "deliveryOrigin") &&
+    EventSubscribeSseValue1494(value["deliveryOrigin"]) &&
+    Object.hasOwn(value, "senderParticipantID") &&
+    EventSubscribeSseValue124(value["senderParticipantID"]) &&
+    Object.hasOwn(value, "attempt") &&
+    EventSubscribeSseValue1495(value["attempt"]) &&
+    (!Object.hasOwn(value, "errorCode") || EventSubscribeSseValue1496(value["errorCode"])) &&
+    (!Object.hasOwn(value, "summary") || EventSubscribeSseValue1497(value["summary"])) &&
+    Object.hasOwn(value, "timestamp") &&
+    EventSubscribeSseValue918(value["timestamp"])
+  )
+}
+
+function EventSubscribeSseValue1488(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue2(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    EventSubscribeSseValue3(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1489(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue1490(value["type"]) &&
+    Object.hasOwn(value, "durable") &&
+    EventSubscribeSseValue1491(value["durable"]) &&
+    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    EventSubscribeSseValue1493(value["data"])
+  )
+}
+
+function EventSubscribeSseValue1499(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+  )
+}
+
+function EventSubscribeSseValue1500(value: unknown): boolean {
+  return value === "delegation.revision_recorded"
+}
+
+function EventSubscribeSseValue1502(value: unknown): boolean {
+  return value === 1
+}
+
+function EventSubscribeSseValue1501(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "aggregateID") &&
+    EventSubscribeSseValue5(value["aggregateID"]) &&
+    Object.hasOwn(value, "seq") &&
+    EventSubscribeSseValue58(value["seq"]) &&
+    Object.hasOwn(value, "version") &&
+    EventSubscribeSseValue1502(value["version"])
+  )
+}
+
+function EventSubscribeSseValue1504(value: unknown): boolean {
   return (
     typeof value === "string" &&
     (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
@@ -20764,36 +20985,36 @@ function EventSubscribeSseValue1487(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue1488(value: unknown): boolean {
+function EventSubscribeSseValue1505(value: unknown): boolean {
   return typeof value === "string" && typeof value === "string" && new RegExp("^rev_[a-f0-9]{64}$", "").test(value)
 }
 
-function EventSubscribeSseValue1490(value: unknown): boolean {
+function EventSubscribeSseValue1507(value: unknown): boolean {
   return value === "no_change"
 }
 
-function EventSubscribeSseValue1491(value: unknown): boolean {
+function EventSubscribeSseValue1508(value: unknown): boolean {
   return value === "no_code_change"
 }
 
-function EventSubscribeSseValue1492(value: unknown): boolean {
+function EventSubscribeSseValue1509(value: unknown): boolean {
   return value === "formatting_only"
 }
 
-function EventSubscribeSseValue1493(value: unknown): boolean {
+function EventSubscribeSseValue1510(value: unknown): boolean {
   return value === "rework"
 }
 
-function EventSubscribeSseValue1489(value: unknown): boolean {
+function EventSubscribeSseValue1506(value: unknown): boolean {
   return (
-    EventSubscribeSseValue1490(value) ||
-    EventSubscribeSseValue1491(value) ||
-    EventSubscribeSseValue1492(value) ||
-    EventSubscribeSseValue1493(value)
+    EventSubscribeSseValue1507(value) ||
+    EventSubscribeSseValue1508(value) ||
+    EventSubscribeSseValue1509(value) ||
+    EventSubscribeSseValue1510(value)
   )
 }
 
-function EventSubscribeSseValue1494(value: unknown): boolean {
+function EventSubscribeSseValue1511(value: unknown): boolean {
   return (
     typeof value === "string" &&
     (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
@@ -20802,7 +21023,7 @@ function EventSubscribeSseValue1494(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue1486(value: unknown): boolean {
+function EventSubscribeSseValue1503(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "delegationID") &&
@@ -20812,207 +21033,51 @@ function EventSubscribeSseValue1486(value: unknown): boolean {
     Object.hasOwn(value, "participantID") &&
     EventSubscribeSseValue124(value["participantID"]) &&
     Object.hasOwn(value, "commitSha") &&
-    EventSubscribeSseValue1487(value["commitSha"]) &&
+    EventSubscribeSseValue1504(value["commitSha"]) &&
     Object.hasOwn(value, "revisionDigest") &&
-    EventSubscribeSseValue1488(value["revisionDigest"]) &&
+    EventSubscribeSseValue1505(value["revisionDigest"]) &&
     Object.hasOwn(value, "changeKind") &&
-    EventSubscribeSseValue1489(value["changeKind"]) &&
-    (!Object.hasOwn(value, "diffSummary") || EventSubscribeSseValue1494(value["diffSummary"])) &&
+    EventSubscribeSseValue1506(value["changeKind"]) &&
+    (!Object.hasOwn(value, "diffSummary") || EventSubscribeSseValue1511(value["diffSummary"])) &&
     Object.hasOwn(value, "timestamp") &&
-    EventSubscribeSseValue901(value["timestamp"])
+    EventSubscribeSseValue918(value["timestamp"])
   )
-}
-
-function EventSubscribeSseValue1481(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue2(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1482(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1483(value["type"]) &&
-    Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue1484(value["durable"]) &&
-    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1486(value["data"])
-  )
-}
-
-function EventSubscribeSseValue1496(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
-  )
-}
-
-function EventSubscribeSseValue1497(value: unknown): boolean {
-  return value === "delegation.review_approved"
-}
-
-function EventSubscribeSseValue1499(value: unknown): boolean {
-  return value === 1
 }
 
 function EventSubscribeSseValue1498(value: unknown): boolean {
   return (
     isSseRecord(value) &&
-    Object.hasOwn(value, "aggregateID") &&
-    EventSubscribeSseValue5(value["aggregateID"]) &&
-    Object.hasOwn(value, "seq") &&
-    EventSubscribeSseValue58(value["seq"]) &&
-    Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue1499(value["version"])
-  )
-}
-
-function EventSubscribeSseValue1503(value: unknown): boolean {
-  return (
-    typeof value === "string" &&
-    (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
-    typeof value.length === "number" &&
-    value.length <= 1024
-  )
-}
-
-function EventSubscribeSseValue1504(value: unknown): boolean {
-  return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value >= 0
-}
-
-function EventSubscribeSseValue1506(value: unknown): boolean {
-  return value === "blocking"
-}
-
-function EventSubscribeSseValue1507(value: unknown): boolean {
-  return value === "major"
-}
-
-function EventSubscribeSseValue1508(value: unknown): boolean {
-  return value === "minor"
-}
-
-function EventSubscribeSseValue1509(value: unknown): boolean {
-  return value === "note"
-}
-
-function EventSubscribeSseValue1505(value: unknown): boolean {
-  return (
-    EventSubscribeSseValue1506(value) ||
-    EventSubscribeSseValue1507(value) ||
-    EventSubscribeSseValue1508(value) ||
-    EventSubscribeSseValue1509(value)
-  )
-}
-
-function EventSubscribeSseValue1510(value: unknown): boolean {
-  return (
-    typeof value === "string" &&
-    (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
-    typeof value.length === "number" &&
-    value.length >= 1 &&
-    (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
-    typeof value.length === "number" &&
-    value.length <= 2048
-  )
-}
-
-function EventSubscribeSseValue1511(value: unknown): boolean {
-  return (
-    typeof value === "string" &&
-    (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
-    typeof value.length === "number" &&
-    value.length <= 4096
-  )
-}
-
-function EventSubscribeSseValue1502(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    (!Object.hasOwn(value, "file") || EventSubscribeSseValue1503(value["file"])) &&
-    (!Object.hasOwn(value, "line") || EventSubscribeSseValue1504(value["line"])) &&
-    Object.hasOwn(value, "severity") &&
-    EventSubscribeSseValue1505(value["severity"]) &&
-    Object.hasOwn(value, "summary") &&
-    EventSubscribeSseValue1510(value["summary"]) &&
-    (!Object.hasOwn(value, "message") || EventSubscribeSseValue1511(value["message"]))
-  )
-}
-
-function EventSubscribeSseValue1501(value: unknown): boolean {
-  return (
-    isSseArray(value) &&
-    value.length >= 0 &&
-    value.slice(0).every(EventSubscribeSseValue1502) &&
-    (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
-    typeof value.length === "number" &&
-    value.length <= 100
-  )
-}
-
-function EventSubscribeSseValue1512(value: unknown): boolean {
-  return (
-    typeof value === "string" &&
-    (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
-    typeof value.length === "number" &&
-    value.length <= 4096
-  )
-}
-
-function EventSubscribeSseValue1500(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "delegationID") &&
-    EventSubscribeSseValue123(value["delegationID"]) &&
-    Object.hasOwn(value, "turnID") &&
-    EventSubscribeSseValue312(value["turnID"]) &&
-    Object.hasOwn(value, "participantID") &&
-    EventSubscribeSseValue124(value["participantID"]) &&
-    Object.hasOwn(value, "reviewedRevisionDigest") &&
-    EventSubscribeSseValue1488(value["reviewedRevisionDigest"]) &&
-    Object.hasOwn(value, "findings") &&
-    EventSubscribeSseValue1501(value["findings"]) &&
-    (!Object.hasOwn(value, "summary") || EventSubscribeSseValue1512(value["summary"])) &&
-    Object.hasOwn(value, "timestamp") &&
-    EventSubscribeSseValue901(value["timestamp"])
-  )
-}
-
-function EventSubscribeSseValue1495(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1496(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1499(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1497(value["type"]) &&
+    EventSubscribeSseValue1500(value["type"]) &&
     Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue1498(value["durable"]) &&
+    EventSubscribeSseValue1501(value["durable"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1500(value["data"])
+    EventSubscribeSseValue1503(value["data"])
   )
 }
 
-function EventSubscribeSseValue1514(value: unknown): boolean {
+function EventSubscribeSseValue1513(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
-function EventSubscribeSseValue1515(value: unknown): boolean {
-  return value === "delegation.review_changes_requested"
-}
-
-function EventSubscribeSseValue1517(value: unknown): boolean {
-  return value === 1
+function EventSubscribeSseValue1514(value: unknown): boolean {
+  return value === "delegation.review_approved"
 }
 
 function EventSubscribeSseValue1516(value: unknown): boolean {
+  return value === 1
+}
+
+function EventSubscribeSseValue1515(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -21020,18 +21085,7 @@ function EventSubscribeSseValue1516(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     EventSubscribeSseValue58(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue1517(value["version"])
-  )
-}
-
-function EventSubscribeSseValue1519(value: unknown): boolean {
-  return (
-    isSseArray(value) &&
-    value.length >= 0 &&
-    value.slice(0).every(EventSubscribeSseValue1502) &&
-    (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
-    typeof value.length === "number" &&
-    value.length <= 100
+    EventSubscribeSseValue1516(value["version"])
   )
 }
 
@@ -21040,82 +21094,48 @@ function EventSubscribeSseValue1520(value: unknown): boolean {
     typeof value === "string" &&
     (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
     typeof value.length === "number" &&
-    value.length <= 4096
+    value.length <= 1024
   )
 }
 
-function EventSubscribeSseValue1518(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "delegationID") &&
-    EventSubscribeSseValue123(value["delegationID"]) &&
-    Object.hasOwn(value, "turnID") &&
-    EventSubscribeSseValue312(value["turnID"]) &&
-    Object.hasOwn(value, "participantID") &&
-    EventSubscribeSseValue124(value["participantID"]) &&
-    Object.hasOwn(value, "reviewedRevisionDigest") &&
-    EventSubscribeSseValue1488(value["reviewedRevisionDigest"]) &&
-    Object.hasOwn(value, "findings") &&
-    EventSubscribeSseValue1519(value["findings"]) &&
-    (!Object.hasOwn(value, "summary") || EventSubscribeSseValue1520(value["summary"])) &&
-    Object.hasOwn(value, "timestamp") &&
-    EventSubscribeSseValue901(value["timestamp"])
-  )
+function EventSubscribeSseValue1521(value: unknown): boolean {
+  return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value >= 0
 }
 
-function EventSubscribeSseValue1513(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue2(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1514(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1515(value["type"]) &&
-    Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue1516(value["durable"]) &&
-    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1518(value["data"])
-  )
+function EventSubscribeSseValue1523(value: unknown): boolean {
+  return value === "blocking"
+}
+
+function EventSubscribeSseValue1524(value: unknown): boolean {
+  return value === "major"
+}
+
+function EventSubscribeSseValue1525(value: unknown): boolean {
+  return value === "minor"
+}
+
+function EventSubscribeSseValue1526(value: unknown): boolean {
+  return value === "note"
 }
 
 function EventSubscribeSseValue1522(value: unknown): boolean {
   return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
-  )
-}
-
-function EventSubscribeSseValue1523(value: unknown): boolean {
-  return value === "delegation.review_rejected"
-}
-
-function EventSubscribeSseValue1525(value: unknown): boolean {
-  return value === 1
-}
-
-function EventSubscribeSseValue1524(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "aggregateID") &&
-    EventSubscribeSseValue5(value["aggregateID"]) &&
-    Object.hasOwn(value, "seq") &&
-    EventSubscribeSseValue58(value["seq"]) &&
-    Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue1525(value["version"])
+    EventSubscribeSseValue1523(value) ||
+    EventSubscribeSseValue1524(value) ||
+    EventSubscribeSseValue1525(value) ||
+    EventSubscribeSseValue1526(value)
   )
 }
 
 function EventSubscribeSseValue1527(value: unknown): boolean {
   return (
-    isSseArray(value) &&
-    value.length >= 0 &&
-    value.slice(0).every(EventSubscribeSseValue1502) &&
+    typeof value === "string" &&
     (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
     typeof value.length === "number" &&
-    value.length <= 100
+    value.length >= 1 &&
+    (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
+    typeof value.length === "number" &&
+    value.length <= 2048
   )
 }
 
@@ -21128,7 +21148,40 @@ function EventSubscribeSseValue1528(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue1526(value: unknown): boolean {
+function EventSubscribeSseValue1519(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    (!Object.hasOwn(value, "file") || EventSubscribeSseValue1520(value["file"])) &&
+    (!Object.hasOwn(value, "line") || EventSubscribeSseValue1521(value["line"])) &&
+    Object.hasOwn(value, "severity") &&
+    EventSubscribeSseValue1522(value["severity"]) &&
+    Object.hasOwn(value, "summary") &&
+    EventSubscribeSseValue1527(value["summary"]) &&
+    (!Object.hasOwn(value, "message") || EventSubscribeSseValue1528(value["message"]))
+  )
+}
+
+function EventSubscribeSseValue1518(value: unknown): boolean {
+  return (
+    isSseArray(value) &&
+    value.length >= 0 &&
+    value.slice(0).every(EventSubscribeSseValue1519) &&
+    (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
+    typeof value.length === "number" &&
+    value.length <= 100
+  )
+}
+
+function EventSubscribeSseValue1529(value: unknown): boolean {
+  return (
+    typeof value === "string" &&
+    (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
+    typeof value.length === "number" &&
+    value.length <= 4096
+  )
+}
+
+function EventSubscribeSseValue1517(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "delegationID") &&
@@ -21138,49 +21191,49 @@ function EventSubscribeSseValue1526(value: unknown): boolean {
     Object.hasOwn(value, "participantID") &&
     EventSubscribeSseValue124(value["participantID"]) &&
     Object.hasOwn(value, "reviewedRevisionDigest") &&
-    EventSubscribeSseValue1488(value["reviewedRevisionDigest"]) &&
+    EventSubscribeSseValue1505(value["reviewedRevisionDigest"]) &&
     Object.hasOwn(value, "findings") &&
-    EventSubscribeSseValue1527(value["findings"]) &&
-    (!Object.hasOwn(value, "summary") || EventSubscribeSseValue1528(value["summary"])) &&
+    EventSubscribeSseValue1518(value["findings"]) &&
+    (!Object.hasOwn(value, "summary") || EventSubscribeSseValue1529(value["summary"])) &&
     Object.hasOwn(value, "timestamp") &&
-    EventSubscribeSseValue901(value["timestamp"])
+    EventSubscribeSseValue918(value["timestamp"])
   )
 }
 
-function EventSubscribeSseValue1521(value: unknown): boolean {
+function EventSubscribeSseValue1512(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1522(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1513(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1523(value["type"]) &&
+    EventSubscribeSseValue1514(value["type"]) &&
     Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue1524(value["durable"]) &&
+    EventSubscribeSseValue1515(value["durable"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1526(value["data"])
+    EventSubscribeSseValue1517(value["data"])
   )
 }
 
-function EventSubscribeSseValue1530(value: unknown): boolean {
+function EventSubscribeSseValue1531(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
-function EventSubscribeSseValue1531(value: unknown): boolean {
-  return value === "delegation.rejection_retracted"
+function EventSubscribeSseValue1532(value: unknown): boolean {
+  return value === "delegation.review_changes_requested"
 }
 
-function EventSubscribeSseValue1533(value: unknown): boolean {
+function EventSubscribeSseValue1534(value: unknown): boolean {
   return value === 1
 }
 
-function EventSubscribeSseValue1532(value: unknown): boolean {
+function EventSubscribeSseValue1533(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -21188,11 +21241,179 @@ function EventSubscribeSseValue1532(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     EventSubscribeSseValue58(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue1533(value["version"])
+    EventSubscribeSseValue1534(value["version"])
+  )
+}
+
+function EventSubscribeSseValue1536(value: unknown): boolean {
+  return (
+    isSseArray(value) &&
+    value.length >= 0 &&
+    value.slice(0).every(EventSubscribeSseValue1519) &&
+    (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
+    typeof value.length === "number" &&
+    value.length <= 100
+  )
+}
+
+function EventSubscribeSseValue1537(value: unknown): boolean {
+  return (
+    typeof value === "string" &&
+    (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
+    typeof value.length === "number" &&
+    value.length <= 4096
   )
 }
 
 function EventSubscribeSseValue1535(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "delegationID") &&
+    EventSubscribeSseValue123(value["delegationID"]) &&
+    Object.hasOwn(value, "turnID") &&
+    EventSubscribeSseValue312(value["turnID"]) &&
+    Object.hasOwn(value, "participantID") &&
+    EventSubscribeSseValue124(value["participantID"]) &&
+    Object.hasOwn(value, "reviewedRevisionDigest") &&
+    EventSubscribeSseValue1505(value["reviewedRevisionDigest"]) &&
+    Object.hasOwn(value, "findings") &&
+    EventSubscribeSseValue1536(value["findings"]) &&
+    (!Object.hasOwn(value, "summary") || EventSubscribeSseValue1537(value["summary"])) &&
+    Object.hasOwn(value, "timestamp") &&
+    EventSubscribeSseValue918(value["timestamp"])
+  )
+}
+
+function EventSubscribeSseValue1530(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue2(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    EventSubscribeSseValue3(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1531(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue1532(value["type"]) &&
+    Object.hasOwn(value, "durable") &&
+    EventSubscribeSseValue1533(value["durable"]) &&
+    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    EventSubscribeSseValue1535(value["data"])
+  )
+}
+
+function EventSubscribeSseValue1539(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+  )
+}
+
+function EventSubscribeSseValue1540(value: unknown): boolean {
+  return value === "delegation.review_rejected"
+}
+
+function EventSubscribeSseValue1542(value: unknown): boolean {
+  return value === 1
+}
+
+function EventSubscribeSseValue1541(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "aggregateID") &&
+    EventSubscribeSseValue5(value["aggregateID"]) &&
+    Object.hasOwn(value, "seq") &&
+    EventSubscribeSseValue58(value["seq"]) &&
+    Object.hasOwn(value, "version") &&
+    EventSubscribeSseValue1542(value["version"])
+  )
+}
+
+function EventSubscribeSseValue1544(value: unknown): boolean {
+  return (
+    isSseArray(value) &&
+    value.length >= 0 &&
+    value.slice(0).every(EventSubscribeSseValue1519) &&
+    (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
+    typeof value.length === "number" &&
+    value.length <= 100
+  )
+}
+
+function EventSubscribeSseValue1545(value: unknown): boolean {
+  return (
+    typeof value === "string" &&
+    (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
+    typeof value.length === "number" &&
+    value.length <= 4096
+  )
+}
+
+function EventSubscribeSseValue1543(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "delegationID") &&
+    EventSubscribeSseValue123(value["delegationID"]) &&
+    Object.hasOwn(value, "turnID") &&
+    EventSubscribeSseValue312(value["turnID"]) &&
+    Object.hasOwn(value, "participantID") &&
+    EventSubscribeSseValue124(value["participantID"]) &&
+    Object.hasOwn(value, "reviewedRevisionDigest") &&
+    EventSubscribeSseValue1505(value["reviewedRevisionDigest"]) &&
+    Object.hasOwn(value, "findings") &&
+    EventSubscribeSseValue1544(value["findings"]) &&
+    (!Object.hasOwn(value, "summary") || EventSubscribeSseValue1545(value["summary"])) &&
+    Object.hasOwn(value, "timestamp") &&
+    EventSubscribeSseValue918(value["timestamp"])
+  )
+}
+
+function EventSubscribeSseValue1538(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue2(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    EventSubscribeSseValue3(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1539(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue1540(value["type"]) &&
+    Object.hasOwn(value, "durable") &&
+    EventSubscribeSseValue1541(value["durable"]) &&
+    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    EventSubscribeSseValue1543(value["data"])
+  )
+}
+
+function EventSubscribeSseValue1547(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+  )
+}
+
+function EventSubscribeSseValue1548(value: unknown): boolean {
+  return value === "delegation.rejection_retracted"
+}
+
+function EventSubscribeSseValue1550(value: unknown): boolean {
+  return value === 1
+}
+
+function EventSubscribeSseValue1549(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "aggregateID") &&
+    EventSubscribeSseValue5(value["aggregateID"]) &&
+    Object.hasOwn(value, "seq") &&
+    EventSubscribeSseValue58(value["seq"]) &&
+    Object.hasOwn(value, "version") &&
+    EventSubscribeSseValue1550(value["version"])
+  )
+}
+
+function EventSubscribeSseValue1552(value: unknown): boolean {
   return (
     typeof value === "string" &&
     typeof value === "string" &&
@@ -21203,7 +21424,7 @@ function EventSubscribeSseValue1535(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue1536(value: unknown): boolean {
+function EventSubscribeSseValue1553(value: unknown): boolean {
   return (
     typeof value === "string" &&
     (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
@@ -21212,118 +21433,53 @@ function EventSubscribeSseValue1536(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue1534(value: unknown): boolean {
+function EventSubscribeSseValue1551(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "delegationID") &&
     EventSubscribeSseValue123(value["delegationID"]) &&
-    (!Object.hasOwn(value, "participantID") || EventSubscribeSseValue1535(value["participantID"])) &&
+    (!Object.hasOwn(value, "participantID") || EventSubscribeSseValue1552(value["participantID"])) &&
     Object.hasOwn(value, "reason") &&
-    EventSubscribeSseValue1536(value["reason"]) &&
+    EventSubscribeSseValue1553(value["reason"]) &&
     Object.hasOwn(value, "timestamp") &&
-    EventSubscribeSseValue901(value["timestamp"])
-  )
-}
-
-function EventSubscribeSseValue1529(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue2(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1530(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1531(value["type"]) &&
-    Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue1532(value["durable"]) &&
-    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1534(value["data"])
-  )
-}
-
-function EventSubscribeSseValue1538(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
-  )
-}
-
-function EventSubscribeSseValue1539(value: unknown): boolean {
-  return value === "delegation.closing"
-}
-
-function EventSubscribeSseValue1541(value: unknown): boolean {
-  return value === 1
-}
-
-function EventSubscribeSseValue1540(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "aggregateID") &&
-    EventSubscribeSseValue5(value["aggregateID"]) &&
-    Object.hasOwn(value, "seq") &&
-    EventSubscribeSseValue58(value["seq"]) &&
-    Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue1541(value["version"])
-  )
-}
-
-function EventSubscribeSseValue1543(value: unknown): boolean {
-  return (
-    typeof value === "string" &&
-    (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
-    typeof value.length === "number" &&
-    value.length <= 1000
-  )
-}
-
-function EventSubscribeSseValue1542(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "delegationID") &&
-    EventSubscribeSseValue123(value["delegationID"]) &&
-    (!Object.hasOwn(value, "reason") || EventSubscribeSseValue1543(value["reason"])) &&
-    Object.hasOwn(value, "timestamp") &&
-    EventSubscribeSseValue901(value["timestamp"])
-  )
-}
-
-function EventSubscribeSseValue1537(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue2(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1538(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1539(value["type"]) &&
-    Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue1540(value["durable"]) &&
-    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1542(value["data"])
-  )
-}
-
-function EventSubscribeSseValue1545(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+    EventSubscribeSseValue918(value["timestamp"])
   )
 }
 
 function EventSubscribeSseValue1546(value: unknown): boolean {
-  return value === "delegation.completed"
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue2(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    EventSubscribeSseValue3(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1547(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue1548(value["type"]) &&
+    Object.hasOwn(value, "durable") &&
+    EventSubscribeSseValue1549(value["durable"]) &&
+    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    EventSubscribeSseValue1551(value["data"])
+  )
 }
 
-function EventSubscribeSseValue1548(value: unknown): boolean {
+function EventSubscribeSseValue1555(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+  )
+}
+
+function EventSubscribeSseValue1556(value: unknown): boolean {
+  return value === "delegation.closing"
+}
+
+function EventSubscribeSseValue1558(value: unknown): boolean {
   return value === 1
 }
 
-function EventSubscribeSseValue1547(value: unknown): boolean {
+function EventSubscribeSseValue1557(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -21331,11 +21487,76 @@ function EventSubscribeSseValue1547(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     EventSubscribeSseValue58(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue1548(value["version"])
+    EventSubscribeSseValue1558(value["version"])
   )
 }
 
-function EventSubscribeSseValue1550(value: unknown): boolean {
+function EventSubscribeSseValue1560(value: unknown): boolean {
+  return (
+    typeof value === "string" &&
+    (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
+    typeof value.length === "number" &&
+    value.length <= 1000
+  )
+}
+
+function EventSubscribeSseValue1559(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "delegationID") &&
+    EventSubscribeSseValue123(value["delegationID"]) &&
+    (!Object.hasOwn(value, "reason") || EventSubscribeSseValue1560(value["reason"])) &&
+    Object.hasOwn(value, "timestamp") &&
+    EventSubscribeSseValue918(value["timestamp"])
+  )
+}
+
+function EventSubscribeSseValue1554(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue2(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    EventSubscribeSseValue3(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1555(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue1556(value["type"]) &&
+    Object.hasOwn(value, "durable") &&
+    EventSubscribeSseValue1557(value["durable"]) &&
+    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    EventSubscribeSseValue1559(value["data"])
+  )
+}
+
+function EventSubscribeSseValue1562(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+  )
+}
+
+function EventSubscribeSseValue1563(value: unknown): boolean {
+  return value === "delegation.completed"
+}
+
+function EventSubscribeSseValue1565(value: unknown): boolean {
+  return value === 1
+}
+
+function EventSubscribeSseValue1564(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "aggregateID") &&
+    EventSubscribeSseValue5(value["aggregateID"]) &&
+    Object.hasOwn(value, "seq") &&
+    EventSubscribeSseValue58(value["seq"]) &&
+    Object.hasOwn(value, "version") &&
+    EventSubscribeSseValue1565(value["version"])
+  )
+}
+
+function EventSubscribeSseValue1567(value: unknown): boolean {
   return (
     typeof value === "string" &&
     (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
@@ -21344,226 +21565,51 @@ function EventSubscribeSseValue1550(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue1549(value: unknown): boolean {
+function EventSubscribeSseValue1566(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "delegationID") &&
     EventSubscribeSseValue123(value["delegationID"]) &&
-    (!Object.hasOwn(value, "summary") || EventSubscribeSseValue1550(value["summary"])) &&
+    (!Object.hasOwn(value, "summary") || EventSubscribeSseValue1567(value["summary"])) &&
     Object.hasOwn(value, "timestamp") &&
-    EventSubscribeSseValue901(value["timestamp"])
+    EventSubscribeSseValue918(value["timestamp"])
   )
-}
-
-function EventSubscribeSseValue1544(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue2(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1545(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1546(value["type"]) &&
-    Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue1547(value["durable"]) &&
-    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1549(value["data"])
-  )
-}
-
-function EventSubscribeSseValue1552(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
-  )
-}
-
-function EventSubscribeSseValue1553(value: unknown): boolean {
-  return value === "delegation.cancelled"
-}
-
-function EventSubscribeSseValue1555(value: unknown): boolean {
-  return value === 1
-}
-
-function EventSubscribeSseValue1554(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "aggregateID") &&
-    EventSubscribeSseValue5(value["aggregateID"]) &&
-    Object.hasOwn(value, "seq") &&
-    EventSubscribeSseValue58(value["seq"]) &&
-    Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue1555(value["version"])
-  )
-}
-
-function EventSubscribeSseValue1557(value: unknown): boolean {
-  return (
-    typeof value === "string" &&
-    (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
-    typeof value.length === "number" &&
-    value.length <= 1000
-  )
-}
-
-function EventSubscribeSseValue1556(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "delegationID") &&
-    EventSubscribeSseValue123(value["delegationID"]) &&
-    (!Object.hasOwn(value, "reason") || EventSubscribeSseValue1557(value["reason"])) &&
-    Object.hasOwn(value, "timestamp") &&
-    EventSubscribeSseValue901(value["timestamp"])
-  )
-}
-
-function EventSubscribeSseValue1551(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue2(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1552(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1553(value["type"]) &&
-    Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue1554(value["durable"]) &&
-    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1556(value["data"])
-  )
-}
-
-function EventSubscribeSseValue1559(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
-  )
-}
-
-function EventSubscribeSseValue1560(value: unknown): boolean {
-  return value === "delegation.archived"
-}
-
-function EventSubscribeSseValue1562(value: unknown): boolean {
-  return value === 1
 }
 
 function EventSubscribeSseValue1561(value: unknown): boolean {
   return (
     isSseRecord(value) &&
-    Object.hasOwn(value, "aggregateID") &&
-    EventSubscribeSseValue5(value["aggregateID"]) &&
-    Object.hasOwn(value, "seq") &&
-    EventSubscribeSseValue58(value["seq"]) &&
-    Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue1562(value["version"])
-  )
-}
-
-function EventSubscribeSseValue1563(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "delegationID") &&
-    EventSubscribeSseValue123(value["delegationID"]) &&
-    Object.hasOwn(value, "timestamp") &&
-    EventSubscribeSseValue901(value["timestamp"])
-  )
-}
-
-function EventSubscribeSseValue1558(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1559(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1562(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1560(value["type"]) &&
+    EventSubscribeSseValue1563(value["type"]) &&
     Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue1561(value["durable"]) &&
+    EventSubscribeSseValue1564(value["durable"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1563(value["data"])
-  )
-}
-
-function EventSubscribeSseValue1565(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
-  )
-}
-
-function EventSubscribeSseValue1566(value: unknown): boolean {
-  return value === "delegation.unarchived"
-}
-
-function EventSubscribeSseValue1568(value: unknown): boolean {
-  return value === 1
-}
-
-function EventSubscribeSseValue1567(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "aggregateID") &&
-    EventSubscribeSseValue5(value["aggregateID"]) &&
-    Object.hasOwn(value, "seq") &&
-    EventSubscribeSseValue58(value["seq"]) &&
-    Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue1568(value["version"])
+    EventSubscribeSseValue1566(value["data"])
   )
 }
 
 function EventSubscribeSseValue1569(value: unknown): boolean {
   return (
     isSseRecord(value) &&
-    Object.hasOwn(value, "delegationID") &&
-    EventSubscribeSseValue123(value["delegationID"]) &&
-    Object.hasOwn(value, "timestamp") &&
-    EventSubscribeSseValue901(value["timestamp"])
-  )
-}
-
-function EventSubscribeSseValue1564(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue2(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1565(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1566(value["type"]) &&
-    Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue1567(value["durable"]) &&
-    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1569(value["data"])
-  )
-}
-
-function EventSubscribeSseValue1571(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
-function EventSubscribeSseValue1572(value: unknown): boolean {
-  return value === "delegation.forked"
+function EventSubscribeSseValue1570(value: unknown): boolean {
+  return value === "delegation.cancelled"
 }
 
-function EventSubscribeSseValue1574(value: unknown): boolean {
+function EventSubscribeSseValue1572(value: unknown): boolean {
   return value === 1
 }
 
-function EventSubscribeSseValue1573(value: unknown): boolean {
+function EventSubscribeSseValue1571(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -21571,11 +21617,11 @@ function EventSubscribeSseValue1573(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     EventSubscribeSseValue58(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue1574(value["version"])
+    EventSubscribeSseValue1572(value["version"])
   )
 }
 
-function EventSubscribeSseValue1576(value: unknown): boolean {
+function EventSubscribeSseValue1574(value: unknown): boolean {
   return (
     typeof value === "string" &&
     (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
@@ -21584,140 +21630,315 @@ function EventSubscribeSseValue1576(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue1575(value: unknown): boolean {
+function EventSubscribeSseValue1573(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "delegationID") &&
     EventSubscribeSseValue123(value["delegationID"]) &&
-    Object.hasOwn(value, "forkedDelegationID") &&
-    EventSubscribeSseValue123(value["forkedDelegationID"]) &&
-    (!Object.hasOwn(value, "reason") || EventSubscribeSseValue1576(value["reason"])) &&
+    (!Object.hasOwn(value, "reason") || EventSubscribeSseValue1574(value["reason"])) &&
     Object.hasOwn(value, "timestamp") &&
-    EventSubscribeSseValue901(value["timestamp"])
+    EventSubscribeSseValue918(value["timestamp"])
   )
 }
 
-function EventSubscribeSseValue1570(value: unknown): boolean {
+function EventSubscribeSseValue1568(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1571(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1569(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1572(value["type"]) &&
+    EventSubscribeSseValue1570(value["type"]) &&
     Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue1573(value["durable"]) &&
+    EventSubscribeSseValue1571(value["durable"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1575(value["data"])
+    EventSubscribeSseValue1573(value["data"])
   )
 }
 
-function EventSubscribeSseValue1578(value: unknown): boolean {
+function EventSubscribeSseValue1576(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
+function EventSubscribeSseValue1577(value: unknown): boolean {
+  return value === "delegation.archived"
+}
+
 function EventSubscribeSseValue1579(value: unknown): boolean {
-  return value === "task.updated"
+  return value === 1
+}
+
+function EventSubscribeSseValue1578(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "aggregateID") &&
+    EventSubscribeSseValue5(value["aggregateID"]) &&
+    Object.hasOwn(value, "seq") &&
+    EventSubscribeSseValue58(value["seq"]) &&
+    Object.hasOwn(value, "version") &&
+    EventSubscribeSseValue1579(value["version"])
+  )
+}
+
+function EventSubscribeSseValue1580(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "delegationID") &&
+    EventSubscribeSseValue123(value["delegationID"]) &&
+    Object.hasOwn(value, "timestamp") &&
+    EventSubscribeSseValue918(value["timestamp"])
+  )
+}
+
+function EventSubscribeSseValue1575(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue2(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    EventSubscribeSseValue3(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1576(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue1577(value["type"]) &&
+    Object.hasOwn(value, "durable") &&
+    EventSubscribeSseValue1578(value["durable"]) &&
+    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    EventSubscribeSseValue1580(value["data"])
+  )
+}
+
+function EventSubscribeSseValue1582(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+  )
 }
 
 function EventSubscribeSseValue1583(value: unknown): boolean {
-  return typeof value === "string"
-}
-
-function EventSubscribeSseValue1584(value: unknown): boolean {
-  return typeof value === "string"
-}
-
-function EventSubscribeSseValue1586(value: unknown): boolean {
-  return value === "pending"
-}
-
-function EventSubscribeSseValue1587(value: unknown): boolean {
-  return value === "in_progress"
-}
-
-function EventSubscribeSseValue1588(value: unknown): boolean {
-  return value === "completed"
-}
-
-function EventSubscribeSseValue1589(value: unknown): boolean {
-  return value === "cancelled"
-}
-
-function EventSubscribeSseValue1590(value: unknown): boolean {
-  return value === "scheduled"
-}
-
-function EventSubscribeSseValue1591(value: unknown): boolean {
-  return value === "failed"
+  return value === "delegation.unarchived"
 }
 
 function EventSubscribeSseValue1585(value: unknown): boolean {
+  return value === 1
+}
+
+function EventSubscribeSseValue1584(value: unknown): boolean {
   return (
-    EventSubscribeSseValue1586(value) ||
-    EventSubscribeSseValue1587(value) ||
-    EventSubscribeSseValue1588(value) ||
-    EventSubscribeSseValue1589(value) ||
-    EventSubscribeSseValue1590(value) ||
-    EventSubscribeSseValue1591(value)
+    isSseRecord(value) &&
+    Object.hasOwn(value, "aggregateID") &&
+    EventSubscribeSseValue5(value["aggregateID"]) &&
+    Object.hasOwn(value, "seq") &&
+    EventSubscribeSseValue58(value["seq"]) &&
+    Object.hasOwn(value, "version") &&
+    EventSubscribeSseValue1585(value["version"])
+  )
+}
+
+function EventSubscribeSseValue1586(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "delegationID") &&
+    EventSubscribeSseValue123(value["delegationID"]) &&
+    Object.hasOwn(value, "timestamp") &&
+    EventSubscribeSseValue918(value["timestamp"])
+  )
+}
+
+function EventSubscribeSseValue1581(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue2(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    EventSubscribeSseValue3(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1582(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue1583(value["type"]) &&
+    Object.hasOwn(value, "durable") &&
+    EventSubscribeSseValue1584(value["durable"]) &&
+    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    EventSubscribeSseValue1586(value["data"])
+  )
+}
+
+function EventSubscribeSseValue1588(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+  )
+}
+
+function EventSubscribeSseValue1589(value: unknown): boolean {
+  return value === "delegation.forked"
+}
+
+function EventSubscribeSseValue1591(value: unknown): boolean {
+  return value === 1
+}
+
+function EventSubscribeSseValue1590(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "aggregateID") &&
+    EventSubscribeSseValue5(value["aggregateID"]) &&
+    Object.hasOwn(value, "seq") &&
+    EventSubscribeSseValue58(value["seq"]) &&
+    Object.hasOwn(value, "version") &&
+    EventSubscribeSseValue1591(value["version"])
   )
 }
 
 function EventSubscribeSseValue1593(value: unknown): boolean {
-  return value === "high"
-}
-
-function EventSubscribeSseValue1594(value: unknown): boolean {
-  return value === "medium"
-}
-
-function EventSubscribeSseValue1595(value: unknown): boolean {
-  return value === "low"
+  return (
+    typeof value === "string" &&
+    (typeof value === "string" || isSseArray(value) || isSseRecord(value)) &&
+    typeof value.length === "number" &&
+    value.length <= 1000
+  )
 }
 
 function EventSubscribeSseValue1592(value: unknown): boolean {
-  return EventSubscribeSseValue1593(value) || EventSubscribeSseValue1594(value) || EventSubscribeSseValue1595(value)
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "delegationID") &&
+    EventSubscribeSseValue123(value["delegationID"]) &&
+    Object.hasOwn(value, "forkedDelegationID") &&
+    EventSubscribeSseValue123(value["forkedDelegationID"]) &&
+    (!Object.hasOwn(value, "reason") || EventSubscribeSseValue1593(value["reason"])) &&
+    Object.hasOwn(value, "timestamp") &&
+    EventSubscribeSseValue918(value["timestamp"])
+  )
+}
+
+function EventSubscribeSseValue1587(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue2(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    EventSubscribeSseValue3(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1588(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue1589(value["type"]) &&
+    Object.hasOwn(value, "durable") &&
+    EventSubscribeSseValue1590(value["durable"]) &&
+    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    EventSubscribeSseValue1592(value["data"])
+  )
+}
+
+function EventSubscribeSseValue1595(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+  )
 }
 
 function EventSubscribeSseValue1596(value: unknown): boolean {
-  return typeof value === "string"
-}
-
-function EventSubscribeSseValue1597(value: unknown): boolean {
-  return typeof value === "string"
-}
-
-function EventSubscribeSseValue1598(value: unknown): boolean {
-  return typeof value === "string"
-}
-
-function EventSubscribeSseValue1599(value: unknown): boolean {
-  return typeof value === "string"
+  return value === "task.updated"
 }
 
 function EventSubscribeSseValue1600(value: unknown): boolean {
-  return typeof value === "number"
+  return typeof value === "string"
 }
 
 function EventSubscribeSseValue1601(value: unknown): boolean {
-  return typeof value === "number"
-}
-
-function EventSubscribeSseValue1602(value: unknown): boolean {
   return typeof value === "string"
 }
 
 function EventSubscribeSseValue1603(value: unknown): boolean {
-  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue5)
+  return value === "pending"
 }
 
 function EventSubscribeSseValue1604(value: unknown): boolean {
+  return value === "in_progress"
+}
+
+function EventSubscribeSseValue1605(value: unknown): boolean {
+  return value === "completed"
+}
+
+function EventSubscribeSseValue1606(value: unknown): boolean {
+  return value === "cancelled"
+}
+
+function EventSubscribeSseValue1607(value: unknown): boolean {
+  return value === "scheduled"
+}
+
+function EventSubscribeSseValue1608(value: unknown): boolean {
+  return value === "failed"
+}
+
+function EventSubscribeSseValue1602(value: unknown): boolean {
+  return (
+    EventSubscribeSseValue1603(value) ||
+    EventSubscribeSseValue1604(value) ||
+    EventSubscribeSseValue1605(value) ||
+    EventSubscribeSseValue1606(value) ||
+    EventSubscribeSseValue1607(value) ||
+    EventSubscribeSseValue1608(value)
+  )
+}
+
+function EventSubscribeSseValue1610(value: unknown): boolean {
+  return value === "high"
+}
+
+function EventSubscribeSseValue1611(value: unknown): boolean {
+  return value === "medium"
+}
+
+function EventSubscribeSseValue1612(value: unknown): boolean {
+  return value === "low"
+}
+
+function EventSubscribeSseValue1609(value: unknown): boolean {
+  return EventSubscribeSseValue1610(value) || EventSubscribeSseValue1611(value) || EventSubscribeSseValue1612(value)
+}
+
+function EventSubscribeSseValue1613(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function EventSubscribeSseValue1614(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function EventSubscribeSseValue1615(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function EventSubscribeSseValue1616(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function EventSubscribeSseValue1617(value: unknown): boolean {
+  return typeof value === "number"
+}
+
+function EventSubscribeSseValue1618(value: unknown): boolean {
+  return typeof value === "number"
+}
+
+function EventSubscribeSseValue1619(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function EventSubscribeSseValue1620(value: unknown): boolean {
+  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue5)
+}
+
+function EventSubscribeSseValue1621(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sourceSessionID") &&
@@ -21727,83 +21948,83 @@ function EventSubscribeSseValue1604(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue1605(value: unknown): boolean {
+function EventSubscribeSseValue1622(value: unknown): boolean {
   return typeof value === "number"
 }
 
-function EventSubscribeSseValue1582(value: unknown): boolean {
+function EventSubscribeSseValue1599(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue1583(value["id"]) &&
+    EventSubscribeSseValue1600(value["id"]) &&
     Object.hasOwn(value, "content") &&
-    EventSubscribeSseValue1584(value["content"]) &&
+    EventSubscribeSseValue1601(value["content"]) &&
     Object.hasOwn(value, "status") &&
-    EventSubscribeSseValue1585(value["status"]) &&
+    EventSubscribeSseValue1602(value["status"]) &&
     Object.hasOwn(value, "priority") &&
-    EventSubscribeSseValue1592(value["priority"]) &&
+    EventSubscribeSseValue1609(value["priority"]) &&
     Object.hasOwn(value, "sessionID") &&
-    EventSubscribeSseValue1596(value["sessionID"]) &&
-    (!Object.hasOwn(value, "parentID") || EventSubscribeSseValue1597(value["parentID"])) &&
-    (!Object.hasOwn(value, "outputDigest") || EventSubscribeSseValue1598(value["outputDigest"])) &&
-    (!Object.hasOwn(value, "agentID") || EventSubscribeSseValue1599(value["agentID"])) &&
-    (!Object.hasOwn(value, "scheduledAt") || EventSubscribeSseValue1600(value["scheduledAt"])) &&
-    (!Object.hasOwn(value, "recurrence") || EventSubscribeSseValue923(value["recurrence"])) &&
-    (!Object.hasOwn(value, "nextRun") || EventSubscribeSseValue1601(value["nextRun"])) &&
-    (!Object.hasOwn(value, "spawnedFrom") || EventSubscribeSseValue1602(value["spawnedFrom"])) &&
-    (!Object.hasOwn(value, "dependsOn") || EventSubscribeSseValue1603(value["dependsOn"])) &&
-    (!Object.hasOwn(value, "operationRef") || EventSubscribeSseValue1604(value["operationRef"])) &&
+    EventSubscribeSseValue1613(value["sessionID"]) &&
+    (!Object.hasOwn(value, "parentID") || EventSubscribeSseValue1614(value["parentID"])) &&
+    (!Object.hasOwn(value, "outputDigest") || EventSubscribeSseValue1615(value["outputDigest"])) &&
+    (!Object.hasOwn(value, "agentID") || EventSubscribeSseValue1616(value["agentID"])) &&
+    (!Object.hasOwn(value, "scheduledAt") || EventSubscribeSseValue1617(value["scheduledAt"])) &&
+    (!Object.hasOwn(value, "recurrence") || EventSubscribeSseValue940(value["recurrence"])) &&
+    (!Object.hasOwn(value, "nextRun") || EventSubscribeSseValue1618(value["nextRun"])) &&
+    (!Object.hasOwn(value, "spawnedFrom") || EventSubscribeSseValue1619(value["spawnedFrom"])) &&
+    (!Object.hasOwn(value, "dependsOn") || EventSubscribeSseValue1620(value["dependsOn"])) &&
+    (!Object.hasOwn(value, "operationRef") || EventSubscribeSseValue1621(value["operationRef"])) &&
     Object.hasOwn(value, "revision") &&
-    EventSubscribeSseValue1605(value["revision"]) &&
+    EventSubscribeSseValue1622(value["revision"]) &&
     Object.hasOwn(value, "createdAt") &&
-    EventSubscribeSseValue901(value["createdAt"]) &&
+    EventSubscribeSseValue918(value["createdAt"]) &&
     Object.hasOwn(value, "updatedAt") &&
-    EventSubscribeSseValue901(value["updatedAt"])
+    EventSubscribeSseValue918(value["updatedAt"])
   )
 }
 
-function EventSubscribeSseValue1581(value: unknown): boolean {
-  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue1582)
+function EventSubscribeSseValue1598(value: unknown): boolean {
+  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue1599)
 }
 
-function EventSubscribeSseValue1580(value: unknown): boolean {
+function EventSubscribeSseValue1597(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
     EventSubscribeSseValue61(value["sessionID"]) &&
     Object.hasOwn(value, "tasks") &&
-    EventSubscribeSseValue1581(value["tasks"])
+    EventSubscribeSseValue1598(value["tasks"])
   )
 }
 
-function EventSubscribeSseValue1577(value: unknown): boolean {
+function EventSubscribeSseValue1594(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1578(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1595(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1579(value["type"]) &&
+    EventSubscribeSseValue1596(value["type"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1580(value["data"])
+    EventSubscribeSseValue1597(value["data"])
   )
 }
 
-function EventSubscribeSseValue1607(value: unknown): boolean {
+function EventSubscribeSseValue1624(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
-function EventSubscribeSseValue1608(value: unknown): boolean {
+function EventSubscribeSseValue1625(value: unknown): boolean {
   return value === "todo.updated"
 }
 
-function EventSubscribeSseValue1611(value: unknown): boolean {
+function EventSubscribeSseValue1628(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "content") &&
@@ -21815,85 +22036,85 @@ function EventSubscribeSseValue1611(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue1610(value: unknown): boolean {
-  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue1611)
+function EventSubscribeSseValue1627(value: unknown): boolean {
+  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue1628)
 }
 
-function EventSubscribeSseValue1609(value: unknown): boolean {
+function EventSubscribeSseValue1626(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
     EventSubscribeSseValue61(value["sessionID"]) &&
     Object.hasOwn(value, "todos") &&
-    EventSubscribeSseValue1610(value["todos"])
+    EventSubscribeSseValue1627(value["todos"])
   )
 }
 
-function EventSubscribeSseValue1606(value: unknown): boolean {
+function EventSubscribeSseValue1623(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1607(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1624(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1608(value["type"]) &&
+    EventSubscribeSseValue1625(value["type"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1609(value["data"])
+    EventSubscribeSseValue1626(value["data"])
   )
 }
 
-function EventSubscribeSseValue1613(value: unknown): boolean {
+function EventSubscribeSseValue1630(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
-function EventSubscribeSseValue1614(value: unknown): boolean {
+function EventSubscribeSseValue1631(value: unknown): boolean {
   return value === "task.progress"
 }
 
-function EventSubscribeSseValue1617(value: unknown): boolean {
+function EventSubscribeSseValue1634(value: unknown): boolean {
   return value === "thinking"
 }
 
-function EventSubscribeSseValue1618(value: unknown): boolean {
+function EventSubscribeSseValue1635(value: unknown): boolean {
   return value === "streaming"
 }
 
-function EventSubscribeSseValue1619(value: unknown): boolean {
+function EventSubscribeSseValue1636(value: unknown): boolean {
   return value === "tool"
 }
 
-function EventSubscribeSseValue1620(value: unknown): boolean {
+function EventSubscribeSseValue1637(value: unknown): boolean {
   return value === "waiting"
 }
 
-function EventSubscribeSseValue1616(value: unknown): boolean {
+function EventSubscribeSseValue1633(value: unknown): boolean {
   return (
-    EventSubscribeSseValue1617(value) ||
-    EventSubscribeSseValue1618(value) ||
-    EventSubscribeSseValue1619(value) ||
-    EventSubscribeSseValue1620(value)
+    EventSubscribeSseValue1634(value) ||
+    EventSubscribeSseValue1635(value) ||
+    EventSubscribeSseValue1636(value) ||
+    EventSubscribeSseValue1637(value)
   )
 }
 
-function EventSubscribeSseValue1621(value: unknown): boolean {
+function EventSubscribeSseValue1638(value: unknown): boolean {
   return typeof value === "number"
 }
 
-function EventSubscribeSseValue1622(value: unknown): boolean {
+function EventSubscribeSseValue1639(value: unknown): boolean {
   return typeof value === "number"
 }
 
-function EventSubscribeSseValue1623(value: unknown): boolean {
+function EventSubscribeSseValue1640(value: unknown): boolean {
   return typeof value === "number"
 }
 
-function EventSubscribeSseValue1615(value: unknown): boolean {
+function EventSubscribeSseValue1632(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
@@ -21901,47 +22122,47 @@ function EventSubscribeSseValue1615(value: unknown): boolean {
     Object.hasOwn(value, "taskID") &&
     EventSubscribeSseValue5(value["taskID"]) &&
     Object.hasOwn(value, "phase") &&
-    EventSubscribeSseValue1616(value["phase"]) &&
-    (!Object.hasOwn(value, "progress") || EventSubscribeSseValue1621(value["progress"])) &&
-    (!Object.hasOwn(value, "current") || EventSubscribeSseValue1622(value["current"])) &&
-    (!Object.hasOwn(value, "total") || EventSubscribeSseValue1623(value["total"])) &&
+    EventSubscribeSseValue1633(value["phase"]) &&
+    (!Object.hasOwn(value, "progress") || EventSubscribeSseValue1638(value["progress"])) &&
+    (!Object.hasOwn(value, "current") || EventSubscribeSseValue1639(value["current"])) &&
+    (!Object.hasOwn(value, "total") || EventSubscribeSseValue1640(value["total"])) &&
     Object.hasOwn(value, "updatedAt") &&
-    EventSubscribeSseValue901(value["updatedAt"])
+    EventSubscribeSseValue918(value["updatedAt"])
   )
 }
 
-function EventSubscribeSseValue1612(value: unknown): boolean {
+function EventSubscribeSseValue1629(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1613(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1630(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1614(value["type"]) &&
+    EventSubscribeSseValue1631(value["type"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1615(value["data"])
+    EventSubscribeSseValue1632(value["data"])
   )
 }
 
-function EventSubscribeSseValue1625(value: unknown): boolean {
+function EventSubscribeSseValue1642(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
-function EventSubscribeSseValue1626(value: unknown): boolean {
+function EventSubscribeSseValue1643(value: unknown): boolean {
   return value === "task.operation.reserved"
 }
 
-function EventSubscribeSseValue1628(value: unknown): boolean {
+function EventSubscribeSseValue1645(value: unknown): boolean {
   return value === 1
 }
 
-function EventSubscribeSseValue1627(value: unknown): boolean {
+function EventSubscribeSseValue1644(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -21949,68 +22170,68 @@ function EventSubscribeSseValue1627(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     EventSubscribeSseValue58(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue1628(value["version"])
+    EventSubscribeSseValue1645(value["version"])
   )
 }
 
-function EventSubscribeSseValue1631(value: unknown): boolean {
+function EventSubscribeSseValue1648(value: unknown): boolean {
   return typeof value === "string" && typeof value === "string" && new RegExp("^top_[A-Za-z0-9_-]+$", "").test(value)
 }
 
-function EventSubscribeSseValue1632(value: unknown): boolean {
+function EventSubscribeSseValue1649(value: unknown): boolean {
   return typeof value === "string"
 }
 
-function EventSubscribeSseValue1633(value: unknown): boolean {
+function EventSubscribeSseValue1650(value: unknown): boolean {
   return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value > 0
 }
 
-function EventSubscribeSseValue1636(value: unknown): boolean {
+function EventSubscribeSseValue1653(value: unknown): boolean {
   return value === "existing_root"
 }
 
-function EventSubscribeSseValue1635(value: unknown): boolean {
+function EventSubscribeSseValue1652(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1636(value["type"]) &&
+    EventSubscribeSseValue1653(value["type"]) &&
     Object.hasOwn(value, "sessionID") &&
     EventSubscribeSseValue61(value["sessionID"])
   )
 }
 
-function EventSubscribeSseValue1634(value: unknown): boolean {
-  return EventSubscribeSseValue930(value) || EventSubscribeSseValue1635(value)
+function EventSubscribeSseValue1651(value: unknown): boolean {
+  return EventSubscribeSseValue947(value) || EventSubscribeSseValue1652(value)
 }
 
-function EventSubscribeSseValue1637(value: unknown): boolean {
+function EventSubscribeSseValue1654(value: unknown): boolean {
   return typeof value === "string"
 }
 
-function EventSubscribeSseValue1640(value: unknown): boolean {
+function EventSubscribeSseValue1657(value: unknown): boolean {
   return typeof value === "string"
 }
 
-function EventSubscribeSseValue1641(value: unknown): boolean {
+function EventSubscribeSseValue1658(value: unknown): boolean {
   return typeof value === "string"
 }
 
-function EventSubscribeSseValue1639(value: unknown): boolean {
+function EventSubscribeSseValue1656(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "uri") &&
     EventSubscribeSseValue5(value["uri"]) &&
-    (!Object.hasOwn(value, "name") || EventSubscribeSseValue1640(value["name"])) &&
-    (!Object.hasOwn(value, "description") || EventSubscribeSseValue1641(value["description"])) &&
+    (!Object.hasOwn(value, "name") || EventSubscribeSseValue1657(value["name"])) &&
+    (!Object.hasOwn(value, "description") || EventSubscribeSseValue1658(value["description"])) &&
     (!Object.hasOwn(value, "mention") || EventSubscribeSseValue163(value["mention"]))
   )
 }
 
-function EventSubscribeSseValue1638(value: unknown): boolean {
-  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue1639)
+function EventSubscribeSseValue1655(value: unknown): boolean {
+  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue1656)
 }
 
-function EventSubscribeSseValue1642(value: unknown): boolean {
+function EventSubscribeSseValue1659(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sourceSessionID") &&
@@ -22020,44 +22241,44 @@ function EventSubscribeSseValue1642(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue1643(value: unknown): boolean {
+function EventSubscribeSseValue1660(value: unknown): boolean {
   return typeof value === "boolean"
 }
 
-function EventSubscribeSseValue1630(value: unknown): boolean {
+function EventSubscribeSseValue1647(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "operationID") &&
     EventSubscribeSseValue256(value["operationID"]) &&
     Object.hasOwn(value, "inputID") &&
     EventSubscribeSseValue127(value["inputID"]) &&
-    (!Object.hasOwn(value, "replacesOperationID") || EventSubscribeSseValue1631(value["replacesOperationID"])) &&
-    (!Object.hasOwn(value, "taskID") || EventSubscribeSseValue1632(value["taskID"])) &&
-    (!Object.hasOwn(value, "expectedRevision") || EventSubscribeSseValue1633(value["expectedRevision"])) &&
+    (!Object.hasOwn(value, "replacesOperationID") || EventSubscribeSseValue1648(value["replacesOperationID"])) &&
+    (!Object.hasOwn(value, "taskID") || EventSubscribeSseValue1649(value["taskID"])) &&
+    (!Object.hasOwn(value, "expectedRevision") || EventSubscribeSseValue1650(value["expectedRevision"])) &&
     Object.hasOwn(value, "target") &&
-    EventSubscribeSseValue1634(value["target"]) &&
-    (!Object.hasOwn(value, "description") || EventSubscribeSseValue1637(value["description"])) &&
+    EventSubscribeSseValue1651(value["target"]) &&
+    (!Object.hasOwn(value, "description") || EventSubscribeSseValue1654(value["description"])) &&
     Object.hasOwn(value, "prompt") &&
     EventSubscribeSseValue5(value["prompt"]) &&
-    (!Object.hasOwn(value, "files") || EventSubscribeSseValue1638(value["files"])) &&
-    (!Object.hasOwn(value, "reference") || EventSubscribeSseValue1642(value["reference"])) &&
+    (!Object.hasOwn(value, "files") || EventSubscribeSseValue1655(value["files"])) &&
+    (!Object.hasOwn(value, "reference") || EventSubscribeSseValue1659(value["reference"])) &&
     Object.hasOwn(value, "delivery") &&
     EventSubscribeSseValue277(value["delivery"]) &&
     Object.hasOwn(value, "resume") &&
     EventSubscribeSseValue247(value["resume"]) &&
-    (!Object.hasOwn(value, "background") || EventSubscribeSseValue1643(value["background"]))
+    (!Object.hasOwn(value, "background") || EventSubscribeSseValue1660(value["background"]))
   )
 }
 
-function EventSubscribeSseValue1646(value: unknown): boolean {
+function EventSubscribeSseValue1663(value: unknown): boolean {
   return value === "model_tool"
 }
 
-function EventSubscribeSseValue1645(value: unknown): boolean {
+function EventSubscribeSseValue1662(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1646(value["type"]) &&
+    EventSubscribeSseValue1663(value["type"]) &&
     Object.hasOwn(value, "sessionID") &&
     EventSubscribeSseValue61(value["sessionID"]) &&
     Object.hasOwn(value, "agent") &&
@@ -22069,15 +22290,15 @@ function EventSubscribeSseValue1645(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue1648(value: unknown): boolean {
+function EventSubscribeSseValue1665(value: unknown): boolean {
   return value === "user_coordination"
 }
 
-function EventSubscribeSseValue1647(value: unknown): boolean {
+function EventSubscribeSseValue1664(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1648(value["type"]) &&
+    EventSubscribeSseValue1665(value["type"]) &&
     Object.hasOwn(value, "sessionID") &&
     EventSubscribeSseValue61(value["sessionID"]) &&
     Object.hasOwn(value, "agent") &&
@@ -22085,15 +22306,15 @@ function EventSubscribeSseValue1647(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue1650(value: unknown): boolean {
+function EventSubscribeSseValue1667(value: unknown): boolean {
   return value === "goal_round"
 }
 
-function EventSubscribeSseValue1649(value: unknown): boolean {
+function EventSubscribeSseValue1666(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1650(value["type"]) &&
+    EventSubscribeSseValue1667(value["type"]) &&
     Object.hasOwn(value, "sessionID") &&
     EventSubscribeSseValue61(value["sessionID"]) &&
     Object.hasOwn(value, "agent") &&
@@ -22107,15 +22328,15 @@ function EventSubscribeSseValue1649(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue1652(value: unknown): boolean {
+function EventSubscribeSseValue1669(value: unknown): boolean {
   return value === "schedule_occurrence"
 }
 
-function EventSubscribeSseValue1651(value: unknown): boolean {
+function EventSubscribeSseValue1668(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1652(value["type"]) &&
+    EventSubscribeSseValue1669(value["type"]) &&
     Object.hasOwn(value, "sessionID") &&
     EventSubscribeSseValue61(value["sessionID"]) &&
     Object.hasOwn(value, "agent") &&
@@ -22129,92 +22350,92 @@ function EventSubscribeSseValue1651(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue1644(value: unknown): boolean {
+function EventSubscribeSseValue1661(value: unknown): boolean {
   return (
-    EventSubscribeSseValue1645(value) ||
-    EventSubscribeSseValue1647(value) ||
-    EventSubscribeSseValue1649(value) ||
-    EventSubscribeSseValue1651(value)
+    EventSubscribeSseValue1662(value) ||
+    EventSubscribeSseValue1664(value) ||
+    EventSubscribeSseValue1666(value) ||
+    EventSubscribeSseValue1668(value)
   )
 }
 
-function EventSubscribeSseValue1653(value: unknown): boolean {
+function EventSubscribeSseValue1670(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "agent") &&
     EventSubscribeSseValue112(value["agent"]) &&
-    (!Object.hasOwn(value, "eventID") || EventSubscribeSseValue1036(value["eventID"])) &&
+    (!Object.hasOwn(value, "eventID") || EventSubscribeSseValue1053(value["eventID"])) &&
     Object.hasOwn(value, "seq") &&
     EventSubscribeSseValue58(value["seq"]) &&
-    (!Object.hasOwn(value, "compositionDigest") || EventSubscribeSseValue806(value["compositionDigest"]))
+    (!Object.hasOwn(value, "compositionDigest") || EventSubscribeSseValue823(value["compositionDigest"]))
   )
 }
 
-function EventSubscribeSseValue1654(value: unknown): boolean {
+function EventSubscribeSseValue1671(value: unknown): boolean {
   return typeof value === "number" && Number.isSafeInteger(value)
 }
 
-function EventSubscribeSseValue1655(value: unknown): boolean {
+function EventSubscribeSseValue1672(value: unknown): boolean {
   return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue307)
 }
 
-function EventSubscribeSseValue1629(value: unknown): boolean {
+function EventSubscribeSseValue1646(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
     EventSubscribeSseValue61(value["sessionID"]) &&
     Object.hasOwn(value, "request") &&
-    EventSubscribeSseValue1630(value["request"]) &&
+    EventSubscribeSseValue1647(value["request"]) &&
     Object.hasOwn(value, "source") &&
-    EventSubscribeSseValue1644(value["source"]) &&
+    EventSubscribeSseValue1661(value["source"]) &&
     Object.hasOwn(value, "selection") &&
-    EventSubscribeSseValue1653(value["selection"]) &&
+    EventSubscribeSseValue1670(value["selection"]) &&
     Object.hasOwn(value, "sourceLocation") &&
     EventSubscribeSseValue63(value["sourceLocation"]) &&
     Object.hasOwn(value, "sourceMode") &&
-    EventSubscribeSseValue932(value["sourceMode"]) &&
+    EventSubscribeSseValue949(value["sourceMode"]) &&
     Object.hasOwn(value, "targetSessionID") &&
     EventSubscribeSseValue61(value["targetSessionID"]) &&
-    (!Object.hasOwn(value, "taskRevision") || EventSubscribeSseValue1654(value["taskRevision"])) &&
-    (!Object.hasOwn(value, "predecessorID") || EventSubscribeSseValue1631(value["predecessorID"])) &&
-    (!Object.hasOwn(value, "goalRounds") || EventSubscribeSseValue1655(value["goalRounds"]))
+    (!Object.hasOwn(value, "taskRevision") || EventSubscribeSseValue1671(value["taskRevision"])) &&
+    (!Object.hasOwn(value, "predecessorID") || EventSubscribeSseValue1648(value["predecessorID"])) &&
+    (!Object.hasOwn(value, "goalRounds") || EventSubscribeSseValue1672(value["goalRounds"]))
   )
 }
 
-function EventSubscribeSseValue1624(value: unknown): boolean {
+function EventSubscribeSseValue1641(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1625(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1642(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1626(value["type"]) &&
+    EventSubscribeSseValue1643(value["type"]) &&
     Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue1627(value["durable"]) &&
+    EventSubscribeSseValue1644(value["durable"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1629(value["data"])
+    EventSubscribeSseValue1646(value["data"])
   )
 }
 
-function EventSubscribeSseValue1657(value: unknown): boolean {
+function EventSubscribeSseValue1674(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
-function EventSubscribeSseValue1658(value: unknown): boolean {
+function EventSubscribeSseValue1675(value: unknown): boolean {
   return value === "task.operation.changed"
 }
 
-function EventSubscribeSseValue1660(value: unknown): boolean {
+function EventSubscribeSseValue1677(value: unknown): boolean {
   return value === 1
 }
 
-function EventSubscribeSseValue1659(value: unknown): boolean {
+function EventSubscribeSseValue1676(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "aggregateID") &&
@@ -22222,93 +22443,93 @@ function EventSubscribeSseValue1659(value: unknown): boolean {
     Object.hasOwn(value, "seq") &&
     EventSubscribeSseValue58(value["seq"]) &&
     Object.hasOwn(value, "version") &&
-    EventSubscribeSseValue1660(value["version"])
+    EventSubscribeSseValue1677(value["version"])
   )
-}
-
-function EventSubscribeSseValue1664(value: unknown): boolean {
-  return value === "waiting"
-}
-
-function EventSubscribeSseValue1665(value: unknown): boolean {
-  return value === "reserved"
-}
-
-function EventSubscribeSseValue1666(value: unknown): boolean {
-  return value === "permission_pending"
-}
-
-function EventSubscribeSseValue1667(value: unknown): boolean {
-  return value === "prepared"
-}
-
-function EventSubscribeSseValue1668(value: unknown): boolean {
-  return value === "created"
-}
-
-function EventSubscribeSseValue1669(value: unknown): boolean {
-  return value === "admitted"
-}
-
-function EventSubscribeSseValue1670(value: unknown): boolean {
-  return value === "running"
-}
-
-function EventSubscribeSseValue1671(value: unknown): boolean {
-  return value === "settled"
-}
-
-function EventSubscribeSseValue1672(value: unknown): boolean {
-  return value === "blocked"
-}
-
-function EventSubscribeSseValue1673(value: unknown): boolean {
-  return value === "failed"
-}
-
-function EventSubscribeSseValue1674(value: unknown): boolean {
-  return value === "cancelled"
-}
-
-function EventSubscribeSseValue1675(value: unknown): boolean {
-  return value === "recovery_required"
-}
-
-function EventSubscribeSseValue1676(value: unknown): boolean {
-  return value === "superseded"
-}
-
-function EventSubscribeSseValue1663(value: unknown): boolean {
-  return (
-    EventSubscribeSseValue1664(value) ||
-    EventSubscribeSseValue1665(value) ||
-    EventSubscribeSseValue1666(value) ||
-    EventSubscribeSseValue1667(value) ||
-    EventSubscribeSseValue1668(value) ||
-    EventSubscribeSseValue1669(value) ||
-    EventSubscribeSseValue1670(value) ||
-    EventSubscribeSseValue1671(value) ||
-    EventSubscribeSseValue1672(value) ||
-    EventSubscribeSseValue1673(value) ||
-    EventSubscribeSseValue1674(value) ||
-    EventSubscribeSseValue1675(value) ||
-    EventSubscribeSseValue1676(value)
-  )
-}
-
-function EventSubscribeSseValue1677(value: unknown): boolean {
-  return typeof value === "string"
-}
-
-function EventSubscribeSseValue1678(value: unknown): boolean {
-  return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value > 0
-}
-
-function EventSubscribeSseValue1680(value: unknown): boolean {
-  return typeof value === "string" && typeof value === "string" && new RegExp("^[a-f0-9]{64}$", "").test(value)
 }
 
 function EventSubscribeSseValue1681(value: unknown): boolean {
+  return value === "waiting"
+}
+
+function EventSubscribeSseValue1682(value: unknown): boolean {
+  return value === "reserved"
+}
+
+function EventSubscribeSseValue1683(value: unknown): boolean {
+  return value === "permission_pending"
+}
+
+function EventSubscribeSseValue1684(value: unknown): boolean {
+  return value === "prepared"
+}
+
+function EventSubscribeSseValue1685(value: unknown): boolean {
+  return value === "created"
+}
+
+function EventSubscribeSseValue1686(value: unknown): boolean {
+  return value === "admitted"
+}
+
+function EventSubscribeSseValue1687(value: unknown): boolean {
+  return value === "running"
+}
+
+function EventSubscribeSseValue1688(value: unknown): boolean {
+  return value === "settled"
+}
+
+function EventSubscribeSseValue1689(value: unknown): boolean {
+  return value === "blocked"
+}
+
+function EventSubscribeSseValue1690(value: unknown): boolean {
+  return value === "failed"
+}
+
+function EventSubscribeSseValue1691(value: unknown): boolean {
+  return value === "cancelled"
+}
+
+function EventSubscribeSseValue1692(value: unknown): boolean {
+  return value === "recovery_required"
+}
+
+function EventSubscribeSseValue1693(value: unknown): boolean {
+  return value === "superseded"
+}
+
+function EventSubscribeSseValue1680(value: unknown): boolean {
+  return (
+    EventSubscribeSseValue1681(value) ||
+    EventSubscribeSseValue1682(value) ||
+    EventSubscribeSseValue1683(value) ||
+    EventSubscribeSseValue1684(value) ||
+    EventSubscribeSseValue1685(value) ||
+    EventSubscribeSseValue1686(value) ||
+    EventSubscribeSseValue1687(value) ||
+    EventSubscribeSseValue1688(value) ||
+    EventSubscribeSseValue1689(value) ||
+    EventSubscribeSseValue1690(value) ||
+    EventSubscribeSseValue1691(value) ||
+    EventSubscribeSseValue1692(value) ||
+    EventSubscribeSseValue1693(value)
+  )
+}
+
+function EventSubscribeSseValue1694(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function EventSubscribeSseValue1695(value: unknown): boolean {
+  return typeof value === "number" && Number.isSafeInteger(value) && typeof value === "number" && value > 0
+}
+
+function EventSubscribeSseValue1697(value: unknown): boolean {
+  return typeof value === "string" && typeof value === "string" && new RegExp("^[a-f0-9]{64}$", "").test(value)
+}
+
+function EventSubscribeSseValue1698(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sourceSessionID") &&
@@ -22328,7 +22549,7 @@ function EventSubscribeSseValue1681(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue1679(value: unknown): boolean {
+function EventSubscribeSseValue1696(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "payload") &&
@@ -22336,27 +22557,27 @@ function EventSubscribeSseValue1679(value: unknown): boolean {
     Object.hasOwn(value, "delivery") &&
     EventSubscribeSseValue277(value["delivery"]) &&
     Object.hasOwn(value, "digest") &&
-    EventSubscribeSseValue1680(value["digest"]) &&
-    (!Object.hasOwn(value, "reference") || EventSubscribeSseValue1681(value["reference"]))
+    EventSubscribeSseValue1697(value["digest"]) &&
+    (!Object.hasOwn(value, "reference") || EventSubscribeSseValue1698(value["reference"]))
   )
 }
 
-function EventSubscribeSseValue1682(value: unknown): boolean {
+function EventSubscribeSseValue1699(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
     EventSubscribeSseValue61(value["sessionID"]) &&
     Object.hasOwn(value, "inputID") &&
     EventSubscribeSseValue127(value["inputID"]) &&
-    (!Object.hasOwn(value, "messageIDs") || EventSubscribeSseValue1034(value["messageIDs"])) &&
-    (!Object.hasOwn(value, "sharedInputs") || EventSubscribeSseValue1035(value["sharedInputs"])) &&
-    (!Object.hasOwn(value, "resultEventID") || EventSubscribeSseValue1036(value["resultEventID"])) &&
-    (!Object.hasOwn(value, "text") || EventSubscribeSseValue1037(value["text"])) &&
-    (!Object.hasOwn(value, "digest") || EventSubscribeSseValue1038(value["digest"]))
+    (!Object.hasOwn(value, "messageIDs") || EventSubscribeSseValue1051(value["messageIDs"])) &&
+    (!Object.hasOwn(value, "sharedInputs") || EventSubscribeSseValue1052(value["sharedInputs"])) &&
+    (!Object.hasOwn(value, "resultEventID") || EventSubscribeSseValue1053(value["resultEventID"])) &&
+    (!Object.hasOwn(value, "text") || EventSubscribeSseValue1054(value["text"])) &&
+    (!Object.hasOwn(value, "digest") || EventSubscribeSseValue1055(value["digest"]))
   )
 }
 
-function EventSubscribeSseValue1684(value: unknown): boolean {
+function EventSubscribeSseValue1701(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "consumerSessionID") &&
@@ -22366,52 +22587,52 @@ function EventSubscribeSseValue1684(value: unknown): boolean {
     Object.hasOwn(value, "eventID") &&
     EventSubscribeSseValue2(value["eventID"]) &&
     Object.hasOwn(value, "resultDigest") &&
-    EventSubscribeSseValue1680(value["resultDigest"])
+    EventSubscribeSseValue1697(value["resultDigest"])
   )
 }
 
-function EventSubscribeSseValue1683(value: unknown): boolean {
-  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue1684)
+function EventSubscribeSseValue1700(value: unknown): boolean {
+  return isSseArray(value) && value.length >= 0 && value.slice(0).every(EventSubscribeSseValue1701)
 }
 
-function EventSubscribeSseValue1687(value: unknown): boolean {
+function EventSubscribeSseValue1704(value: unknown): boolean {
   return typeof value === "string"
 }
 
-function EventSubscribeSseValue1686(value: unknown): boolean {
+function EventSubscribeSseValue1703(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "code") &&
-    EventSubscribeSseValue1687(value["code"]) &&
+    EventSubscribeSseValue1704(value["code"]) &&
     Object.hasOwn(value, "message") &&
     EventSubscribeSseValue5(value["message"])
   )
 }
 
-function EventSubscribeSseValue1685(value: unknown): boolean {
-  return EventSubscribeSseValue1686(value) || EventSubscribeSseValue27(value)
+function EventSubscribeSseValue1702(value: unknown): boolean {
+  return EventSubscribeSseValue1703(value) || EventSubscribeSseValue27(value)
 }
 
-function EventSubscribeSseValue1688(value: unknown): boolean {
+function EventSubscribeSseValue1705(value: unknown): boolean {
   return typeof value === "boolean"
 }
 
-function EventSubscribeSseValue1662(value: unknown): boolean {
+function EventSubscribeSseValue1679(value: unknown): boolean {
   return (
     isSseRecord(value) &&
-    (!Object.hasOwn(value, "phase") || EventSubscribeSseValue1663(value["phase"])) &&
-    (!Object.hasOwn(value, "taskID") || EventSubscribeSseValue1677(value["taskID"])) &&
-    (!Object.hasOwn(value, "taskRevision") || EventSubscribeSseValue1678(value["taskRevision"])) &&
+    (!Object.hasOwn(value, "phase") || EventSubscribeSseValue1680(value["phase"])) &&
+    (!Object.hasOwn(value, "taskID") || EventSubscribeSseValue1694(value["taskID"])) &&
+    (!Object.hasOwn(value, "taskRevision") || EventSubscribeSseValue1695(value["taskRevision"])) &&
     (!Object.hasOwn(value, "targetSessionID") || EventSubscribeSseValue65(value["targetSessionID"])) &&
-    (!Object.hasOwn(value, "prepared") || EventSubscribeSseValue1679(value["prepared"])) &&
-    (!Object.hasOwn(value, "result") || EventSubscribeSseValue1682(value["result"])) &&
-    (!Object.hasOwn(value, "consumers") || EventSubscribeSseValue1683(value["consumers"])) &&
-    (!Object.hasOwn(value, "error") || EventSubscribeSseValue1685(value["error"])) &&
-    (!Object.hasOwn(value, "cancelIntent") || EventSubscribeSseValue1688(value["cancelIntent"]))
+    (!Object.hasOwn(value, "prepared") || EventSubscribeSseValue1696(value["prepared"])) &&
+    (!Object.hasOwn(value, "result") || EventSubscribeSseValue1699(value["result"])) &&
+    (!Object.hasOwn(value, "consumers") || EventSubscribeSseValue1700(value["consumers"])) &&
+    (!Object.hasOwn(value, "error") || EventSubscribeSseValue1702(value["error"])) &&
+    (!Object.hasOwn(value, "cancelIntent") || EventSubscribeSseValue1705(value["cancelIntent"]))
   )
 }
 
-function EventSubscribeSseValue1661(value: unknown): boolean {
+function EventSubscribeSseValue1678(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "sessionID") &&
@@ -22419,153 +22640,25 @@ function EventSubscribeSseValue1661(value: unknown): boolean {
     Object.hasOwn(value, "operationID") &&
     EventSubscribeSseValue256(value["operationID"]) &&
     Object.hasOwn(value, "change") &&
-    EventSubscribeSseValue1662(value["change"])
+    EventSubscribeSseValue1679(value["change"])
   )
 }
 
-function EventSubscribeSseValue1656(value: unknown): boolean {
+function EventSubscribeSseValue1673(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1657(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1674(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1658(value["type"]) &&
+    EventSubscribeSseValue1675(value["type"]) &&
     Object.hasOwn(value, "durable") &&
-    EventSubscribeSseValue1659(value["durable"]) &&
+    EventSubscribeSseValue1676(value["durable"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1661(value["data"])
-  )
-}
-
-function EventSubscribeSseValue1690(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
-  )
-}
-
-function EventSubscribeSseValue1691(value: unknown): boolean {
-  return value === "websearch.updated"
-}
-
-function EventSubscribeSseValue1692(value: unknown): boolean {
-  return value !== null && value !== undefined
-}
-
-function EventSubscribeSseValue1689(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue2(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1690(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1691(value["type"]) &&
-    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1692(value["data"])
-  )
-}
-
-function EventSubscribeSseValue1694(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
-  )
-}
-
-function EventSubscribeSseValue1695(value: unknown): boolean {
-  return value === "session.status"
-}
-
-function EventSubscribeSseValue1699(value: unknown): boolean {
-  return value === "idle"
-}
-
-function EventSubscribeSseValue1698(value: unknown): boolean {
-  return isSseRecord(value) && Object.hasOwn(value, "type") && EventSubscribeSseValue1699(value["type"])
-}
-
-function EventSubscribeSseValue1701(value: unknown): boolean {
-  return value === "retry"
-}
-
-function EventSubscribeSseValue1703(value: unknown): boolean {
-  return typeof value === "string"
-}
-
-function EventSubscribeSseValue1702(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "reason") &&
-    EventSubscribeSseValue5(value["reason"]) &&
-    Object.hasOwn(value, "provider") &&
-    EventSubscribeSseValue5(value["provider"]) &&
-    Object.hasOwn(value, "title") &&
-    EventSubscribeSseValue5(value["title"]) &&
-    Object.hasOwn(value, "message") &&
-    EventSubscribeSseValue5(value["message"]) &&
-    Object.hasOwn(value, "label") &&
-    EventSubscribeSseValue5(value["label"]) &&
-    (!Object.hasOwn(value, "link") || EventSubscribeSseValue1703(value["link"]))
-  )
-}
-
-function EventSubscribeSseValue1700(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1701(value["type"]) &&
-    Object.hasOwn(value, "attempt") &&
-    EventSubscribeSseValue428(value["attempt"]) &&
-    Object.hasOwn(value, "message") &&
-    EventSubscribeSseValue5(value["message"]) &&
-    (!Object.hasOwn(value, "action") || EventSubscribeSseValue1702(value["action"])) &&
-    Object.hasOwn(value, "next") &&
-    EventSubscribeSseValue428(value["next"])
-  )
-}
-
-function EventSubscribeSseValue1705(value: unknown): boolean {
-  return value === "busy"
-}
-
-function EventSubscribeSseValue1704(value: unknown): boolean {
-  return isSseRecord(value) && Object.hasOwn(value, "type") && EventSubscribeSseValue1705(value["type"])
-}
-
-function EventSubscribeSseValue1697(value: unknown): boolean {
-  return EventSubscribeSseValue1698(value) || EventSubscribeSseValue1700(value) || EventSubscribeSseValue1704(value)
-}
-
-function EventSubscribeSseValue1696(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "sessionID") &&
-    EventSubscribeSseValue61(value["sessionID"]) &&
-    Object.hasOwn(value, "status") &&
-    EventSubscribeSseValue1697(value["status"])
-  )
-}
-
-function EventSubscribeSseValue1693(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue2(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1694(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1695(value["type"]) &&
-    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1696(value["data"])
+    EventSubscribeSseValue1678(value["data"])
   )
 }
 
@@ -22577,11 +22670,11 @@ function EventSubscribeSseValue1707(value: unknown): boolean {
 }
 
 function EventSubscribeSseValue1708(value: unknown): boolean {
-  return value === "session.idle"
+  return value === "websearch.updated"
 }
 
 function EventSubscribeSseValue1709(value: unknown): boolean {
-  return isSseRecord(value) && Object.hasOwn(value, "sessionID") && EventSubscribeSseValue61(value["sessionID"])
+  return value !== null && value !== undefined
 }
 
 function EventSubscribeSseValue1706(value: unknown): boolean {
@@ -22608,11 +22701,77 @@ function EventSubscribeSseValue1711(value: unknown): boolean {
 }
 
 function EventSubscribeSseValue1712(value: unknown): boolean {
-  return value === "tui.prompt.append"
+  return value === "session.status"
+}
+
+function EventSubscribeSseValue1716(value: unknown): boolean {
+  return value === "idle"
+}
+
+function EventSubscribeSseValue1715(value: unknown): boolean {
+  return isSseRecord(value) && Object.hasOwn(value, "type") && EventSubscribeSseValue1716(value["type"])
+}
+
+function EventSubscribeSseValue1718(value: unknown): boolean {
+  return value === "retry"
+}
+
+function EventSubscribeSseValue1720(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function EventSubscribeSseValue1719(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "reason") &&
+    EventSubscribeSseValue5(value["reason"]) &&
+    Object.hasOwn(value, "provider") &&
+    EventSubscribeSseValue5(value["provider"]) &&
+    Object.hasOwn(value, "title") &&
+    EventSubscribeSseValue5(value["title"]) &&
+    Object.hasOwn(value, "message") &&
+    EventSubscribeSseValue5(value["message"]) &&
+    Object.hasOwn(value, "label") &&
+    EventSubscribeSseValue5(value["label"]) &&
+    (!Object.hasOwn(value, "link") || EventSubscribeSseValue1720(value["link"]))
+  )
+}
+
+function EventSubscribeSseValue1717(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue1718(value["type"]) &&
+    Object.hasOwn(value, "attempt") &&
+    EventSubscribeSseValue428(value["attempt"]) &&
+    Object.hasOwn(value, "message") &&
+    EventSubscribeSseValue5(value["message"]) &&
+    (!Object.hasOwn(value, "action") || EventSubscribeSseValue1719(value["action"])) &&
+    Object.hasOwn(value, "next") &&
+    EventSubscribeSseValue428(value["next"])
+  )
+}
+
+function EventSubscribeSseValue1722(value: unknown): boolean {
+  return value === "busy"
+}
+
+function EventSubscribeSseValue1721(value: unknown): boolean {
+  return isSseRecord(value) && Object.hasOwn(value, "type") && EventSubscribeSseValue1722(value["type"])
+}
+
+function EventSubscribeSseValue1714(value: unknown): boolean {
+  return EventSubscribeSseValue1715(value) || EventSubscribeSseValue1717(value) || EventSubscribeSseValue1721(value)
 }
 
 function EventSubscribeSseValue1713(value: unknown): boolean {
-  return isSseRecord(value) && Object.hasOwn(value, "text") && EventSubscribeSseValue5(value["text"])
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "sessionID") &&
+    EventSubscribeSseValue61(value["sessionID"]) &&
+    Object.hasOwn(value, "status") &&
+    EventSubscribeSseValue1714(value["status"])
+  )
 }
 
 function EventSubscribeSseValue1710(value: unknown): boolean {
@@ -22631,363 +22790,297 @@ function EventSubscribeSseValue1710(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue1715(value: unknown): boolean {
+function EventSubscribeSseValue1724(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
-}
-
-function EventSubscribeSseValue1716(value: unknown): boolean {
-  return value === "tui.command.execute"
-}
-
-function EventSubscribeSseValue1720(value: unknown): boolean {
-  return value === "session.list"
-}
-
-function EventSubscribeSseValue1721(value: unknown): boolean {
-  return value === "session.new"
-}
-
-function EventSubscribeSseValue1722(value: unknown): boolean {
-  return value === "session.share"
-}
-
-function EventSubscribeSseValue1723(value: unknown): boolean {
-  return value === "session.interrupt"
-}
-
-function EventSubscribeSseValue1724(value: unknown): boolean {
-  return value === "session.background"
 }
 
 function EventSubscribeSseValue1725(value: unknown): boolean {
-  return value === "session.compact"
+  return value === "session.idle"
 }
 
 function EventSubscribeSseValue1726(value: unknown): boolean {
-  return value === "session.page.up"
+  return isSseRecord(value) && Object.hasOwn(value, "sessionID") && EventSubscribeSseValue61(value["sessionID"])
 }
 
-function EventSubscribeSseValue1727(value: unknown): boolean {
-  return value === "session.page.down"
+function EventSubscribeSseValue1723(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue2(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    EventSubscribeSseValue3(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1724(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue1725(value["type"]) &&
+    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    EventSubscribeSseValue1726(value["data"])
+  )
 }
 
 function EventSubscribeSseValue1728(value: unknown): boolean {
-  return value === "session.line.up"
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+  )
 }
 
 function EventSubscribeSseValue1729(value: unknown): boolean {
-  return value === "session.line.down"
+  return value === "tui.prompt.append"
 }
 
 function EventSubscribeSseValue1730(value: unknown): boolean {
-  return value === "session.half.page.up"
+  return isSseRecord(value) && Object.hasOwn(value, "text") && EventSubscribeSseValue5(value["text"])
 }
 
-function EventSubscribeSseValue1731(value: unknown): boolean {
-  return value === "session.half.page.down"
+function EventSubscribeSseValue1727(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue2(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    EventSubscribeSseValue3(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1728(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue1729(value["type"]) &&
+    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    EventSubscribeSseValue1730(value["data"])
+  )
 }
 
 function EventSubscribeSseValue1732(value: unknown): boolean {
-  return value === "session.first"
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+  )
 }
 
 function EventSubscribeSseValue1733(value: unknown): boolean {
-  return value === "session.last"
-}
-
-function EventSubscribeSseValue1734(value: unknown): boolean {
-  return value === "prompt.clear"
-}
-
-function EventSubscribeSseValue1735(value: unknown): boolean {
-  return value === "prompt.submit"
-}
-
-function EventSubscribeSseValue1736(value: unknown): boolean {
-  return value === "agent.cycle"
-}
-
-function EventSubscribeSseValue1719(value: unknown): boolean {
-  return (
-    EventSubscribeSseValue1720(value) ||
-    EventSubscribeSseValue1721(value) ||
-    EventSubscribeSseValue1722(value) ||
-    EventSubscribeSseValue1723(value) ||
-    EventSubscribeSseValue1724(value) ||
-    EventSubscribeSseValue1725(value) ||
-    EventSubscribeSseValue1726(value) ||
-    EventSubscribeSseValue1727(value) ||
-    EventSubscribeSseValue1728(value) ||
-    EventSubscribeSseValue1729(value) ||
-    EventSubscribeSseValue1730(value) ||
-    EventSubscribeSseValue1731(value) ||
-    EventSubscribeSseValue1732(value) ||
-    EventSubscribeSseValue1733(value) ||
-    EventSubscribeSseValue1734(value) ||
-    EventSubscribeSseValue1735(value) ||
-    EventSubscribeSseValue1736(value)
-  )
-}
-
-function EventSubscribeSseValue1718(value: unknown): boolean {
-  return EventSubscribeSseValue1719(value) || EventSubscribeSseValue5(value)
-}
-
-function EventSubscribeSseValue1717(value: unknown): boolean {
-  return isSseRecord(value) && Object.hasOwn(value, "command") && EventSubscribeSseValue1718(value["command"])
-}
-
-function EventSubscribeSseValue1714(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue2(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1715(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1716(value["type"]) &&
-    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1717(value["data"])
-  )
-}
-
-function EventSubscribeSseValue1738(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
-  )
-}
-
-function EventSubscribeSseValue1739(value: unknown): boolean {
-  return value === "tui.toast.show"
-}
-
-function EventSubscribeSseValue1741(value: unknown): boolean {
-  return typeof value === "string"
-}
-
-function EventSubscribeSseValue1743(value: unknown): boolean {
-  return value === "info"
-}
-
-function EventSubscribeSseValue1744(value: unknown): boolean {
-  return value === "success"
-}
-
-function EventSubscribeSseValue1745(value: unknown): boolean {
-  return value === "warning"
-}
-
-function EventSubscribeSseValue1746(value: unknown): boolean {
-  return value === "error"
-}
-
-function EventSubscribeSseValue1742(value: unknown): boolean {
-  return (
-    EventSubscribeSseValue1743(value) ||
-    EventSubscribeSseValue1744(value) ||
-    EventSubscribeSseValue1745(value) ||
-    EventSubscribeSseValue1746(value)
-  )
-}
-
-function EventSubscribeSseValue1747(value: unknown): boolean {
-  return EventSubscribeSseValue309(value) || EventSubscribeSseValue709(value)
-}
-
-function EventSubscribeSseValue1740(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    (!Object.hasOwn(value, "title") || EventSubscribeSseValue1741(value["title"])) &&
-    Object.hasOwn(value, "message") &&
-    EventSubscribeSseValue5(value["message"]) &&
-    Object.hasOwn(value, "variant") &&
-    EventSubscribeSseValue1742(value["variant"]) &&
-    (!Object.hasOwn(value, "duration") || EventSubscribeSseValue1747(value["duration"]))
-  )
+  return value === "tui.command.execute"
 }
 
 function EventSubscribeSseValue1737(value: unknown): boolean {
+  return value === "session.list"
+}
+
+function EventSubscribeSseValue1738(value: unknown): boolean {
+  return value === "session.new"
+}
+
+function EventSubscribeSseValue1739(value: unknown): boolean {
+  return value === "session.share"
+}
+
+function EventSubscribeSseValue1740(value: unknown): boolean {
+  return value === "session.interrupt"
+}
+
+function EventSubscribeSseValue1741(value: unknown): boolean {
+  return value === "session.background"
+}
+
+function EventSubscribeSseValue1742(value: unknown): boolean {
+  return value === "session.compact"
+}
+
+function EventSubscribeSseValue1743(value: unknown): boolean {
+  return value === "session.page.up"
+}
+
+function EventSubscribeSseValue1744(value: unknown): boolean {
+  return value === "session.page.down"
+}
+
+function EventSubscribeSseValue1745(value: unknown): boolean {
+  return value === "session.line.up"
+}
+
+function EventSubscribeSseValue1746(value: unknown): boolean {
+  return value === "session.line.down"
+}
+
+function EventSubscribeSseValue1747(value: unknown): boolean {
+  return value === "session.half.page.up"
+}
+
+function EventSubscribeSseValue1748(value: unknown): boolean {
+  return value === "session.half.page.down"
+}
+
+function EventSubscribeSseValue1749(value: unknown): boolean {
+  return value === "session.first"
+}
+
+function EventSubscribeSseValue1750(value: unknown): boolean {
+  return value === "session.last"
+}
+
+function EventSubscribeSseValue1751(value: unknown): boolean {
+  return value === "prompt.clear"
+}
+
+function EventSubscribeSseValue1752(value: unknown): boolean {
+  return value === "prompt.submit"
+}
+
+function EventSubscribeSseValue1753(value: unknown): boolean {
+  return value === "agent.cycle"
+}
+
+function EventSubscribeSseValue1736(value: unknown): boolean {
+  return (
+    EventSubscribeSseValue1737(value) ||
+    EventSubscribeSseValue1738(value) ||
+    EventSubscribeSseValue1739(value) ||
+    EventSubscribeSseValue1740(value) ||
+    EventSubscribeSseValue1741(value) ||
+    EventSubscribeSseValue1742(value) ||
+    EventSubscribeSseValue1743(value) ||
+    EventSubscribeSseValue1744(value) ||
+    EventSubscribeSseValue1745(value) ||
+    EventSubscribeSseValue1746(value) ||
+    EventSubscribeSseValue1747(value) ||
+    EventSubscribeSseValue1748(value) ||
+    EventSubscribeSseValue1749(value) ||
+    EventSubscribeSseValue1750(value) ||
+    EventSubscribeSseValue1751(value) ||
+    EventSubscribeSseValue1752(value) ||
+    EventSubscribeSseValue1753(value)
+  )
+}
+
+function EventSubscribeSseValue1735(value: unknown): boolean {
+  return EventSubscribeSseValue1736(value) || EventSubscribeSseValue5(value)
+}
+
+function EventSubscribeSseValue1734(value: unknown): boolean {
+  return isSseRecord(value) && Object.hasOwn(value, "command") && EventSubscribeSseValue1735(value["command"])
+}
+
+function EventSubscribeSseValue1731(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1738(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1732(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1739(value["type"]) &&
+    EventSubscribeSseValue1733(value["type"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1740(value["data"])
+    EventSubscribeSseValue1734(value["data"])
   )
 }
 
-function EventSubscribeSseValue1749(value: unknown): boolean {
+function EventSubscribeSseValue1755(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
-function EventSubscribeSseValue1750(value: unknown): boolean {
-  return value === "tui.session.select"
+function EventSubscribeSseValue1756(value: unknown): boolean {
+  return value === "tui.toast.show"
 }
 
-function EventSubscribeSseValue1752(value: unknown): boolean {
-  return typeof value === "string" && typeof value === "string" && value.startsWith("ses")
+function EventSubscribeSseValue1758(value: unknown): boolean {
+  return typeof value === "string"
 }
 
-function EventSubscribeSseValue1751(value: unknown): boolean {
-  return isSseRecord(value) && Object.hasOwn(value, "sessionID") && EventSubscribeSseValue1752(value["sessionID"])
+function EventSubscribeSseValue1760(value: unknown): boolean {
+  return value === "info"
 }
 
-function EventSubscribeSseValue1748(value: unknown): boolean {
+function EventSubscribeSseValue1761(value: unknown): boolean {
+  return value === "success"
+}
+
+function EventSubscribeSseValue1762(value: unknown): boolean {
+  return value === "warning"
+}
+
+function EventSubscribeSseValue1763(value: unknown): boolean {
+  return value === "error"
+}
+
+function EventSubscribeSseValue1759(value: unknown): boolean {
+  return (
+    EventSubscribeSseValue1760(value) ||
+    EventSubscribeSseValue1761(value) ||
+    EventSubscribeSseValue1762(value) ||
+    EventSubscribeSseValue1763(value)
+  )
+}
+
+function EventSubscribeSseValue1764(value: unknown): boolean {
+  return EventSubscribeSseValue309(value) || EventSubscribeSseValue726(value)
+}
+
+function EventSubscribeSseValue1757(value: unknown): boolean {
   return (
     isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue2(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1749(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1750(value["type"]) &&
-    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1751(value["data"])
+    (!Object.hasOwn(value, "title") || EventSubscribeSseValue1758(value["title"])) &&
+    Object.hasOwn(value, "message") &&
+    EventSubscribeSseValue5(value["message"]) &&
+    Object.hasOwn(value, "variant") &&
+    EventSubscribeSseValue1759(value["variant"]) &&
+    (!Object.hasOwn(value, "duration") || EventSubscribeSseValue1764(value["duration"]))
   )
 }
 
 function EventSubscribeSseValue1754(value: unknown): boolean {
   return (
     isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
-  )
-}
-
-function EventSubscribeSseValue1755(value: unknown): boolean {
-  return value === "installation.updated"
-}
-
-function EventSubscribeSseValue1756(value: unknown): boolean {
-  return isSseRecord(value) && Object.hasOwn(value, "version") && EventSubscribeSseValue5(value["version"])
-}
-
-function EventSubscribeSseValue1753(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1754(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1755(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1755(value["type"]) &&
+    EventSubscribeSseValue1756(value["type"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1756(value["data"])
+    EventSubscribeSseValue1757(value["data"])
   )
-}
-
-function EventSubscribeSseValue1758(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
-  )
-}
-
-function EventSubscribeSseValue1759(value: unknown): boolean {
-  return value === "installation.update-available"
-}
-
-function EventSubscribeSseValue1760(value: unknown): boolean {
-  return isSseRecord(value) && Object.hasOwn(value, "version") && EventSubscribeSseValue5(value["version"])
-}
-
-function EventSubscribeSseValue1757(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue2(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1758(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1759(value["type"]) &&
-    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1760(value["data"])
-  )
-}
-
-function EventSubscribeSseValue1762(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
-  )
-}
-
-function EventSubscribeSseValue1763(value: unknown): boolean {
-  return value === "vcs.branch.updated"
-}
-
-function EventSubscribeSseValue1765(value: unknown): boolean {
-  return typeof value === "string"
-}
-
-function EventSubscribeSseValue1764(value: unknown): boolean {
-  return isSseRecord(value) && (!Object.hasOwn(value, "branch") || EventSubscribeSseValue1765(value["branch"]))
-}
-
-function EventSubscribeSseValue1761(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.hasOwn(value, "id") &&
-    EventSubscribeSseValue2(value["id"]) &&
-    Object.hasOwn(value, "created") &&
-    EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1762(value["metadata"])) &&
-    Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1763(value["type"]) &&
-    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
-    Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1764(value["data"])
-  )
-}
-
-function EventSubscribeSseValue1767(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
-  )
-}
-
-function EventSubscribeSseValue1768(value: unknown): boolean {
-  return value === "mcp.status.changed"
-}
-
-function EventSubscribeSseValue1769(value: unknown): boolean {
-  return isSseRecord(value) && Object.hasOwn(value, "server") && EventSubscribeSseValue5(value["server"])
 }
 
 function EventSubscribeSseValue1766(value: unknown): boolean {
   return (
     isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+  )
+}
+
+function EventSubscribeSseValue1767(value: unknown): boolean {
+  return value === "tui.session.select"
+}
+
+function EventSubscribeSseValue1769(value: unknown): boolean {
+  return typeof value === "string" && typeof value === "string" && value.startsWith("ses")
+}
+
+function EventSubscribeSseValue1768(value: unknown): boolean {
+  return isSseRecord(value) && Object.hasOwn(value, "sessionID") && EventSubscribeSseValue1769(value["sessionID"])
+}
+
+function EventSubscribeSseValue1765(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
     Object.hasOwn(value, "created") &&
     EventSubscribeSseValue3(value["created"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1767(value["metadata"])) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1766(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1768(value["type"]) &&
+    EventSubscribeSseValue1767(value["type"]) &&
     (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1769(value["data"])
+    EventSubscribeSseValue1768(value["data"])
   )
 }
 
@@ -22999,11 +23092,11 @@ function EventSubscribeSseValue1771(value: unknown): boolean {
 }
 
 function EventSubscribeSseValue1772(value: unknown): boolean {
-  return value === "mcp.resources.changed"
+  return value === "installation.updated"
 }
 
 function EventSubscribeSseValue1773(value: unknown): boolean {
-  return isSseRecord(value) && Object.hasOwn(value, "server") && EventSubscribeSseValue5(value["server"])
+  return isSseRecord(value) && Object.hasOwn(value, "version") && EventSubscribeSseValue5(value["version"])
 }
 
 function EventSubscribeSseValue1770(value: unknown): boolean {
@@ -23022,30 +23115,19 @@ function EventSubscribeSseValue1770(value: unknown): boolean {
   )
 }
 
-function EventSubscribeSseValue1776(value: unknown): boolean {
+function EventSubscribeSseValue1775(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
-function EventSubscribeSseValue1775(value: unknown): boolean {
-  return EventSubscribeSseValue1776(value) || EventSubscribeSseValue709(value)
+function EventSubscribeSseValue1776(value: unknown): boolean {
+  return value === "installation.update-available"
 }
 
 function EventSubscribeSseValue1777(value: unknown): boolean {
-  return typeof value === "string" && new RegExp("^(?:rpc\\.[\\s\\S]*)(?![\\s\\S])").test(value)
-}
-
-function EventSubscribeSseValue1778(value: unknown): boolean {
-  return isSseRecord(value) && Object.hasOwn(value, "directory") && EventSubscribeSseValue9(value["directory"])
-}
-
-function EventSubscribeSseValue1779(value: unknown): boolean {
-  return (
-    isSseRecord(value) &&
-    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
-  )
+  return isSseRecord(value) && Object.hasOwn(value, "version") && EventSubscribeSseValue5(value["version"])
 }
 
 function EventSubscribeSseValue1774(value: unknown): boolean {
@@ -23057,48 +23139,187 @@ function EventSubscribeSseValue1774(value: unknown): boolean {
     EventSubscribeSseValue3(value["created"]) &&
     (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1775(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1777(value["type"]) &&
-    Object.hasOwn(value, "location") &&
-    EventSubscribeSseValue1778(value["location"]) &&
+    EventSubscribeSseValue1776(value["type"]) &&
+    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1779(value["data"])
+    EventSubscribeSseValue1777(value["data"])
   )
 }
 
-function EventSubscribeSseValue1782(value: unknown): boolean {
+function EventSubscribeSseValue1779(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
   )
 }
 
-function EventSubscribeSseValue1781(value: unknown): boolean {
-  return EventSubscribeSseValue1782(value) || EventSubscribeSseValue709(value)
-}
-
-function EventSubscribeSseValue1783(value: unknown): boolean {
-  return EventSubscribeSseValue1778(value) || EventSubscribeSseValue709(value)
-}
-
-function EventSubscribeSseValue1784(value: unknown): boolean {
-  return value === "server.connected"
-}
-
-function EventSubscribeSseValue1785(value: unknown): boolean {
-  return value !== null && value !== undefined
-}
-
 function EventSubscribeSseValue1780(value: unknown): boolean {
+  return value === "vcs.branch.updated"
+}
+
+function EventSubscribeSseValue1782(value: unknown): boolean {
+  return typeof value === "string"
+}
+
+function EventSubscribeSseValue1781(value: unknown): boolean {
+  return isSseRecord(value) && (!Object.hasOwn(value, "branch") || EventSubscribeSseValue1782(value["branch"]))
+}
+
+function EventSubscribeSseValue1778(value: unknown): boolean {
   return (
     isSseRecord(value) &&
     Object.hasOwn(value, "id") &&
     EventSubscribeSseValue2(value["id"]) &&
-    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1781(value["metadata"])) &&
-    (!Object.hasOwn(value, "location") || EventSubscribeSseValue1783(value["location"])) &&
+    Object.hasOwn(value, "created") &&
+    EventSubscribeSseValue3(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1779(value["metadata"])) &&
     Object.hasOwn(value, "type") &&
-    EventSubscribeSseValue1784(value["type"]) &&
+    EventSubscribeSseValue1780(value["type"]) &&
+    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
     Object.hasOwn(value, "data") &&
-    EventSubscribeSseValue1785(value["data"])
+    EventSubscribeSseValue1781(value["data"])
+  )
+}
+
+function EventSubscribeSseValue1784(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+  )
+}
+
+function EventSubscribeSseValue1785(value: unknown): boolean {
+  return value === "mcp.status.changed"
+}
+
+function EventSubscribeSseValue1786(value: unknown): boolean {
+  return isSseRecord(value) && Object.hasOwn(value, "server") && EventSubscribeSseValue5(value["server"])
+}
+
+function EventSubscribeSseValue1783(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue2(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    EventSubscribeSseValue3(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1784(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue1785(value["type"]) &&
+    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    EventSubscribeSseValue1786(value["data"])
+  )
+}
+
+function EventSubscribeSseValue1788(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+  )
+}
+
+function EventSubscribeSseValue1789(value: unknown): boolean {
+  return value === "mcp.resources.changed"
+}
+
+function EventSubscribeSseValue1790(value: unknown): boolean {
+  return isSseRecord(value) && Object.hasOwn(value, "server") && EventSubscribeSseValue5(value["server"])
+}
+
+function EventSubscribeSseValue1787(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue2(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    EventSubscribeSseValue3(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1788(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue1789(value["type"]) &&
+    (!Object.hasOwn(value, "location") || EventSubscribeSseValue8(value["location"])) &&
+    Object.hasOwn(value, "data") &&
+    EventSubscribeSseValue1790(value["data"])
+  )
+}
+
+function EventSubscribeSseValue1793(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+  )
+}
+
+function EventSubscribeSseValue1792(value: unknown): boolean {
+  return EventSubscribeSseValue1793(value) || EventSubscribeSseValue726(value)
+}
+
+function EventSubscribeSseValue1794(value: unknown): boolean {
+  return typeof value === "string" && new RegExp("^(?:rpc\\.[\\s\\S]*)(?![\\s\\S])").test(value)
+}
+
+function EventSubscribeSseValue1795(value: unknown): boolean {
+  return isSseRecord(value) && Object.hasOwn(value, "directory") && EventSubscribeSseValue9(value["directory"])
+}
+
+function EventSubscribeSseValue1796(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+  )
+}
+
+function EventSubscribeSseValue1791(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue2(value["id"]) &&
+    Object.hasOwn(value, "created") &&
+    EventSubscribeSseValue3(value["created"]) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1792(value["metadata"])) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue1794(value["type"]) &&
+    Object.hasOwn(value, "location") &&
+    EventSubscribeSseValue1795(value["location"]) &&
+    Object.hasOwn(value, "data") &&
+    EventSubscribeSseValue1796(value["data"])
+  )
+}
+
+function EventSubscribeSseValue1799(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.entries(value).every(([key, item]) => !EventSubscribeSseValue5(key) || EventSubscribeSseValue6(item))
+  )
+}
+
+function EventSubscribeSseValue1798(value: unknown): boolean {
+  return EventSubscribeSseValue1799(value) || EventSubscribeSseValue726(value)
+}
+
+function EventSubscribeSseValue1800(value: unknown): boolean {
+  return EventSubscribeSseValue1795(value) || EventSubscribeSseValue726(value)
+}
+
+function EventSubscribeSseValue1801(value: unknown): boolean {
+  return value === "server.connected"
+}
+
+function EventSubscribeSseValue1802(value: unknown): boolean {
+  return value !== null && value !== undefined
+}
+
+function EventSubscribeSseValue1797(value: unknown): boolean {
+  return (
+    isSseRecord(value) &&
+    Object.hasOwn(value, "id") &&
+    EventSubscribeSseValue2(value["id"]) &&
+    (!Object.hasOwn(value, "metadata") || EventSubscribeSseValue1798(value["metadata"])) &&
+    (!Object.hasOwn(value, "location") || EventSubscribeSseValue1800(value["location"])) &&
+    Object.hasOwn(value, "type") &&
+    EventSubscribeSseValue1801(value["type"]) &&
+    Object.hasOwn(value, "data") &&
+    EventSubscribeSseValue1802(value["data"])
   )
 }
 
@@ -23140,112 +23361,112 @@ function EventSubscribeSseValue0(value: unknown): boolean {
     EventSubscribeSseValue421(value) ||
     EventSubscribeSseValue429(value) ||
     EventSubscribeSseValue554(value) ||
-    EventSubscribeSseValue571(value) ||
-    EventSubscribeSseValue595(value) ||
-    EventSubscribeSseValue602(value) ||
-    EventSubscribeSseValue608(value) ||
-    EventSubscribeSseValue620(value) ||
-    EventSubscribeSseValue626(value) ||
-    EventSubscribeSseValue636(value) ||
-    EventSubscribeSseValue642(value) ||
-    EventSubscribeSseValue646(value) ||
-    EventSubscribeSseValue652(value) ||
-    EventSubscribeSseValue658(value) ||
-    EventSubscribeSseValue662(value) ||
-    EventSubscribeSseValue668(value) ||
-    EventSubscribeSseValue674(value) ||
-    EventSubscribeSseValue678(value) ||
-    EventSubscribeSseValue684(value) ||
+    EventSubscribeSseValue577(value) ||
+    EventSubscribeSseValue612(value) ||
+    EventSubscribeSseValue619(value) ||
+    EventSubscribeSseValue625(value) ||
+    EventSubscribeSseValue637(value) ||
+    EventSubscribeSseValue643(value) ||
+    EventSubscribeSseValue653(value) ||
+    EventSubscribeSseValue659(value) ||
+    EventSubscribeSseValue663(value) ||
+    EventSubscribeSseValue669(value) ||
+    EventSubscribeSseValue675(value) ||
+    EventSubscribeSseValue679(value) ||
+    EventSubscribeSseValue685(value) ||
     EventSubscribeSseValue691(value) ||
-    EventSubscribeSseValue696(value) ||
-    EventSubscribeSseValue711(value) ||
-    EventSubscribeSseValue719(value) ||
-    EventSubscribeSseValue725(value) ||
-    EventSubscribeSseValue734(value) ||
-    EventSubscribeSseValue738(value) ||
-    EventSubscribeSseValue748(value) ||
-    EventSubscribeSseValue754(value) ||
-    EventSubscribeSseValue768(value) ||
-    EventSubscribeSseValue774(value) ||
-    EventSubscribeSseValue781(value) ||
-    EventSubscribeSseValue787(value) ||
-    EventSubscribeSseValue793(value) ||
-    EventSubscribeSseValue799(value) ||
-    EventSubscribeSseValue883(value) ||
-    EventSubscribeSseValue906(value) ||
-    EventSubscribeSseValue913(value) ||
-    EventSubscribeSseValue1001(value) ||
-    EventSubscribeSseValue1048(value) ||
-    EventSubscribeSseValue1054(value) ||
-    EventSubscribeSseValue1076(value) ||
-    EventSubscribeSseValue1082(value) ||
-    EventSubscribeSseValue1107(value) ||
-    EventSubscribeSseValue1115(value) ||
-    EventSubscribeSseValue1119(value) ||
-    EventSubscribeSseValue1133(value) ||
-    EventSubscribeSseValue1141(value) ||
-    EventSubscribeSseValue1145(value) ||
-    EventSubscribeSseValue1159(value) ||
-    EventSubscribeSseValue1163(value) ||
-    EventSubscribeSseValue1170(value) ||
-    EventSubscribeSseValue1174(value) ||
-    EventSubscribeSseValue1178(value) ||
-    EventSubscribeSseValue1182(value) ||
-    EventSubscribeSseValue1193(value) ||
-    EventSubscribeSseValue1197(value) ||
-    EventSubscribeSseValue1201(value) ||
-    EventSubscribeSseValue1205(value) ||
-    EventSubscribeSseValue1213(value) ||
-    EventSubscribeSseValue1217(value) ||
-    EventSubscribeSseValue1221(value) ||
-    EventSubscribeSseValue1226(value) ||
+    EventSubscribeSseValue695(value) ||
+    EventSubscribeSseValue701(value) ||
+    EventSubscribeSseValue708(value) ||
+    EventSubscribeSseValue713(value) ||
+    EventSubscribeSseValue728(value) ||
+    EventSubscribeSseValue736(value) ||
+    EventSubscribeSseValue742(value) ||
+    EventSubscribeSseValue751(value) ||
+    EventSubscribeSseValue755(value) ||
+    EventSubscribeSseValue765(value) ||
+    EventSubscribeSseValue771(value) ||
+    EventSubscribeSseValue785(value) ||
+    EventSubscribeSseValue791(value) ||
+    EventSubscribeSseValue798(value) ||
+    EventSubscribeSseValue804(value) ||
+    EventSubscribeSseValue810(value) ||
+    EventSubscribeSseValue816(value) ||
+    EventSubscribeSseValue900(value) ||
+    EventSubscribeSseValue923(value) ||
+    EventSubscribeSseValue930(value) ||
+    EventSubscribeSseValue1018(value) ||
+    EventSubscribeSseValue1065(value) ||
+    EventSubscribeSseValue1071(value) ||
+    EventSubscribeSseValue1093(value) ||
+    EventSubscribeSseValue1099(value) ||
+    EventSubscribeSseValue1124(value) ||
+    EventSubscribeSseValue1132(value) ||
+    EventSubscribeSseValue1136(value) ||
+    EventSubscribeSseValue1150(value) ||
+    EventSubscribeSseValue1158(value) ||
+    EventSubscribeSseValue1162(value) ||
+    EventSubscribeSseValue1176(value) ||
+    EventSubscribeSseValue1180(value) ||
+    EventSubscribeSseValue1187(value) ||
+    EventSubscribeSseValue1191(value) ||
+    EventSubscribeSseValue1195(value) ||
+    EventSubscribeSseValue1199(value) ||
+    EventSubscribeSseValue1210(value) ||
+    EventSubscribeSseValue1214(value) ||
+    EventSubscribeSseValue1218(value) ||
+    EventSubscribeSseValue1222(value) ||
     EventSubscribeSseValue1230(value) ||
-    EventSubscribeSseValue1289(value) ||
-    EventSubscribeSseValue1296(value) ||
-    EventSubscribeSseValue1300(value) ||
-    EventSubscribeSseValue1329(value) ||
-    EventSubscribeSseValue1349(value) ||
-    EventSubscribeSseValue1372(value) ||
-    EventSubscribeSseValue1379(value) ||
-    EventSubscribeSseValue1386(value) ||
-    EventSubscribeSseValue1393(value) ||
-    EventSubscribeSseValue1413(value) ||
-    EventSubscribeSseValue1423(value) ||
-    EventSubscribeSseValue1434(value) ||
-    EventSubscribeSseValue1442(value) ||
-    EventSubscribeSseValue1452(value) ||
-    EventSubscribeSseValue1462(value) ||
-    EventSubscribeSseValue1471(value) ||
-    EventSubscribeSseValue1481(value) ||
-    EventSubscribeSseValue1495(value) ||
-    EventSubscribeSseValue1513(value) ||
-    EventSubscribeSseValue1521(value) ||
-    EventSubscribeSseValue1529(value) ||
-    EventSubscribeSseValue1537(value) ||
-    EventSubscribeSseValue1544(value) ||
-    EventSubscribeSseValue1551(value) ||
-    EventSubscribeSseValue1558(value) ||
-    EventSubscribeSseValue1564(value) ||
-    EventSubscribeSseValue1570(value) ||
-    EventSubscribeSseValue1577(value) ||
-    EventSubscribeSseValue1606(value) ||
-    EventSubscribeSseValue1612(value) ||
-    EventSubscribeSseValue1624(value) ||
-    EventSubscribeSseValue1656(value) ||
-    EventSubscribeSseValue1689(value) ||
-    EventSubscribeSseValue1693(value) ||
+    EventSubscribeSseValue1234(value) ||
+    EventSubscribeSseValue1238(value) ||
+    EventSubscribeSseValue1243(value) ||
+    EventSubscribeSseValue1247(value) ||
+    EventSubscribeSseValue1306(value) ||
+    EventSubscribeSseValue1313(value) ||
+    EventSubscribeSseValue1317(value) ||
+    EventSubscribeSseValue1346(value) ||
+    EventSubscribeSseValue1366(value) ||
+    EventSubscribeSseValue1389(value) ||
+    EventSubscribeSseValue1396(value) ||
+    EventSubscribeSseValue1403(value) ||
+    EventSubscribeSseValue1410(value) ||
+    EventSubscribeSseValue1430(value) ||
+    EventSubscribeSseValue1440(value) ||
+    EventSubscribeSseValue1451(value) ||
+    EventSubscribeSseValue1459(value) ||
+    EventSubscribeSseValue1469(value) ||
+    EventSubscribeSseValue1479(value) ||
+    EventSubscribeSseValue1488(value) ||
+    EventSubscribeSseValue1498(value) ||
+    EventSubscribeSseValue1512(value) ||
+    EventSubscribeSseValue1530(value) ||
+    EventSubscribeSseValue1538(value) ||
+    EventSubscribeSseValue1546(value) ||
+    EventSubscribeSseValue1554(value) ||
+    EventSubscribeSseValue1561(value) ||
+    EventSubscribeSseValue1568(value) ||
+    EventSubscribeSseValue1575(value) ||
+    EventSubscribeSseValue1581(value) ||
+    EventSubscribeSseValue1587(value) ||
+    EventSubscribeSseValue1594(value) ||
+    EventSubscribeSseValue1623(value) ||
+    EventSubscribeSseValue1629(value) ||
+    EventSubscribeSseValue1641(value) ||
+    EventSubscribeSseValue1673(value) ||
     EventSubscribeSseValue1706(value) ||
     EventSubscribeSseValue1710(value) ||
-    EventSubscribeSseValue1714(value) ||
-    EventSubscribeSseValue1737(value) ||
-    EventSubscribeSseValue1748(value) ||
-    EventSubscribeSseValue1753(value) ||
-    EventSubscribeSseValue1757(value) ||
-    EventSubscribeSseValue1761(value) ||
-    EventSubscribeSseValue1766(value) ||
+    EventSubscribeSseValue1723(value) ||
+    EventSubscribeSseValue1727(value) ||
+    EventSubscribeSseValue1731(value) ||
+    EventSubscribeSseValue1754(value) ||
+    EventSubscribeSseValue1765(value) ||
     EventSubscribeSseValue1770(value) ||
     EventSubscribeSseValue1774(value) ||
-    EventSubscribeSseValue1780(value)
+    EventSubscribeSseValue1778(value) ||
+    EventSubscribeSseValue1783(value) ||
+    EventSubscribeSseValue1787(value) ||
+    EventSubscribeSseValue1791(value) ||
+    EventSubscribeSseValue1797(value)
   )
 }
 
@@ -24040,7 +24261,14 @@ function isEventSubscribeSse(value: unknown): value is
           outputStarted?: true
           firstOutputAt?: number
           firstTokenAt?: number
-          gatewayReport?: { source: "response-headers"; provider?: string; model?: string }
+          gatewayReport?: {
+            source: "response-headers" | "response-stream" | "route-trace"
+            provider?: string
+            model?: string
+            session?: string
+            attempt?: string
+            routeID?: string
+          }
         }
       }
     }
@@ -24064,6 +24292,34 @@ function isEventSubscribeSse(value: unknown): value is
           rawFinish?: string
           usage?: { input: number; output: number; reasoning: number; cache: { read: number; write: number } }
           cost?: number
+          gatewayAttempts?: Array<{
+            ordinal: number
+            correlationID?: string
+            provider?: string
+            model?: string
+            account?: string
+            endpoint?: string
+            status?: number
+            durationMs?: number
+            usage?: { input: number; output: number; reasoning: number; cache: { read: number; write: number } }
+            quote?:
+              | { status: "unknown" }
+              | {
+                  status: "known" | "free"
+                  prices: Array<{
+                    tier?: { type: "context"; size: number }
+                    input: number
+                    output: number
+                    cache: { read: number; write: number }
+                  }>
+                  observedAt?: number
+                  source?: string
+                  validFrom?: number
+                  validUntil?: number
+                }
+            cost?: number
+            error?: string
+          }>
           failure?: {
             reason:
               | "InvalidRequest"

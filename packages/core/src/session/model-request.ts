@@ -21,11 +21,11 @@ import type {
   SessionTitle,
 } from "@omnixa/plugin/effect/session"
 import type { Agent } from "@omnixa/schema/agent"
-import type { Model } from "@omnixa/schema/model"
 import type { Content } from "@omnixa/schema/tool"
 import { Cause, Clock, Context, Effect, Layer, Option, Result, Stream } from "effect"
 import { HttpClientRequest, HttpClientResponse } from "effect/http"
 import { makeLocationNode } from "@omnixa/util/effect/app-node"
+import { Model } from "../model.js"
 import { App } from "../app.js"
 import { Permission } from "../permission.js"
 import { PluginHooks } from "../plugin/hooks.js"
@@ -42,6 +42,7 @@ import { toLLMMessages } from "./runner/to-llm-message.js"
 import type { SessionMessage } from "./message.js"
 import { SessionAttempt } from "@omnixa/schema/session-attempt"
 import { CorrectionStore } from "./correction-store.js"
+import { SessionMagpie } from "./magpie.js"
 
 const IMAGE_BYTES_TRIGGER = 25 * 1024 * 1024 // 25 MiB
 const IMAGE_BYTES_TARGET = 15 * 1024 * 1024 // 15 MiB
@@ -69,7 +70,13 @@ export interface Prepared<Event = SessionRequest> {
   /** Primary attempts attach durable transport facts; auxiliary calls retain the original options. */
   readonly optionsForAttempt?: (
     observe: (observation: SessionAttempt.Observation) => Effect.Effect<void>,
+    context?: { readonly attemptID: string },
   ) => StreamOptions
+  readonly attributeGatewayAttempts?: (input: {
+    readonly attemptID: string
+    readonly started: number
+    readonly routeID?: string
+  }) => Effect.Effect<readonly SessionAttempt.GatewayAttempt[] | undefined>
   readonly retry: (event: PluginHooks.Domains["session"]["retry"]) => Effect.Effect<void>
   /** Runs a tool call against the tools this request advertised. */
   readonly executeTool: (
@@ -393,11 +400,13 @@ export const layer = Layer.effect(
         request,
       )
 
+      let observedGatewayURL: string | undefined
       const hasHttpHooks =
         (yield* hooks.has("session", "http.request", model.ref.providerID)) ||
         (yield* hooks.has("session", "http.response", model.ref.providerID))
       const optionsForAttempt = (
         observe?: (observation: SessionAttempt.Observation) => Effect.Effect<void>,
+        context?: { readonly attemptID: string },
       ): StreamOptions => {
         const recordTransport = (
           url: string | undefined,
@@ -440,6 +449,22 @@ export const layer = Layer.effect(
                       before.request.headers.get("content-type") ?? undefined,
                     )
                   const url = Option.getOrUndefined(HttpClientRequest.toUrl(sent))?.href
+                  if (url !== undefined) observedGatewayURL = url
+                  if (
+                    SessionMagpie.isGatewayTarget({
+                      providerID: model.ref.providerID,
+                      baseURL: url ?? request.model.route.endpoint.baseURL,
+                      headers: sent.headers,
+                    })
+                  )
+                    sent = HttpClientRequest.setHeaders(
+                      sent,
+                      SessionMagpie.correlateHeaders({
+                        sessionID: session.id,
+                        attemptID: context?.attemptID,
+                        headers: sent.headers,
+                      }),
+                    )
                   if (
                     kind === "primary" &&
                     hasOpaqueHistory &&
@@ -468,13 +493,12 @@ export const layer = Layer.effect(
                         ? "rejected"
                         : "unknown",
                   )
-                  const gatewayProvider = res.headers["x-magpie-provider"]
-                  const gatewayModel = res.headers["x-magpie-model"]
-                  if (observe !== undefined && (gatewayProvider !== undefined || gatewayModel !== undefined))
+                  const gatewayReport = SessionMagpie.parseResponseHeaders(res.headers)
+                  if (observe !== undefined && gatewayReport !== undefined)
                     yield* observe(
                       new SessionAttempt.Observation({
                         observedAt: yield* Clock.currentTimeMillis,
-                        gatewayReport: { source: "response-headers", provider: gatewayProvider, model: gatewayModel },
+                        gatewayReport,
                       }),
                     )
                   if (before === undefined) return res
@@ -571,11 +595,47 @@ export const layer = Layer.effect(
         return { ...(http ? { http } : {}), ...(webSocket ? { webSocket } : {}) }
       }
 
+      const attributeGatewayAttempts: NonNullable<Prepared["attributeGatewayAttempts"]> = ({
+        attemptID,
+        started,
+        routeID,
+      }) =>
+        Effect.gen(function* () {
+          const baseURL = observedGatewayURL ?? request.model.route.endpoint.baseURL
+          if (!baseURL) return undefined
+          const rawAttempts = yield* SessionMagpie.fetchRouteTrace({
+            baseURL,
+            routeID,
+            attemptID,
+            sessionID: session.id,
+            started,
+          })
+          if (!rawAttempts || rawAttempts.length === 0) return undefined
+          const modelService = yield* Effect.serviceOption(Model.Service)
+          const catalog: readonly Model.Info[] = Option.isSome(modelService) ? yield* modelService.value.all() : []
+          return SessionMagpie.attributeAttempts({
+            rawAttempts,
+            started,
+            resolveQuote: (provider, candidateModel) => {
+              const fromCatalog = SessionMagpie.resolveCatalogQuote(catalog, provider, candidateModel)
+              if (fromCatalog.status !== "unknown") return fromCatalog
+              if (
+                provider === model.ref.providerID &&
+                (candidateModel === model.ref.id || candidateModel === `${model.ref.providerID}/${model.ref.id}`) &&
+                model.quote !== undefined
+              )
+                return model.quote
+              return { status: "unknown" }
+            },
+          })
+        })
+
       return {
         event: shaped,
         request,
         options: optionsForAttempt(),
         optionsForAttempt,
+        attributeGatewayAttempts,
         retry: (event: Parameters<Prepared["retry"]>[0]) =>
           Effect.gen(function* () {
             const updated = yield* hooks.trigger("session", "retry", { ...event, connection: model.connection })

@@ -499,6 +499,7 @@ interface ParserState {
   readonly tools: ToolStream.State<number>
   readonly reasoningSignatures: Readonly<Record<number, string>>
   readonly usage?: Usage
+  readonly responseModel?: string
   readonly pendingFinish?: {
     readonly reason: FinishReasonDetails
     readonly providerMetadata?: ProviderMetadata
@@ -1219,7 +1220,19 @@ const NO_EVENTS: StepResult["1"] = []
 
 const onMessageStart = (state: ParserState, event: AnthropicEvent): StepResult => {
   const usage = mapUsage(event.message?.usage, state.providerMetadataKey)
-  return [usage ? { ...state, usage: mergeUsage(state.usage, usage, state.providerMetadataKey) } : state, NO_EVENTS]
+  const responseModel =
+    typeof event.message?.model === "string" && event.message.model.length > 0
+      ? event.message.model
+      : state.responseModel
+  if (!usage && responseModel === state.responseModel) return [state, NO_EVENTS]
+  return [
+    {
+      ...state,
+      ...(usage ? { usage: mergeUsage(state.usage, usage, state.providerMetadataKey) } : {}),
+      ...(responseModel !== undefined ? { responseModel } : {}),
+    },
+    NO_EVENTS,
+  ]
 }
 
 const onContentBlockStart = (
@@ -1474,6 +1487,7 @@ const onMessageStop = Effect.fnUntraced(function* (state: ParserState) {
       raw: undefined,
     },
     usage: state.usage,
+    model: state.responseModel,
     providerMetadata: state.pendingFinish?.providerMetadata,
   })
   return [{ ...state, lifecycle: finished, tools: result.tools }, events] satisfies StepResult

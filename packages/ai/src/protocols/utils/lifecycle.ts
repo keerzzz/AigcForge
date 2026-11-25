@@ -101,6 +101,7 @@ export const finish = (
   input: {
     readonly reason: FinishReasonDetails
     readonly usage?: Usage
+    readonly model?: string
     readonly providerMetadata?: ProviderMetadata
   },
 ): State => {
@@ -110,6 +111,7 @@ export const finish = (
       index: 0,
       reason: input.reason,
       usage: input.usage,
+      model: input.model,
       providerMetadata: input.providerMetadata,
     }),
     LLMEvent.finish(input),
