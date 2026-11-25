@@ -107,3 +107,60 @@ test("Copilot preserves unknown data, percent-only readings and separate request
   expect(value.windows[0]?.total).toBeUndefined()
   expect(value.windows[0]?.remaining).toBeUndefined()
 })
+
+test("OpenRouter quota parses limit windows, balances, free-tier keys and invalid payloads", () => {
+  const daily = ProviderQuota.openrouter(
+    {
+      data: {
+        limit: 20,
+        limit_remaining: 5,
+        limit_reset: "daily",
+        is_free_tier: false,
+      },
+    },
+    100_000,
+  )
+  expect(daily).toMatchObject({
+    source: "openrouter",
+    observedAt: 100_000,
+    known: true,
+    freePlan: false,
+    allowed: true,
+    balance: 5,
+  })
+  expect(daily.windows).toEqual([
+    {
+      id: "daily",
+      unit: "openrouter-usd",
+      usedRatio: 0.75,
+      total: 20,
+      remaining: 5,
+      unlimited: false,
+      spanMs: 86_400_000,
+    },
+  ])
+
+  const freeTier = ProviderQuota.openrouter(
+    {
+      data: {
+        limit: null,
+        limit_remaining: null,
+        limit_reset: null,
+        is_free_tier: true,
+      },
+    },
+    200_000,
+  )
+  expect(freeTier).toEqual({
+    source: "openrouter",
+    observedAt: 200_000,
+    known: true,
+    freePlan: true,
+    allowed: undefined,
+    balance: undefined,
+    windows: [],
+  })
+
+  expect(ProviderQuota.openrouter({}, 100).known).toBe(false)
+  expect(ProviderQuota.openrouter({ data: { limit: "Infinity" } }, 100).known).toBe(false)
+})

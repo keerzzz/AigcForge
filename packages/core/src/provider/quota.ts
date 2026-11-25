@@ -50,6 +50,16 @@ const decodeCopilotWindow = Schema.decodeUnknownOption(
     token_based_billing: Schema.Boolean.pipe(optional),
   }),
 )
+const decodeOpenRouter = Schema.decodeUnknownOption(
+  Schema.Struct({
+    data: Schema.Struct({
+      limit: Schema.NullOr(Schema.Unknown).pipe(optional),
+      limit_remaining: Schema.NullOr(Schema.Unknown).pipe(optional),
+      limit_reset: Schema.NullOr(Schema.String).pipe(optional),
+      is_free_tier: Schema.Boolean.pipe(optional),
+    }),
+  }),
+)
 
 /** Reads the subscription API's observations; eligibility remains the routing owner's decision. */
 export function chatgpt(input: unknown, observedAt: number) {
@@ -140,6 +150,49 @@ export function copilot(input: unknown, observedAt: number) {
     known: windows.length > 0,
     plan: reply?.copilot_plan,
     managed: reply?.copilot_plan === "business" || reply?.copilot_plan === "enterprise",
+    windows,
+  }
+}
+
+const openrouterResetMs: Readonly<Record<string, number>> = {
+  daily: 86_400_000,
+  weekly: 604_800_000,
+  monthly: 2_592_000_000,
+}
+
+/** Reads OpenRouter `/api/v1/key` limits and balance; missing fields stay unknown without fabrication. */
+export function openrouter(input: unknown, observedAt: number) {
+  const data = Option.getOrUndefined(decodeOpenRouter(input))?.data
+  const limit = number(data?.limit)
+  const remaining = number(data?.limit_remaining)
+  const freePlan = data?.is_free_tier
+  const reset =
+    data?.limit_reset === "daily" || data?.limit_reset === "weekly" || data?.limit_reset === "monthly"
+      ? data.limit_reset
+      : undefined
+  const spanMs = reset === undefined ? undefined : openrouterResetMs[reset]
+  const windows =
+    limit !== undefined && limit >= 0 && remaining !== undefined
+      ? [
+          {
+            id: reset ?? "limit",
+            unit: "openrouter-usd",
+            usedRatio: limit <= 0 || remaining <= 0 ? 1 : Math.max(0, (limit - remaining) / limit),
+            total: limit,
+            remaining,
+            unlimited: false,
+            spanMs,
+          },
+        ]
+      : []
+  const allowed = remaining !== undefined ? remaining > 0 : limit !== undefined && limit <= 0 ? false : undefined
+  return {
+    source: "openrouter" as const,
+    observedAt,
+    known: windows.length > 0 || remaining !== undefined || freePlan !== undefined,
+    freePlan,
+    allowed,
+    balance: remaining,
     windows,
   }
 }
