@@ -91,10 +91,28 @@ export class Observation extends Schema.Class<Observation>("SessionAttempt.Obser
   firstTokenAt: NonNegativeInt.pipe(optional),
   /** Early gateway headers are diagnostics, independent of the attempt's actual deployment. */
   gatewayReport: Schema.Struct({
-    source: Schema.Literal("response-headers"),
+    source: Schema.Literals(["response-headers", "response-stream", "route-trace"]),
     provider: Schema.String.pipe(optional),
     model: Schema.String.pipe(optional),
+    session: Schema.String.pipe(optional),
+    attempt: Schema.String.pipe(optional),
+    routeID: Schema.String.pipe(optional),
   }).pipe(optional),
+}) {}
+
+export class GatewayAttempt extends Schema.Class<GatewayAttempt>("SessionAttempt.GatewayAttempt")({
+  ordinal: NonNegativeInt,
+  correlationID: Schema.String.pipe(optional),
+  provider: Schema.String.pipe(optional),
+  model: Schema.String.pipe(optional),
+  account: Schema.String.pipe(optional),
+  endpoint: Schema.String.pipe(optional),
+  status: Schema.Int.check(Schema.isBetween({ minimum: 100, maximum: 599 })).pipe(optional),
+  durationMs: NonNegativeInt.pipe(optional),
+  usage: TokenUsage.Info.pipe(optional),
+  quote: ModelSource.Quote.pipe(optional),
+  cost: Money.USD.pipe(optional),
+  error: Schema.String.pipe(optional),
 }) {}
 
 export class RecordedObservation extends Schema.Class<RecordedObservation>("SessionAttempt.RecordedObservation")({
@@ -112,6 +130,7 @@ export class Terminal extends Schema.Class<Terminal>("SessionAttempt.Terminal")(
   rawFinish: Schema.String.pipe(optional),
   usage: TokenUsage.Info.pipe(optional),
   cost: Money.USD.pipe(optional),
+  gatewayAttempts: Schema.Array(GatewayAttempt).pipe(optional),
   failure: Failure.pipe(optional),
   delivery: Delivery.pipe(optional),
 }) {}

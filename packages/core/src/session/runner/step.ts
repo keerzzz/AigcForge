@@ -177,8 +177,10 @@ export const make = Effect.gen(function* () {
     const boundary: Boundary = input.boundary ?? {}
     boundary.start ??= { model: input.model.ref, started, published: false }
     let delivery: SessionAttempt.Delivery = "unknown"
+    let gatewayHeaderReport: SessionAttempt.Observation["gatewayReport"] | undefined
     const observe = Effect.fnUntraced(function* (observation: SessionAttempt.Observation) {
       delivery = observation.delivery ?? delivery
+      if (observation.gatewayReport?.source === "response-headers") gatewayHeaderReport = observation.gatewayReport
       yield* bus.publish(SessionEvent.Attempt.Observed, {
         sessionID: input.sessionID,
         assistantMessageID: input.assistantMessageID,
@@ -250,10 +252,14 @@ export const make = Effect.gen(function* () {
     let consumersObserved = false
     let snapshotReady = false
     let firstTokenRecorded = false
+    let streamModelRecorded = false
     let providerEndedAt: number | undefined
     // Read to the end, not just the finish event, so the next request can reuse this response.
     const providerStream = llm
-      .stream(input.prepared.request, input.prepared.optionsForAttempt?.(observe) ?? input.prepared.options)
+      .stream(
+        input.prepared.request,
+        input.prepared.optionsForAttempt?.(observe, { attemptID }) ?? input.prepared.options,
+      )
       .pipe(
         Stream.runForEach((event) =>
           Effect.gen(function* () {
@@ -266,6 +272,20 @@ export const make = Effect.gen(function* () {
               const time = yield* Clock.currentTimeMillis
               yield* observe(
                 new SessionAttempt.Observation({ observedAt: time, firstTokenAt: time, delivery: "accepted" }),
+              )
+            }
+            if (
+              !streamModelRecorded &&
+              gatewayHeaderReport !== undefined &&
+              LLMEvent.is.stepFinish(event) &&
+              event.model !== undefined
+            ) {
+              streamModelRecorded = true
+              yield* observe(
+                new SessionAttempt.Observation({
+                  observedAt: yield* Clock.currentTimeMillis,
+                  gatewayReport: { source: "response-stream", model: event.model },
+                }),
               )
             }
             if ((overflowFailure || publisher.hasProviderError()) && LLMEvent.is.stepFinish(event)) {
@@ -361,6 +381,20 @@ export const make = Effect.gen(function* () {
                     }),
                   })))
         const llmError = llmFailure && !recorded.providerFailed ? toSessionError(llmFailure) : undefined
+        const gatewayAttempts =
+          gatewayHeaderReport !== undefined &&
+          (gatewayHeaderReport.routeID !== undefined ||
+            gatewayHeaderReport.attempt !== undefined ||
+            gatewayHeaderReport.session !== undefined) &&
+          input.prepared.attributeGatewayAttempts !== undefined &&
+          (gatewayHeaderReport.attempt === undefined || gatewayHeaderReport.attempt === attemptID) &&
+          (gatewayHeaderReport.session === undefined || gatewayHeaderReport.session === input.sessionID)
+            ? yield* input.prepared.attributeGatewayAttempts({
+                attemptID,
+                started,
+                routeID: gatewayHeaderReport.routeID,
+              })
+            : undefined
         const terminal = new SessionAttempt.Terminal({
           status: streamInterrupted
             ? input.isLocationClosed()
@@ -375,7 +409,11 @@ export const make = Effect.gen(function* () {
           finish: recorded.finish?.finish,
           rawFinish: recorded.finish?.rawFinish,
           usage: recorded.finish?.usage,
-          cost: SessionUsage.quotedCost(admitted.quote, recorded.finish?.usage),
+          cost:
+            gatewayAttempts && gatewayAttempts.length > 0
+              ? SessionUsage.summarizeGatewayAttempts(gatewayAttempts, recorded.finish?.usage).cost
+              : SessionUsage.quotedCost(admitted.quote, recorded.finish?.usage),
+          ...(gatewayAttempts && gatewayAttempts.length > 0 ? { gatewayAttempts } : {}),
           failure:
             llmFailure === undefined
               ? recorded.providerFailed

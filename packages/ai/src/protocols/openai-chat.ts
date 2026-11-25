@@ -308,6 +308,7 @@ export interface ParserState {
   readonly pendingTools: Partial<Record<number, PendingToolDelta>>
   readonly toolCallEvents: ReadonlyArray<LLMEvent>
   readonly usage?: Usage
+  readonly responseModel?: string
   readonly finishReason?: FinishReasonDetails
   readonly lifecycle: Lifecycle.State
   readonly reasoningField?: string
@@ -1193,6 +1194,7 @@ const step = (state: ParserState, event: OpenAIChatEvent) =>
         pendingTools,
         toolCallEvents: finished?.events ?? state.toolCallEvents,
         usage,
+        responseModel: typeof event.model === "string" && event.model.length > 0 ? event.model : state.responseModel,
         finishReason,
         lifecycle,
         reasoningField,
@@ -1249,7 +1251,7 @@ export const finishEvents = Effect.fnUntraced(function* (state: ParserState) {
   const ended = Lifecycle.reasoningEnd(started, events, "reasoning-0", metadata)
   const lifecycle = toolCallEvents.length ? Lifecycle.stepStart(ended, events) : ended
   events.push(...toolCallEvents)
-  Lifecycle.finish(lifecycle, events, { reason, usage: state.usage })
+  Lifecycle.finish(lifecycle, events, { reason, usage: state.usage, model: state.responseModel })
   return events
 })
 

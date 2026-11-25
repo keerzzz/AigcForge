@@ -329,7 +329,10 @@ describe("SessionRunnerLLM recorded", () => {
       expect(attempt.apiModelID).toBe("gpt-4o-mini")
       expect(
         attempt.observations.flatMap((observation) => (observation.gatewayReport ? [observation.gatewayReport] : [])),
-      ).toEqual([{ source: "response-headers", provider: "reported-provider", model: "early-candidate" }])
+      ).toEqual([
+        { source: "response-headers", provider: "reported-provider", model: "early-candidate" },
+        { source: "response-stream", model: "upstream/final-candidate" },
+      ])
       const first = attempt.observations.filter((observation) => observation.firstTokenAt !== undefined)
       expect(first).toHaveLength(1)
       expect(first[0]?.firstTokenAt).toBeGreaterThanOrEqual(attempt.started)
@@ -339,6 +342,168 @@ describe("SessionRunnerLLM recorded", () => {
       expect(attempt.quote.status).toBe("unknown")
       expect(attempt.terminal.cost).toBeUndefined()
       expect(requests).toEqual([{ path: "/v1/chat/completions", session: null }])
+    }),
+  )
+
+  gateway.live("correlates Magpie hidden attempts and attributes per-attempt usage and quotes end-to-end", () =>
+    Effect.gen(function* () {
+      const seenHeaders: { path: string; session: string | null; attempt: string | null }[] = []
+      const running = yield* Effect.acquireRelease(
+        Effect.sync(() =>
+          Bun.serve({
+            hostname: "127.0.0.1",
+            port: 0,
+            fetch(request) {
+              const url = new URL(request.url)
+              seenHeaders.push({
+                path: url.pathname,
+                session: request.headers.get("x-magpie-session"),
+                attempt: request.headers.get("x-magpie-attempt"),
+              })
+              if (url.pathname === "/api/gateway/route") {
+                return Response.json({
+                  id: "route-e2e-1",
+                  session: sessionID,
+                  attempt: seenHeaders[0]?.attempt ?? undefined,
+                  attempts: [
+                    {
+                      ordinal: 0,
+                      provider: "anthropic",
+                      model: "early-candidate",
+                      providerAccount: "acct-cache-1",
+                      status: 429,
+                      attempt_ms: 90,
+                      in: 50,
+                      out: 0,
+                      cache_read: 20,
+                      err: "rate_limit",
+                    },
+                    {
+                      ordinal: 1,
+                      provider: "openai",
+                      model: "gpt-4o-mini",
+                      providerAccount: "acct-cache-2",
+                      status: 200,
+                      attempt_ms: 180,
+                      in: 100,
+                      out: 25,
+                      cache_read: 10,
+                      cache_write: 5,
+                    },
+                  ],
+                })
+              }
+              const frames = [
+                {
+                  id: "chat_magpie_e2e",
+                  model: "upstream/final-candidate",
+                  choices: [{ delta: { role: "assistant", content: "OK" }, finish_reason: null }],
+                },
+                { id: "chat_magpie_e2e", choices: [{ delta: {}, finish_reason: "stop" }] },
+                {
+                  id: "chat_magpie_e2e",
+                  choices: [],
+                  usage: { prompt_tokens: 100, completion_tokens: 25, total_tokens: 125 },
+                },
+              ]
+              return new Response(
+                frames.map((frame) => `data: ${JSON.stringify(frame)}\n\n`).join("") + "data: [DONE]\n\n",
+                {
+                  headers: {
+                    "content-type": "text/event-stream",
+                    "x-magpie-provider": "reported-provider",
+                    "x-magpie-model": "early-candidate",
+                    "x-magpie-session": request.headers.get("x-magpie-session") ?? "",
+                    "x-magpie-attempt": request.headers.get("x-magpie-attempt") ?? "",
+                    "x-magpie-route-id": "route-e2e-1",
+                  },
+                },
+              )
+            },
+          }),
+        ),
+        (server) => Effect.promise(() => server.stop(true)),
+      )
+      const hooks = yield* PluginHooks.Service
+      const agents = yield* Agent.Service
+      yield* agents.transform((editor) =>
+        editor.update(Agent.ID.make("build"), (agent) => {
+          agent.originKind = "builtin"
+          agent.mode = "primary"
+        }),
+      )
+      yield* hooks.register("session", "model.request", (event) =>
+        Effect.sync(() => {
+          event.baseURL = `${running.url}v1/magpie`
+        }),
+      )
+      const db = (yield* Database.Service).db
+      yield* db
+        .insert(ProjectTable)
+        .values({ id: Project.ID.global, worktree: AbsolutePath.make("/project"), sandboxes: [] })
+        .onConflictDoNothing()
+        .run()
+        .pipe(Effect.orDie)
+      yield* db
+        .insert(SessionTable)
+        .values({
+          id: sessionID,
+          project_id: Project.ID.global,
+          slug: "magpie-e2e",
+          directory: "/project",
+          title: "Magpie E2E fixture",
+          version: "test",
+        })
+        .run()
+        .pipe(Effect.orDie)
+      const session = yield* Session.Service
+      yield* session.prompt({ sessionID, text: "Magpie E2E", resume: false })
+      yield* session.resume(sessionID)
+      const assistant = (yield* session.context(sessionID)).find((message) => message.type === "assistant")
+      if (assistant?.type !== "assistant") throw new Error("Expected the Magpie E2E assistant")
+      const attempt = assistant.attempts?.[0]
+      if (!attempt?.terminal) throw new Error("Expected the physical attempt terminal")
+      expect(seenHeaders[0]).toMatchObject({ path: "/v1/magpie/chat/completions", session: sessionID })
+      expect(seenHeaders[0]?.attempt).toBe(attempt.attemptID)
+      expect(seenHeaders[1]?.path).toBe("/api/gateway/route")
+      expect(
+        attempt.observations.flatMap((observation) => (observation.gatewayReport ? [observation.gatewayReport] : [])),
+      ).toEqual([
+        {
+          source: "response-headers",
+          provider: "reported-provider",
+          model: "early-candidate",
+          session: sessionID,
+          attempt: attempt.attemptID,
+          routeID: "route-e2e-1",
+        },
+        { source: "response-stream", model: "upstream/final-candidate" },
+      ])
+      expect(attempt.terminal.gatewayAttempts).toHaveLength(2)
+      expect(attempt.terminal.gatewayAttempts?.[0]).toMatchObject({
+        ordinal: 0,
+        provider: "anthropic",
+        model: "early-candidate",
+        account: "acct-cache-1",
+        status: 429,
+        quote: { status: "unknown" },
+      })
+      expect(attempt.terminal.gatewayAttempts?.[1]).toMatchObject({
+        ordinal: 1,
+        provider: "openai",
+        model: "gpt-4o-mini",
+        account: "acct-cache-2",
+        status: 200,
+      })
+      expect(attempt.terminal.gatewayAttempts?.[1]?.quote?.status).toBe("unknown")
+      expect(attempt.terminal.cost).toBeUndefined()
+      expect(assistant.unknownPriceAttempts).toBe(2)
+      expect(assistant.missingUsageAttempts).toBe(0)
+      expect(assistant.tokens).toMatchObject({
+        input: 150,
+        output: 25,
+        cache: { read: 30, write: 5 },
+      })
     }),
   )
 })

@@ -276,6 +276,7 @@ export const StepFinish = Schema.Struct({
   index: Schema.Number,
   reason: FinishReasonDetails,
   usage: Schema.optional(Usage),
+  model: Schema.optional(Schema.String),
   providerMetadata: Schema.optional(ProviderMetadata),
 }).annotate({ identifier: "LLM.Event.StepFinish" })
 export type StepFinish = Schema.Schema.Type<typeof StepFinish>
@@ -284,6 +285,7 @@ export const Finish = Schema.Struct({
   type: Schema.tag("finish"),
   reason: FinishReasonDetails,
   usage: Schema.optional(Usage),
+  model: Schema.optional(Schema.String),
   providerMetadata: Schema.optional(ProviderMetadata),
 }).annotate({ identifier: "LLM.Event.Finish" })
 export type Finish = Schema.Schema.Type<typeof Finish>

@@ -58,23 +58,62 @@ export function currentQuote(quote: ModelSource.Quote, time: number): ModelSourc
   return quote
 }
 
+const unknownQuote = (quote: ModelSource.Quote | undefined, usage: TokenUsage.Info | undefined) =>
+  quote === undefined ||
+  quote.status === "unknown" ||
+  (quote.status === "known" && usage !== undefined && price(quote.prices, usage) === undefined)
+
+export function summarizeGatewayAttempts(
+  gatewayAttempts: readonly SessionAttempt.GatewayAttempt[],
+  fallbackUsage: TokenUsage.Info | undefined,
+) {
+  let cost = 0
+  let hasCost = false
+  let hasUsage = false
+  let tokensSum = tokens(undefined)
+  let unknownPriceAttempts = 0
+  let missingUsageAttempts = 0
+  for (const attempt of gatewayAttempts) {
+    if (attempt.cost !== undefined) {
+      cost += attempt.cost
+      hasCost = true
+    }
+    if (attempt.usage === undefined) missingUsageAttempts += 1
+    if (attempt.usage !== undefined) {
+      hasUsage = true
+      tokensSum = add(
+        { tokens: tokensSum, cost: Money.USD.zero },
+        { tokens: attempt.usage, cost: Money.USD.zero },
+      ).tokens
+    }
+    if (unknownQuote(attempt.quote, attempt.usage)) unknownPriceAttempts += 1
+  }
+  return {
+    cost: hasCost ? Money.USD.make(cost) : undefined,
+    tokens: hasUsage ? tokensSum : (fallbackUsage ?? tokens(undefined)),
+    unknownPriceAttempts,
+    missingUsageAttempts,
+  }
+}
+
 /** A logical Step sums its durable receipts, each already priced at its own deployment. */
 export const aggregate = (attempts: readonly SessionAttempt.Info[]) =>
   attempts.reduce(
     (sum, attempt) => {
       const terminal = attempt.terminal
       if (!terminal) return sum
+      if (terminal.gatewayAttempts && terminal.gatewayAttempts.length > 0) {
+        const gateway = summarizeGatewayAttempts(terminal.gatewayAttempts, terminal.usage)
+        return {
+          ...add(sum, { tokens: gateway.tokens, cost: gateway.cost ?? Money.USD.zero }),
+          unknownPriceAttempts: sum.unknownPriceAttempts + gateway.unknownPriceAttempts,
+          missingUsageAttempts: sum.missingUsageAttempts + gateway.missingUsageAttempts,
+        }
+      }
       const usage = terminal.usage ?? tokens(undefined)
       return {
         ...add(sum, { tokens: usage, cost: terminal.cost ?? Money.USD.zero }),
-        unknownPriceAttempts:
-          sum.unknownPriceAttempts +
-          Number(
-            attempt.quote.status === "unknown" ||
-              (attempt.quote.status === "known" &&
-                terminal.usage !== undefined &&
-                price(attempt.quote.prices, terminal.usage) === undefined),
-          ),
+        unknownPriceAttempts: sum.unknownPriceAttempts + Number(unknownQuote(attempt.quote, terminal.usage)),
         missingUsageAttempts: sum.missingUsageAttempts + Number(terminal.usage === undefined),
       }
     },

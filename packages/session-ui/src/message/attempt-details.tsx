@@ -316,7 +316,10 @@ function AssistantAttemptDetails(props: { message: SessionMessageAssistant }) {
                       <Show when={observation.gatewayReport}>
                         {(report) => (
                           <span class="block break-words">
-                            {i18n.t("ui.modelAttempts.gatewayReport")}
+                            {i18n.tDynamic(
+                              `ui.modelAttempts.gatewayReport.${report().source}`,
+                              i18n.t("ui.modelAttempts.gatewayReport"),
+                            )}
                             <Show when={report().provider}>
                               <span class="block">
                                 {i18n.t("ui.modelAttempts.gatewayProvider", { provider: report().provider! })}
@@ -333,6 +336,40 @@ function AssistantAttemptDetails(props: { message: SessionMessageAssistant }) {
                     </p>
                   )}
                 </For>
+                <Show when={attempt.terminal?.gatewayAttempts?.length}>
+                  <div class="flex min-w-0 flex-col gap-2 border-t border-border-weak pt-2">
+                    <p class="font-medium text-text-weak">{i18n.t("ui.modelAttempts.gatewayAttempts")}</p>
+                    <For each={attempt.terminal?.gatewayAttempts ?? []}>
+                      {(gatewayAttempt) => (
+                        <div class="flex min-w-0 flex-col gap-1 text-text-weak">
+                          <span>
+                            {i18n.t("ui.modelAttempts.gatewayAttempt", {
+                              ordinal: number().format(gatewayAttempt.ordinal + 1),
+                              target:
+                                [gatewayAttempt.provider, gatewayAttempt.model].filter(Boolean).join(" / ") ||
+                                i18n.t("ui.modelAttempts.notReported"),
+                            })}
+                            {gatewayAttempt.status !== undefined ? ` · ${gatewayAttempt.status}` : ""}
+                            {gatewayAttempt.durationMs !== undefined
+                              ? ` · ${i18n.t("ui.modelAttempts.durationMs", { ms: number().format(gatewayAttempt.durationMs) })}`
+                              : ""}
+                          </span>
+                          <Show when={gatewayAttempt.account}>
+                            <span class="break-all">
+                              {i18n.t("ui.modelAttempts.gatewayAccount", { account: gatewayAttempt.account! })}
+                            </span>
+                          </Show>
+                          <span>
+                            {gatewayAttempt.quote
+                              ? i18n.t(`ui.modelAttempts.quote.${gatewayAttempt.quote.status}`)
+                              : i18n.t("ui.modelAttempts.quote.unknown")}
+                            {gatewayAttempt.cost !== undefined ? ` · ${cost(gatewayAttempt.cost)}` : ""}
+                          </span>
+                        </div>
+                      )}
+                    </For>
+                  </div>
+                </Show>
                 <Show when={"prices" in attempt.quote && attempt.quote.prices.length}>
                   <div class="max-w-full overflow-x-auto">
                     <table class="w-full text-start tabular-nums">
