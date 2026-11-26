@@ -2600,7 +2600,7 @@ test("review and terminal follow the session tab and stay mounted", async ({ pag
   await expect(review).toBeVisible()
   await expect(terminal).toBeVisible()
   await expect(terminalPanel).toHaveAttribute("data-size-animated", "true")
-  await expect(page.getByRole("navigation", { name: "Modes", exact: true }).getByRole("button")).toHaveCount(5)
+  await expect(page.getByRole("navigation", { name: "Modes", exact: true }).getByRole("button")).toHaveCount(8)
   await expect.poll(async () => (await chat.boundingBox())?.width).toBeGreaterThanOrEqual(450)
   await expect.poll(async () => (await chat.boundingBox())?.width).toBeLessThan(580)
   await page.setViewportSize({ width: 1500, height: 900 })
