@@ -370,32 +370,6 @@
     }
   }
 
-  [data-slot="subagent-call-records"] {
-    margin-inline: calc(var(--spacing) * 2);
-    margin-block-start: calc(var(--spacing) * 1);
-    padding-inline-start: calc(var(--spacing) * 6);
-
-    > [data-slot="collapsible-trigger"] {
-      display: inline-flex;
-      align-items: center;
-      gap: var(--spacing);
-      padding-block: calc(var(--spacing) * 0.5);
-      font-size: 12px;
-      line-height: var(--line-height-compact);
-      color: var(--v2-text-text-muted);
-    }
-  }
-
-  [data-slot="subagent-call"] {
-    padding-block: calc(var(--spacing) * 2);
-    overflow-wrap: anywhere;
-
-    p {
-      margin: 0 0 var(--spacing);
-      white-space: pre-wrap;
-    }
-  }
-
   [data-slot="collaboration-history"] {
     padding-block-start: calc(var(--spacing) * 3);
     border-block-start: 1px solid var(--v2-border-border-base);
