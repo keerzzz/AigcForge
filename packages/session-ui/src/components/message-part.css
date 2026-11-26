@@ -649,7 +649,6 @@
   width: 18px;
   height: 18px;
   flex-shrink: 0;
-  transform: translateY(-0.5px);
   color: var(--v2-text-text-muted);
 
   &[data-working] {
