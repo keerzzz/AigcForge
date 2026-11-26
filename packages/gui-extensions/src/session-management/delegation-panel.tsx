@@ -1516,6 +1516,30 @@ function DelegationContent(props: Props & { server: ServerRef }) {
                 return output || (state.status === "error" ? state.error.message : description)
               }
 
+              const hasCompletedResponse = () => {
+                if (response(owned() ? childID() : undefined)) return true
+
+                const state = group()?.calls.at(-1)?.tool.state
+
+                return state?.status === "completed" && state.metadata?.status === "completed"
+              }
+
+              const displayStatus = () => {
+                const value = status()
+
+                if (value === "idle" && hasCompletedResponse()) return "completed"
+
+                return value
+              }
+
+              const formattedPreview = () => {
+                const raw = preview()
+
+                if (!raw) return undefined
+
+                return formatSubagentPreview(raw)
+              }
+
               return (
                 <article
                   data-slot="subagent-session"
@@ -1560,7 +1584,7 @@ function DelegationContent(props: Props & { server: ServerRef }) {
                     <span data-slot="subagent-row-copy">
                       <span data-slot="subagent-row-title">
                         <h4>{child()?.title ?? ctx.t("session.collaboration.status.starting")}</h4>
-                        <Show when={status()}>
+                        <Show when={displayStatus()}>
                           {(value) => (
                             <Badge
                               data-slot="subagent-session-status"
@@ -1571,7 +1595,9 @@ function DelegationContent(props: Props & { server: ServerRef }) {
                           )}
                         </Show>
                       </span>
-                      <Show when={preview()}>{(text) => <span data-slot="subagent-row-preview">{text()}</span>}</Show>
+                      <Show when={formattedPreview()}>
+                        {(text) => <span data-slot="subagent-row-preview">{text()}</span>}
+                      </Show>
                     </span>
                     <Icon name="chevron-right" size="small" class="subagent-row-chevron" />
                   </Button>
@@ -1589,133 +1615,6 @@ function DelegationContent(props: Props & { server: ServerRef }) {
                       {ctx.t("session.collaboration.childMismatch")}
                     </p>
                   </Show>
-                  <Collapsible variant="ghost" data-slot="subagent-call-records">
-                    <Collapsible.Trigger type="button">
-                      <Collapsible.Arrow />
-                      <span>{ctx.t("session.collaboration.details")}</span>
-                    </Collapsible.Trigger>
-                    <Collapsible.Content>
-                      <div data-slot="task-form-actions">
-                        <Show when={owned() && childID()}>
-                          {(id) => (
-                            <Button
-                              type="button"
-                              size="small"
-                              variant="ghost"
-                              onClick={() =>
-                                ctx.sessions.open({
-                                  source: props.session,
-                                  server: props.server,
-                                  sessionID: id(),
-                                })
-                              }
-                            >
-                              {ctx.t("session.collaboration.openSession")}
-                            </Button>
-                          )}
-                        </Show>
-                      </div>
-                      <For each={group()?.calls.map((call) => call.key)}>
-                        {(key) => (
-                          <Show when={calls().find((call) => call.key === key)}>
-                            {(call) => {
-                              const input = () => {
-                                const state = call().tool.state
-
-                                return state.status === "streaming" ? undefined : state.input
-                              }
-
-                              const description = createMemo(() =>
-                                Option.getOrUndefined(Schema.decodeUnknownOption(Schema.String)(input()?.description)),
-                              )
-
-                              const agent = createMemo(() =>
-                                Option.getOrUndefined(Schema.decodeUnknownOption(Schema.String)(input()?.agent)),
-                              )
-
-                              const status = () => {
-                                const state = call().tool.state
-
-                                if (state.status === "streaming") return "starting"
-
-                                if (state.status === "completed" && state.metadata?.status === "running")
-                                  return "background"
-
-                                return state.status
-                              }
-
-                              const output = () => {
-                                const state = call().tool.state
-
-                                return state.status === "completed" || state.status === "error"
-                                  ? state.content
-                                      ?.flatMap((item) => (item.type === "text" ? [item.text] : []))
-                                      .join("\n")
-                                  : undefined
-                              }
-
-                              const failure = () => {
-                                const state = call().tool.state
-
-                                return state.status === "error" ? state.error.message : undefined
-                              }
-
-                              return (
-                                <div data-slot="subagent-call">
-                                  <Show when={description()}>{(value) => <p>{value()}</p>}</Show>
-                                  <div data-slot="task-metadata">
-                                    <span>
-                                      {ctx.t("session.collaboration.call", {
-                                        status: ctx.t(`session.collaboration.status.${status()}`),
-                                      })}
-                                    </span>
-                                    <Show when={agent()}>{(value) => <span>{value()}</span>}</Show>
-                                    <Collapsible variant="ghost" data-slot="task-disclosure">
-                                      <Collapsible.Trigger type="button">
-                                        <Collapsible.Arrow />
-                                        {ctx.t("session.collaboration.details")}
-                                      </Collapsible.Trigger>
-                                      <Collapsible.Content>
-                                        <code>{call().parentSessionID}</code>
-                                        <code>{call().messageID}</code>
-                                        <code>{call().tool.id}</code>
-                                      </Collapsible.Content>
-                                    </Collapsible>
-                                  </div>
-                                  <Show when={output() !== undefined || failure() !== undefined}>
-                                    <Collapsible variant="ghost" data-slot="delegation-result">
-                                      <Collapsible.Trigger type="button">
-                                        <Collapsible.Arrow />
-                                        {ctx.t("session.collaboration.openToolOutput")}
-                                      </Collapsible.Trigger>
-                                      <Collapsible.Content>
-                                        <Show when={output() !== undefined}>
-                                          <pre>{output()}</pre>
-                                        </Show>
-                                        <Show when={failure() !== undefined}>
-                                          <pre>{failure()}</pre>
-                                        </Show>
-                                      </Collapsible.Content>
-                                    </Collapsible>
-                                  </Show>
-                                  <div data-slot="task-form-actions">
-                                    <Button
-                                      type="button"
-                                      size="small"
-                                      variant="ghost"
-                                      onClick={() => openResult(call().tool.id)}
-                                    >
-                                      {ctx.t("session.collaboration.openTool")}
-                                    </Button>
-                                  </div>
-                                </div>
-                              )
-                            }}
-                          </Show>
-                        )}
-                      </For>
-                    </Collapsible.Content>
-                  </Collapsible>
                 </article>
               )
             }}
@@ -2318,6 +2217,19 @@ function monitorTone(node: MonitorNode) {
     return "attention"
 
   return "waiting"
+}
+
+function formatSubagentPreview(text: string) {
+  return text
+    .replace(/^\|[-:\s|]+\|$/gm, " ")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/^\s*[-*+]\s+/gm, " · ")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/\s+/g, " ")
+    .replace(/^·\s*/, "")
+    .trim()
 }
 
 export default DelegationPanel

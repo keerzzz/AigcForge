@@ -298,7 +298,8 @@
     }
   }
 
-  [data-slot="subagent-row"] {
+  [data-slot="subagent-row"],
+  [data-slot="subagent-row"][data-component="button-v2"] {
     display: flex;
     width: 100%;
     height: auto;
@@ -337,6 +338,8 @@
       white-space: normal;
       overflow: hidden;
       overflow-wrap: anywhere;
+      font-size: 12.5px;
+      line-height: 18px;
       color: var(--v2-text-text-muted);
     }
 
@@ -364,29 +367,6 @@
       color: var(--v2-state-fg-warning);
       background: var(--v2-state-bg-warning);
       border-color: var(--v2-state-border-warning);
-    }
-  }
-
-  [data-slot="subagent-call-records"] {
-    margin-inline: calc(var(--spacing) * 2);
-    margin-block-start: var(--spacing);
-
-    > [data-slot="collapsible-trigger"] {
-      display: flex;
-      align-items: center;
-      gap: var(--spacing);
-      line-height: var(--line-height-base);
-      color: var(--v2-text-text-muted);
-    }
-  }
-
-  [data-slot="subagent-call"] {
-    padding-block: calc(var(--spacing) * 2);
-    overflow-wrap: anywhere;
-
-    p {
-      margin: 0 0 var(--spacing);
-      white-space: pre-wrap;
     }
   }
 
