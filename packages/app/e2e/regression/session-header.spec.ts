@@ -64,7 +64,7 @@ test("status bar follows the main location and preserves navigation controls acr
   await location.click()
   await expect(page.getByRole("dialog", { name: "New session location", exact: true }).locator("code")).toHaveText(next)
   await page.keyboard.press("Escape")
-  await page.getByRole("button", { name: "Settings", exact: true }).click()
+  await page.keyboard.press("Control+,")
   await expect(page).toHaveURL(/\/settings(?:\?|$)/)
   await expect(footer).toBeVisible()
   await expect(location).toContainText("next-workspace")

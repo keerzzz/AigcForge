@@ -27,7 +27,7 @@ export function createHomeProjectsController(home: HomeController) {
   const pickDirectory = useDirectoryPicker()
   const dialog = useDialog()
   const language = useLanguage()
-  const openSettings = useSettingsCommand()
+  useSettingsCommand()
   const settings = useSettingsSurface()
   const serverManagement = useServerActionsController()
   const global = useGlobal()
@@ -182,10 +182,6 @@ export function createHomeProjectsController(home: HomeController) {
       },
       canReveal: revealProject.available,
       reveal: revealProject.reveal,
-    },
-    utility: {
-      settings: openSettings,
-      help: () => platform.openExternal("https://github.com/keerzzz/AigcForge/issues/new"),
     },
   }
 }

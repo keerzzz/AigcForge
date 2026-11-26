@@ -595,8 +595,11 @@ for (const state of [
     await expect(page.locator('[data-slot="home-projects-scroll"]')).toHaveCount(1)
     await expect(page.locator('[data-slot="home-panel"] [data-slot="home-projects-scroll"]')).toHaveCount(1)
     const home = page.locator('[data-slot="home-panel"]')
-    await expect(home.getByRole("button", { name: "Settings", exact: true })).toBeVisible()
-    await expect(home.getByRole("button", { name: "Help", exact: true })).toBeVisible()
+    const rail = page.locator("#global-mode-navigation")
+    await expect(home.getByRole("button", { name: "Settings", exact: true })).toHaveCount(0)
+    await expect(home.getByRole("button", { name: "Help", exact: true })).toHaveCount(0)
+    await expect(rail.getByRole("button", { name: "Settings", exact: true })).toBeVisible()
+    await expect(rail.getByRole("button", { name: "Help", exact: true })).toBeVisible()
     await project.click()
     await expect(project).not.toHaveAttribute("data-selected", "")
     await expect(
@@ -1213,7 +1216,7 @@ test("global mode navigation drives Home and New without changing an existing dr
   })
   await expect(homeSessionMode(page)).toHaveText("Choose a session mode")
   const navigation = page.getByRole("navigation", { name: "Modes", exact: true })
-  await expect(navigation.getByRole("button")).toHaveCount(5)
+  await expect(navigation.getByRole("button")).toHaveCount(8)
   await expect(navigation.getByRole("button", { name: "Modes", exact: true })).toHaveCount(0)
   await expect(navigation).toHaveCSS("width", "56px")
   const rail = await navigation.boundingBox()
@@ -1250,7 +1253,7 @@ test("global mode navigation drives Home and New without changing an existing dr
     geometry.set(mode.id, await button.boundingBox())
   }
 
-  await expect(navigation.locator('[data-slot="active-indicator"]')).toHaveCount(5)
+  await expect(navigation.locator('[data-slot="active-indicator"]')).toHaveCount(8)
   const drafts: { href: string; label: string }[] = []
 
   for (const mode of modes.filter((mode) => mode.id !== "custom")) {
@@ -1316,7 +1319,41 @@ test("global mode navigation drives Home and New without changing an existing dr
   await expect(toggle).toHaveAttribute("aria-expanded", "true")
   await navigation.getByRole("button", { name: "Coding", exact: true }).click()
   await expectPath(page, "/mode/coding")
+  await expect(navigation.getByRole("button", { name: "Settings", exact: true })).toHaveCount(0)
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+})
+
+test("global navigation rail hosts Settings/Help on desktop and lets users add and remove custom modes", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 800 })
+  await openHome(page)
+  const rail = page.locator("#global-mode-navigation")
+  const settings = rail.getByRole("button", { name: "Settings", exact: true })
+  const help = rail.getByRole("button", { name: "Help", exact: true })
+  await expect(settings).toBeVisible()
+  await expect(help).toBeVisible()
+
+  await settings.click()
+  await expectPath(page, "/settings")
+  await expect(settings).toHaveAttribute("aria-current", "page")
+
+  await rail.getByRole("button", { name: "Add mode", exact: true }).click()
+  const dialog = page.getByRole("dialog", { name: "Add custom mode", exact: true })
+  await expect(dialog).toBeVisible()
+  await dialog.getByRole("textbox", { name: "Mode name", exact: true }).fill("Research Lab")
+  await dialog.getByRole("button", { name: "Add and configure", exact: true }).click()
+  await expect(dialog).toBeHidden()
+  await expect(page).toHaveURL(/\/mode\/custom\?rail=/)
+  const customButton = rail.getByRole("button", { name: "Research Lab", exact: true })
+  await expect(customButton).toBeVisible()
+  await expect(customButton).toHaveAttribute("aria-current", "page")
+  await expect(rail.getByRole("button", { name: "Custom", exact: true })).not.toHaveAttribute("aria-current", "page")
+
+  await rail.getByRole("button", { name: "Add mode", exact: true }).click()
+  await dialog.getByRole("button", { name: "Remove Research Lab from rail", exact: true }).click()
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click()
+  await expect(customButton).toHaveCount(0)
 })
 
 test("Home requires a selected session mode before offering New", async ({ page }) => {

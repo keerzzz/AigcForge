@@ -59,6 +59,15 @@ const statusLabels = {
   unavailable: "provider.custom.status.unavailable",
 } as const
 
+const commonHeaderPresets = [
+  { key: "Authorization", value: "" },
+  { key: "x-api-key", value: "" },
+  { key: "HTTP-Referer", value: "https://omnixa.ai/" },
+  { key: "X-Title", value: "omnixa" },
+  { key: "anthropic-version", value: "2023-06-01" },
+  { key: "User-Agent", value: "omnixa/1.0" },
+] as const
+
 export function CustomProviderForm(
   props: {
     autofocus?: boolean
@@ -734,6 +743,40 @@ export function CustomProviderForm(
       setForm("headers", index, "err", key, undefined)
     })
 
+  const selectCredentialAction = (action: FormState["credentialAction"]) => {
+    if (form.credentialAction === action) return
+    batch(() => {
+      setForm("credentialAction", action)
+      setForm("apiKey", "")
+      setForm("err", "credentialID", undefined)
+    })
+  }
+
+  const hasHeaderKey = (key: string) => form.headers.some((row) => row.key.trim().toLowerCase() === key.toLowerCase())
+
+  const applyHeaderPreset = (preset: (typeof commonHeaderPresets)[number]) =>
+    setForm(
+      "headers",
+      produce((rows) => {
+        const existing = rows.find((row) => row.key.trim().toLowerCase() === preset.key.toLowerCase())
+        if (existing) {
+          if (!existing.value.trim() && !existing.redacted && preset.value) {
+            existing.value = preset.value
+            existing.err = { ...existing.err, value: undefined }
+          }
+          return
+        }
+        const empty = rows.find((row) => !row.key.trim() && !row.value.trim() && !row.configKey && !row.redacted)
+        if (empty) {
+          empty.key = preset.key
+          empty.value = preset.value
+          empty.err = {}
+          return
+        }
+        rows.push({ ...headerRow(), key: preset.key, value: preset.value })
+      }),
+    )
+
   async function refreshCatalog() {
     const api = sdk.api
     const generation = lifetime.generation
@@ -1005,21 +1048,44 @@ export function CustomProviderForm(
           />
           <div class="flex flex-col gap-2">
             <span class="text-13-medium text-text-base">{language.t("provider.custom.credential.label")}</span>
-            <Select
-              options={["keep", "use", "create"] as const}
-              current={form.credentialAction}
-              label={(action) => language.t("provider.custom.credential." + action)}
-              onSelect={(action) => {
-                if (!action) return
-                batch(() => {
-                  setForm("credentialAction", action)
-                  setForm("apiKey", "")
-                  setForm("err", "credentialID", undefined)
-                })
-              }}
-              disabled={locked() || state.loading}
+            <div
+              role="radiogroup"
               aria-label={language.t("provider.custom.credential.label")}
-            />
+              class="grid grid-cols-1 gap-2 sm:grid-cols-3"
+            >
+              <For each={["keep", "use", "create"] as const}>
+                {(action) => {
+                  const selected = () => form.credentialAction === action
+                  return (
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={selected()}
+                      disabled={locked() || state.loading}
+                      onClick={() => selectCredentialAction(action)}
+                      class="flex min-w-0 flex-col items-start gap-1 rounded-md border px-3 py-2.5 text-left transition-colors focus-visible:border-v2-border-border-focus focus-visible:outline-none focus-visible:[box-shadow:inset_0_0_0_1px_var(--v2-border-border-focus)] disabled:cursor-not-allowed disabled:opacity-50"
+                      classList={{
+                        "border-v2-border-border-focus bg-v2-background-bg-layer-02": selected(),
+                        "border-v2-border-border-base bg-transparent hover:bg-v2-overlay-simple-overlay-hover":
+                          !selected(),
+                      }}
+                    >
+                      <div class="flex w-full items-center justify-between gap-2">
+                        <span class="text-13-medium text-text-strong">
+                          {language.t(`provider.custom.credential.${action}`)}
+                        </span>
+                        <Show when={selected()}>
+                          <Icon name="check" size="small" class="shrink-0 text-v2-icon-icon-base" />
+                        </Show>
+                      </div>
+                      <span class="text-12-regular text-text-weak">
+                        {language.t(`provider.custom.credential.${action}.description`)}
+                      </span>
+                    </button>
+                  )
+                }}
+              </For>
+            </div>
           </div>
           <TextField
             label={language.t("provider.custom.env.label")}
@@ -1471,6 +1537,36 @@ export function CustomProviderForm(
           aria-label={language.t("provider.custom.headers.label")}
         >
           <h3 class="text-14-medium text-text-strong">{language.t("provider.custom.headers.label")}</h3>
+          <div class="flex flex-col gap-2">
+            <span class="text-12-regular text-text-weak">{language.t("provider.custom.headers.presets")}</span>
+            <div class="flex flex-wrap gap-1.5" role="group" aria-label={language.t("provider.custom.headers.presets")}>
+              <For each={commonHeaderPresets}>
+                {(preset) => {
+                  const added = () => hasHeaderKey(preset.key)
+                  return (
+                    <button
+                      type="button"
+                      disabled={locked() || state.loading}
+                      aria-pressed={added()}
+                      onClick={() => applyHeaderPreset(preset)}
+                      class="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-12-regular transition-colors focus-visible:border-v2-border-border-focus focus-visible:outline-none focus-visible:[box-shadow:inset_0_0_0_1px_var(--v2-border-border-focus)] disabled:cursor-not-allowed disabled:opacity-50"
+                      classList={{
+                        "border-v2-border-border-focus bg-v2-background-bg-layer-02 text-text-strong": added(),
+                        "border-v2-border-border-base bg-transparent text-text-base hover:bg-v2-overlay-simple-overlay-hover":
+                          !added(),
+                      }}
+                    >
+                      <Icon name={added() ? "check" : "plus-small"} size="small" class="shrink-0" />
+                      <span>{preset.key}</span>
+                      <Show when={preset.value}>
+                        <span class="text-text-weak">{preset.value}</span>
+                      </Show>
+                    </button>
+                  )
+                }}
+              </For>
+            </div>
+          </div>
           <For each={form.headers}>
             {(h, i) => (
               <div class="flex gap-2 items-start" data-row={h.row}>
