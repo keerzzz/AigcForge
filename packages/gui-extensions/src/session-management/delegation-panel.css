@@ -337,6 +337,8 @@
       white-space: normal;
       overflow: hidden;
       overflow-wrap: anywhere;
+      font-size: 12.5px;
+      line-height: 18px;
       color: var(--v2-text-text-muted);
     }
 
@@ -369,13 +371,16 @@
 
   [data-slot="subagent-call-records"] {
     margin-inline: calc(var(--spacing) * 2);
-    margin-block-start: var(--spacing);
+    margin-block-start: calc(var(--spacing) * 1.5);
+    padding-inline-start: calc(var(--spacing) * 6);
 
     > [data-slot="collapsible-trigger"] {
-      display: flex;
+      display: inline-flex;
       align-items: center;
-      gap: var(--spacing);
-      line-height: var(--line-height-base);
+      gap: calc(var(--spacing) * 1.5);
+      padding-block: calc(var(--spacing) * 0.5);
+      font-size: 12px;
+      line-height: var(--line-height-compact);
       color: var(--v2-text-text-muted);
     }
   }

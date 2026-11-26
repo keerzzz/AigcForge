@@ -476,7 +476,7 @@ function MessageTimelineView(
             <div class={`flex h-9 items-center gap-2 text-[13px] font-[530] leading-text-compact ${turnPadding()}`}>
               <Show when={showWorking()}>
                 <div data-component="session-working" role="status" class="inline-flex min-h-6 items-center gap-2">
-                  <SessionProgressIndicatorV2 variant="agent" />
+                  <SessionProgressIndicatorV2 variant="agent" class="-translate-y-[0.5px]" />
                   <TextShimmer text={language.t("session.timeline.working")} active={false} />
                 </div>
               </Show>

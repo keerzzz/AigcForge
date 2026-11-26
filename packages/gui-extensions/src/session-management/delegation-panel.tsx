@@ -1516,6 +1516,30 @@ function DelegationContent(props: Props & { server: ServerRef }) {
                 return output || (state.status === "error" ? state.error.message : description)
               }
 
+              const hasCompletedResponse = () => {
+                if (response(owned() ? childID() : undefined)) return true
+
+                const state = group()?.calls.at(-1)?.tool.state
+
+                return state?.status === "completed" && state.metadata?.status === "completed"
+              }
+
+              const displayStatus = () => {
+                const value = status()
+
+                if (value === "idle" && hasCompletedResponse()) return "completed"
+
+                return value
+              }
+
+              const formattedPreview = () => {
+                const raw = preview()
+
+                if (!raw) return undefined
+
+                return formatSubagentPreview(raw)
+              }
+
               return (
                 <article
                   data-slot="subagent-session"
@@ -1560,7 +1584,7 @@ function DelegationContent(props: Props & { server: ServerRef }) {
                     <span data-slot="subagent-row-copy">
                       <span data-slot="subagent-row-title">
                         <h4>{child()?.title ?? ctx.t("session.collaboration.status.starting")}</h4>
-                        <Show when={status()}>
+                        <Show when={displayStatus()}>
                           {(value) => (
                             <Badge
                               data-slot="subagent-session-status"
@@ -1571,7 +1595,9 @@ function DelegationContent(props: Props & { server: ServerRef }) {
                           )}
                         </Show>
                       </span>
-                      <Show when={preview()}>{(text) => <span data-slot="subagent-row-preview">{text()}</span>}</Show>
+                      <Show when={formattedPreview()}>
+                        {(text) => <span data-slot="subagent-row-preview">{text()}</span>}
+                      </Show>
                     </span>
                     <Icon name="chevron-right" size="small" class="subagent-row-chevron" />
                   </Button>
@@ -2318,6 +2344,17 @@ function monitorTone(node: MonitorNode) {
     return "attention"
 
   return "waiting"
+}
+
+function formatSubagentPreview(text: string) {
+  return text
+    .replace(/^\|[-:\s|]+\|$/gm, " ")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/\s+/g, " ")
+    .trim()
 }
 
 export default DelegationPanel

@@ -88,21 +88,25 @@ function AssistantAttemptDetails(props: { message: SessionMessageAssistant }) {
 
   return (
     <section class="w-full min-w-0 text-13-regular">
-      <div class="flex min-w-0 flex-col gap-4 pt-3">
-        <dl class="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1">
-          <dt class="text-text-weak">{i18n.t("ui.modelAttempts.messageID")}</dt>
-          <dd class="break-all font-mono">{props.message.id}</dd>
-          <dt class="text-text-weak">{i18n.t("ui.modelAttempts.knownCost")}</dt>
-          <dd>{cost(props.message.cost)}</dd>
-          <Show when={props.message.unknownPriceAttempts !== undefined}>
-            <dt class="text-text-weak">{i18n.t("ui.modelAttempts.unknownPrices")}</dt>
-            <dd>{number().format(props.message.unknownPriceAttempts ?? 0)}</dd>
-          </Show>
-          <Show when={props.message.missingUsageAttempts !== undefined}>
-            <dt class="text-text-weak">{i18n.t("ui.modelAttempts.missingUsage")}</dt>
-            <dd>{number().format(props.message.missingUsageAttempts ?? 0)}</dd>
-          </Show>
-        </dl>
+      <div class="flex min-w-0 flex-col gap-3 pt-2">
+        <div class="flex min-w-0 flex-col gap-2 rounded-md border border-v2-border-border-base bg-v2-background-bg-layer-02/50 p-3">
+          <dl class="grid min-w-0 grid-cols-[136px_minmax(0,1fr)] items-baseline gap-x-3 gap-y-1.5 text-12-regular">
+            <dt class="text-text-weak">{i18n.t("ui.modelAttempts.messageID")}</dt>
+            <dd class="truncate font-mono text-text-base" title={props.message.id}>
+              {props.message.id}
+            </dd>
+            <dt class="text-text-weak">{i18n.t("ui.modelAttempts.knownCost")}</dt>
+            <dd class="font-medium tabular-nums text-text-strong">{cost(props.message.cost)}</dd>
+            <Show when={props.message.unknownPriceAttempts !== undefined}>
+              <dt class="text-text-weak">{i18n.t("ui.modelAttempts.unknownPrices")}</dt>
+              <dd class="tabular-nums text-text-base">{number().format(props.message.unknownPriceAttempts ?? 0)}</dd>
+            </Show>
+            <Show when={props.message.missingUsageAttempts !== undefined}>
+              <dt class="text-text-weak">{i18n.t("ui.modelAttempts.missingUsage")}</dt>
+              <dd class="tabular-nums text-text-base">{number().format(props.message.missingUsageAttempts ?? 0)}</dd>
+            </Show>
+          </dl>
+        </div>
         <For each={props.message.attempts}>
           {(attempt) => {
             const latency = () => {
@@ -138,78 +142,149 @@ function AssistantAttemptDetails(props: { message: SessionMessageAssistant }) {
               return "known"
             }
 
+            const durationText = () =>
+              attempt.terminal
+                ? i18n.t("ui.modelAttempts.durationMs", {
+                    ms: number().format((attempt.terminal.ended ?? attempt.started) - attempt.started),
+                  })
+                : i18n.t("ui.modelAttempts.notObserved")
+
+            const costText = () =>
+              attempt.quote.status === "unknown"
+                ? i18n.t("ui.modelAttempts.quote.unknown")
+                : cost(attempt.terminal?.cost)
+
+            const connectionText = () =>
+              attempt.connection
+                ? i18n.t(
+                    attempt.connection.type === "credential"
+                      ? "ui.modelAttempts.account"
+                      : "ui.modelAttempts.environment",
+                    {
+                      name: attempt.connection.type === "credential" ? attempt.connection.id : attempt.connection.name,
+                    },
+                  )
+                : i18n.t("ui.modelAttempts.notObserved")
+
             return (
-              <section class="flex min-w-0 flex-col gap-2 border-t border-border-weak pt-3">
-                <h4 class="font-medium">
+              <section class="flex min-w-0 flex-col gap-3 rounded-md border border-v2-border-border-base bg-v2-background-bg-layer-01 p-3">
+                <h4 class="text-13-medium text-text-strong">
                   {i18n.t("ui.modelAttempts.attempt", {
                     ordinal: number().format(attempt.ordinal + 1),
                     model: modelLabel(attempt.model),
                   })}
                 </h4>
-                <dl class="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 [&>dd]:break-words">
-                  <dt class="text-text-weak">{i18n.t("ui.modelAttempts.attemptID")}</dt>
-                  <dd class="break-all font-mono">{attempt.attemptID}</dd>
-                  <dt class="text-text-weak">{i18n.t("ui.modelAttempts.selection")}</dt>
-                  <dd>{modelLabel(attempt.selection)}</dd>
-                  <dt class="text-text-weak">{i18n.t("ui.modelAttempts.apiModel")}</dt>
-                  <dd class="break-all font-mono">{attempt.apiModelID}</dd>
-                  <dt class="text-text-weak">{i18n.t("ui.modelAttempts.connection")}</dt>
-                  <dd>
-                    {attempt.connection
-                      ? i18n.t(
-                          attempt.connection.type === "credential"
-                            ? "ui.modelAttempts.account"
-                            : "ui.modelAttempts.environment",
-                          {
-                            name:
-                              attempt.connection.type === "credential"
-                                ? attempt.connection.id
-                                : attempt.connection.name,
-                          },
-                        )
-                      : i18n.t("ui.modelAttempts.notObserved")}
-                  </dd>
+                <div class="grid min-w-0 grid-cols-2 gap-2">
+                  <div class="flex min-w-0 flex-col gap-0.5 rounded-md border border-v2-border-border-base bg-v2-background-bg-layer-02/40 px-2.5 py-1.5">
+                    <span class="truncate text-12-regular text-text-weak">{i18n.t("ui.modelAttempts.duration")}</span>
+                    <span class="truncate text-13-medium tabular-nums text-text-strong">{durationText()}</span>
+                  </div>
+                  <div class="flex min-w-0 flex-col gap-0.5 rounded-md border border-v2-border-border-base bg-v2-background-bg-layer-02/40 px-2.5 py-1.5">
+                    <span class="truncate text-12-regular text-text-weak">{i18n.t("ui.modelAttempts.cost")}</span>
+                    <span class="truncate text-13-medium tabular-nums text-text-strong">{costText()}</span>
+                  </div>
+                  <div class="flex min-w-0 flex-col gap-0.5 rounded-md border border-v2-border-border-base bg-v2-background-bg-layer-02/40 px-2.5 py-1.5">
+                    <span class="truncate text-12-regular text-text-weak">{i18n.t("ui.modelAttempts.ttft")}</span>
+                    <span class="truncate text-13-medium tabular-nums text-text-strong">
+                      {latency() === undefined
+                        ? i18n.t("ui.modelAttempts.notObserved")
+                        : i18n.t("ui.modelAttempts.durationMs", { ms: number().format(latency()!) })}
+                    </span>
+                  </div>
+                  <div class="flex min-w-0 flex-col gap-0.5 rounded-md border border-v2-border-border-base bg-v2-background-bg-layer-02/40 px-2.5 py-1.5">
+                    <span class="truncate text-12-regular text-text-weak">{i18n.t("ui.modelAttempts.tps")}</span>
+                    <span class="truncate text-13-medium tabular-nums text-text-strong">
+                      {rate() === undefined
+                        ? i18n.t("ui.modelAttempts.notObserved")
+                        : i18n.t("ui.modelAttempts.tokensPerSecond", { rate: number().format(rate()!) })}
+                    </span>
+                  </div>
+                </div>
+                <Show
+                  when={attempt.terminal?.usage}
+                  fallback={<p class="text-12-regular text-text-weak">{i18n.t("ui.modelAttempts.usageMissing")}</p>}
+                >
+                  {(usage) => (
+                    <dl class="grid min-w-0 grid-cols-5 gap-1.5 rounded-md border border-v2-border-border-base bg-v2-background-bg-layer-02/30 p-2 text-center">
+                      <div class="flex min-w-0 flex-col gap-0.5">
+                        <dt class="truncate text-12-regular text-text-weak">
+                          {i18n.t("ui.modelAttempts.tokens.input")}
+                        </dt>
+                        <dd class="text-12-medium tabular-nums text-text-strong">{number().format(usage().input)}</dd>
+                      </div>
+                      <div class="flex min-w-0 flex-col gap-0.5">
+                        <dt class="truncate text-12-regular text-text-weak">
+                          {i18n.t("ui.modelAttempts.tokens.output")}
+                        </dt>
+                        <dd class="text-12-medium tabular-nums text-text-strong">{number().format(usage().output)}</dd>
+                      </div>
+                      <div class="flex min-w-0 flex-col gap-0.5">
+                        <dt class="truncate text-12-regular text-text-weak">
+                          {i18n.t("ui.modelAttempts.tokens.reasoning")}
+                        </dt>
+                        <dd class="text-12-medium tabular-nums text-text-strong">
+                          {number().format(usage().reasoning)}
+                        </dd>
+                      </div>
+                      <div class="flex min-w-0 flex-col gap-0.5">
+                        <dt class="truncate text-12-regular text-text-weak">
+                          {i18n.t("ui.modelAttempts.tokens.cacheRead")}
+                        </dt>
+                        <dd class="text-12-medium tabular-nums text-text-strong">
+                          {number().format(usage().cache.read)}
+                        </dd>
+                      </div>
+                      <div class="flex min-w-0 flex-col gap-0.5">
+                        <dt class="truncate text-12-regular text-text-weak">
+                          {i18n.t("ui.modelAttempts.tokens.cacheWrite")}
+                        </dt>
+                        <dd class="text-12-medium tabular-nums text-text-strong">
+                          {number().format(usage().cache.write)}
+                        </dd>
+                      </div>
+                    </dl>
+                  )}
+                </Show>
+                <dl class="grid min-w-0 grid-cols-[136px_minmax(0,1fr)] items-baseline gap-x-3 gap-y-1.5 border-t border-v2-border-border-base pt-2.5 text-12-regular [&>dd]:min-w-0 [&>dd]:break-words">
                   <dt class="text-text-weak">{i18n.t("ui.modelAttempts.status")}</dt>
-                  <dd>{i18n.t(`ui.modelAttempts.status.${attempt.terminal?.status ?? "started"}`)}</dd>
+                  <dd class="font-medium text-text-strong">
+                    {i18n.t(`ui.modelAttempts.status.${attempt.terminal?.status ?? "started"}`)}
+                  </dd>
                   <dt class="text-text-weak">{i18n.t("ui.modelAttempts.transition")}</dt>
                   <dd>{i18n.t(`ui.modelAttempts.transition.${attempt.transition}`)}</dd>
                   <Show when={attempt.reason}>
                     <dt class="text-text-weak">{i18n.t("ui.modelAttempts.transitionReason")}</dt>
                     <dd>{attempt.reason ? failureLabel(attempt.reason) : undefined}</dd>
                   </Show>
+                  <dt class="text-text-weak">{i18n.t("ui.modelAttempts.selection")}</dt>
+                  <dd>{modelLabel(attempt.selection)}</dd>
+                  <dt class="text-text-weak">{i18n.t("ui.modelAttempts.apiModel")}</dt>
+                  <dd class="truncate font-mono" title={attempt.apiModelID}>
+                    {attempt.apiModelID}
+                  </dd>
+                  <dt class="text-text-weak">{i18n.t("ui.modelAttempts.connection")}</dt>
+                  <dd class="truncate" title={connectionText()}>
+                    {connectionText()}
+                  </dd>
+                  <dt class="text-text-weak">{i18n.t("ui.modelAttempts.attemptID")}</dt>
+                  <dd class="truncate font-mono text-text-weak" title={attempt.attemptID}>
+                    {attempt.attemptID}
+                  </dd>
                   <dt class="text-text-weak">{i18n.t("ui.modelAttempts.started")}</dt>
-                  <dd>{time().format(attempt.started)}</dd>
+                  <dd class="tabular-nums">{time().format(attempt.started)}</dd>
                   <Show when={attempt.terminal}>
                     <dt class="text-text-weak">{i18n.t("ui.modelAttempts.ended")}</dt>
-                    <dd>{time().format(attempt.terminal?.ended ?? attempt.started)}</dd>
-                    <dt class="text-text-weak">{i18n.t("ui.modelAttempts.duration")}</dt>
-                    <dd>
-                      {i18n.t("ui.modelAttempts.durationMs", {
-                        ms: number().format((attempt.terminal?.ended ?? attempt.started) - attempt.started),
-                      })}
-                    </dd>
+                    <dd class="tabular-nums">{time().format(attempt.terminal?.ended ?? attempt.started)}</dd>
                     <dt class="text-text-weak">{i18n.t("ui.modelAttempts.delivery")}</dt>
                     <dd>{i18n.t(`ui.modelAttempts.delivery.${attempt.terminal?.delivery ?? "unknown"}`)}</dd>
                   </Show>
                   <Show when={firstOutput(attempt) !== undefined}>
                     <dt class="text-text-weak">{i18n.t("ui.modelAttempts.firstOutput")}</dt>
-                    <dd>{time().format(firstOutput(attempt) ?? attempt.started)}</dd>
+                    <dd class="tabular-nums">{time().format(firstOutput(attempt) ?? attempt.started)}</dd>
                   </Show>
-                  <dt class="text-text-weak">{i18n.t("ui.modelAttempts.ttft")}</dt>
-                  <dd>
-                    {latency() === undefined
-                      ? i18n.t("ui.modelAttempts.notObserved")
-                      : i18n.t("ui.modelAttempts.durationMs", { ms: number().format(latency()!) })}
-                  </dd>
-                  <dt class="text-text-weak">{i18n.t("ui.modelAttempts.tps")}</dt>
-                  <dd>
-                    {rate() === undefined
-                      ? i18n.t("ui.modelAttempts.notObserved")
-                      : i18n.t("ui.modelAttempts.tokensPerSecond", { rate: number().format(rate()!) })}
-                  </dd>
                   <Show when={attempt.terminal?.providerEndedAt !== undefined}>
                     <dt class="text-text-weak">{i18n.t("ui.modelAttempts.providerEnded")}</dt>
-                    <dd>{time().format(attempt.terminal!.providerEndedAt!)}</dd>
+                    <dd class="tabular-nums">{time().format(attempt.terminal?.providerEndedAt)}</dd>
                   </Show>
                   <Show when={attempt.quota}>
                     <dt class="text-text-weak">{i18n.t("ui.modelAttempts.quota")}</dt>
@@ -226,11 +301,11 @@ function AssistantAttemptDetails(props: { message: SessionMessageAssistant }) {
                     </Show>
                     <Show when={attempt.quota?.observedAt !== undefined}>
                       <dt class="text-text-weak">{i18n.t("ui.modelAttempts.quota.observed")}</dt>
-                      <dd>{time().format(attempt.quota!.observedAt!)}</dd>
+                      <dd class="tabular-nums">{time().format(attempt.quota?.observedAt)}</dd>
                     </Show>
                     <Show when={attempt.quota?.freshUntil !== undefined}>
                       <dt class="text-text-weak">{i18n.t("ui.modelAttempts.quota.freshUntil")}</dt>
-                      <dd>{time().format(attempt.quota!.freshUntil!)}</dd>
+                      <dd class="tabular-nums">{time().format(attempt.quota?.freshUntil)}</dd>
                     </Show>
                   </Show>
                   <dt class="text-text-weak">{i18n.t("ui.modelAttempts.quote")}</dt>
@@ -247,18 +322,16 @@ function AssistantAttemptDetails(props: { message: SessionMessageAssistant }) {
                   </Show>
                   <Show when={"validFrom" in attempt.quote && attempt.quote.validFrom !== undefined}>
                     <dt class="text-text-weak">{i18n.t("ui.modelAttempts.quoteValidFrom")}</dt>
-                    <dd>{"validFrom" in attempt.quote ? time().format(attempt.quote.validFrom!) : undefined}</dd>
+                    <dd class="tabular-nums">
+                      {"validFrom" in attempt.quote ? time().format(attempt.quote.validFrom) : undefined}
+                    </dd>
                   </Show>
                   <Show when={"validUntil" in attempt.quote && attempt.quote.validUntil !== undefined}>
                     <dt class="text-text-weak">{i18n.t("ui.modelAttempts.quoteValidUntil")}</dt>
-                    <dd>{"validUntil" in attempt.quote ? time().format(attempt.quote.validUntil!) : undefined}</dd>
+                    <dd class="tabular-nums">
+                      {"validUntil" in attempt.quote ? time().format(attempt.quote.validUntil) : undefined}
+                    </dd>
                   </Show>
-                  <dt class="text-text-weak">{i18n.t("ui.modelAttempts.cost")}</dt>
-                  <dd>
-                    {attempt.quote.status === "unknown"
-                      ? i18n.t("ui.modelAttempts.quote.unknown")
-                      : cost(attempt.terminal?.cost)}
-                  </dd>
                   <Show when={attempt.terminal?.failure}>
                     <dt class="text-text-weak">{i18n.t("ui.modelAttempts.failure")}</dt>
                     <dd>
@@ -267,75 +340,71 @@ function AssistantAttemptDetails(props: { message: SessionMessageAssistant }) {
                     </dd>
                   </Show>
                 </dl>
-                <Show
-                  when={attempt.terminal?.usage}
-                  fallback={<p class="text-text-weak">{i18n.t("ui.modelAttempts.usageMissing")}</p>}
-                >
-                  {(usage) => (
-                    <dl class="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1">
-                      <dt class="text-text-weak">{i18n.t("ui.modelAttempts.tokens.input")}</dt>
-                      <dd>{number().format(usage().input)}</dd>
-                      <dt class="text-text-weak">{i18n.t("ui.modelAttempts.tokens.output")}</dt>
-                      <dd>{number().format(usage().output)}</dd>
-                      <dt class="text-text-weak">{i18n.t("ui.modelAttempts.tokens.reasoning")}</dt>
-                      <dd>{number().format(usage().reasoning)}</dd>
-                      <dt class="text-text-weak">{i18n.t("ui.modelAttempts.tokens.cacheRead")}</dt>
-                      <dd>{number().format(usage().cache.read)}</dd>
-                      <dt class="text-text-weak">{i18n.t("ui.modelAttempts.tokens.cacheWrite")}</dt>
-                      <dd>{number().format(usage().cache.write)}</dd>
-                    </dl>
-                  )}
-                </Show>
-                <Show when={attempt.preparedDeployment}>
-                  <p class="break-all text-text-weak">
-                    {i18n.t("ui.modelAttempts.prepared", {
-                      route: attempt.preparedDeployment?.route ?? "",
-                      protocol: attempt.preparedDeployment?.protocol ?? "",
-                      endpoint: attempt.preparedDeployment?.endpoint ?? "",
-                    })}
-                  </p>
-                </Show>
-                <For each={attempt.observations}>
-                  {(observation) => (
-                    <p class="break-words text-text-weak">
-                      {i18n.t("ui.modelAttempts.observation", {
-                        time: time().format(observation.observedAt),
-                        transport: observation.transport
-                          ? i18n.tDynamic(`ui.modelAttempts.transport.${observation.transport}`, observation.transport)
-                          : i18n.t("ui.modelAttempts.notObserved"),
-                        delivery: observation.delivery
-                          ? i18n.t(`ui.modelAttempts.delivery.${observation.delivery}`)
-                          : i18n.t("ui.modelAttempts.notObserved"),
-                      })}
-                      <Show when={observation.deployment}>
-                        <span class="block break-all">
-                          {observation.deployment?.route} · {observation.deployment?.protocol} ·{" "}
-                          {observation.deployment?.endpoint}
-                        </span>
-                      </Show>
-                      <Show when={observation.gatewayReport}>
-                        {(report) => (
-                          <span class="block break-words">
-                            {i18n.tDynamic(
-                              `ui.modelAttempts.gatewayReport.${report().source}`,
-                              i18n.t("ui.modelAttempts.gatewayReport"),
-                            )}
-                            <Show when={report().provider}>
-                              <span class="block">
-                                {i18n.t("ui.modelAttempts.gatewayProvider", { provider: report().provider! })}
-                              </span>
-                            </Show>
-                            <Show when={report().model}>
-                              <span class="block">
-                                {i18n.t("ui.modelAttempts.gatewayModel", { model: report().model! })}
-                              </span>
-                            </Show>
+                <Show when={attempt.preparedDeployment || attempt.observations.length}>
+                  <div class="flex min-w-0 flex-col gap-1.5 border-t border-v2-border-border-base pt-2.5 text-12-regular text-text-weak">
+                    <Show when={attempt.preparedDeployment}>
+                      <p
+                        class="truncate rounded bg-v2-background-bg-layer-02/50 px-2 py-1 font-mono"
+                        title={`${attempt.preparedDeployment?.route ?? ""} · ${attempt.preparedDeployment?.protocol ?? ""} · ${attempt.preparedDeployment?.endpoint ?? ""}`}
+                      >
+                        {i18n.t("ui.modelAttempts.prepared", {
+                          route: attempt.preparedDeployment?.route ?? "",
+                          protocol: attempt.preparedDeployment?.protocol ?? "",
+                          endpoint: attempt.preparedDeployment?.endpoint ?? "",
+                        })}
+                      </p>
+                    </Show>
+                    <For each={attempt.observations}>
+                      {(observation) => (
+                        <div class="flex min-w-0 flex-col gap-0.5 rounded bg-v2-background-bg-layer-02/30 px-2 py-1">
+                          <span class="break-words">
+                            {i18n.t("ui.modelAttempts.observation", {
+                              time: time().format(observation.observedAt),
+                              transport: observation.transport
+                                ? i18n.tDynamic(
+                                    `ui.modelAttempts.transport.${observation.transport}`,
+                                    observation.transport,
+                                  )
+                                : i18n.t("ui.modelAttempts.notObserved"),
+                              delivery: observation.delivery
+                                ? i18n.t(`ui.modelAttempts.delivery.${observation.delivery}`)
+                                : i18n.t("ui.modelAttempts.notObserved"),
+                            })}
                           </span>
-                        )}
-                      </Show>
-                    </p>
-                  )}
-                </For>
+                          <Show when={observation.deployment}>
+                            <span
+                              class="truncate font-mono"
+                              title={`${observation.deployment?.route} · ${observation.deployment?.protocol} · ${observation.deployment?.endpoint}`}
+                            >
+                              {observation.deployment?.route} · {observation.deployment?.protocol} ·{" "}
+                              {observation.deployment?.endpoint}
+                            </span>
+                          </Show>
+                          <Show when={observation.gatewayReport}>
+                            {(report) => (
+                              <span class="block break-words text-text-base">
+                                {i18n.tDynamic(
+                                  `ui.modelAttempts.gatewayReport.${report().source}`,
+                                  i18n.t("ui.modelAttempts.gatewayReport"),
+                                )}
+                                <Show when={report().provider}>
+                                  <span class="block">
+                                    {i18n.t("ui.modelAttempts.gatewayProvider", { provider: report().provider! })}
+                                  </span>
+                                </Show>
+                                <Show when={report().model}>
+                                  <span class="block">
+                                    {i18n.t("ui.modelAttempts.gatewayModel", { model: report().model! })}
+                                  </span>
+                                </Show>
+                              </span>
+                            )}
+                          </Show>
+                        </div>
+                      )}
+                    </For>
+                  </div>
+                </Show>
                 <Show when={attempt.terminal?.gatewayAttempts?.length}>
                   <div class="flex min-w-0 flex-col gap-2 border-t border-border-weak pt-2">
                     <p class="font-medium text-text-weak">{i18n.t("ui.modelAttempts.gatewayAttempts")}</p>
