@@ -369,27 +369,27 @@ export function ModeNavigation() {
           </For>
         </div>
 
-        <div class="mode-navigation-custom" aria-label={language.t("mode.navigation.custom.label")}>
-          <For each={rail.items()}>
-            {(item) => (
-              <RailNavButton
-                icon={resolveRailIcon(item.icon)}
-                label={item.label}
-                iconSize="normal"
-                active={activeCustomID() === item.id}
-                onClick={() => navigate(customModeHref(item.id))}
-              />
-            )}
-          </For>
-          <RailNavButton
-            icon="plus"
-            iconSize="normal"
-            label={language.t("mode.navigation.add")}
-            onClick={openAddMode}
-          />
-        </div>
-
         <Show when={!mobile()}>
+          <div class="mode-navigation-custom" aria-label={language.t("mode.navigation.custom.label")}>
+            <For each={rail.items()}>
+              {(item) => (
+                <RailNavButton
+                  icon={resolveRailIcon(item.icon)}
+                  label={item.label}
+                  iconSize="normal"
+                  active={activeCustomID() === item.id}
+                  onClick={() => navigate(customModeHref(item.id))}
+                />
+              )}
+            </For>
+            <RailNavButton
+              icon="plus"
+              iconSize="normal"
+              label={language.t("mode.navigation.add")}
+              onClick={openAddMode}
+            />
+          </div>
+
           <div class="mode-navigation-footer">
             <RailNavButton
               icon="settings-gear"
