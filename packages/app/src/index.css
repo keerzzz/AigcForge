@@ -18,6 +18,30 @@
 }
 
 @font-face {
+  font-family: "Omnixa CJK";
+  src:
+    local("PingFang SC"), local("Microsoft YaHei"), local("Noto Sans CJK SC"), local("Noto Sans SC"),
+    local("Source Han Sans SC");
+  font-weight: 100 599;
+  font-style: normal;
+  ascent-override: 88%;
+  descent-override: 12%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: "Omnixa CJK";
+  src:
+    local("PingFang SC Semibold"), local("PingFang SC Medium"), local("Microsoft YaHei Bold"),
+    local("Noto Sans CJK SC Bold"), local("Noto Sans SC Bold"), local("Source Han Sans SC Bold");
+  font-weight: 600 900;
+  font-style: normal;
+  ascent-override: 88%;
+  descent-override: 12%;
+  line-gap-override: 0%;
+}
+
+@font-face {
   font-family: "IBM Plex Mono";
   src: url("@ibm/plex/IBM-Plex-Mono/fonts/complete/woff2/IBMPlexMono-Text.woff2") format("woff2");
   font-weight: 440;

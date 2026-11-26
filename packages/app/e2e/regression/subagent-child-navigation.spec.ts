@@ -227,11 +227,8 @@ test("SC03 views a real child beside its parent, reuses the view, and closes wit
   await expect(editor).toHaveText(parentDraft)
 
   await openSidePanel(page, "Subagents")
-  await child
-    .locator('[data-slot="subagent-call-records"]')
-    .getByRole("button", { name: "Execution details", exact: true })
-    .click()
-  await child.getByRole("button", { name: "Open as main session", exact: true }).click()
+  await child.locator('[data-slot="subagent-row"]').click()
+  await view.getByRole("button", { name: "Open as main session", exact: true }).click()
   await expect(page).toHaveURL(sessionHref(childID))
   await expectSessionTitle(page, taskDescription)
   await expect(page.getByText(childResponse, { exact: true })).toBeVisible()
@@ -737,17 +734,7 @@ test("shows readable subagent summaries and keeps protocol output in execution d
   await expect(list.getByRole("heading", { name: /^(Active|Done)$/ })).toHaveCount(0)
   await page.screenshot({ path: testInfo.outputPath("subagent-readable-list.png"), fullPage: true })
 
-  const backgroundRecords = background.locator('[data-slot="subagent-call-records"]')
-  await backgroundRecords.locator(':scope > [data-slot="collapsible-trigger"]').click()
-  await backgroundRecords.getByRole("button", { name: "Open original tool output", exact: true }).click()
-  await expect(backgroundRecords.locator("pre")).toHaveText(backgroundOutput(backgroundID))
-  await backgroundRecords.locator(':scope > [data-slot="collapsible-trigger"]').click()
-  await expect(backgroundRecords.locator("pre")).not.toBeVisible()
-
-  const completedRecords = completed.locator('[data-slot="subagent-call-records"]')
-  await completedRecords.locator(':scope > [data-slot="collapsible-trigger"]').click()
-  await completedRecords.getByRole("button", { name: "Open original tool output", exact: true }).click()
-  await expect(completedRecords.locator("pre")).toHaveText(completedOutput)
+  await expect(list.locator('[data-slot="subagent-call-records"]')).toHaveCount(0)
 })
 
 test("opens a directly linked nested subagent in its root session tab", async ({ page }) => {
