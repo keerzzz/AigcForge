@@ -1,4 +1,5 @@
 import { pathKey } from "@/workspaces/path-key"
+import { useLocation, useNavigate } from "@solidjs/router"
 import type { ModelSelection } from "@omnixa/client/promise"
 import { Button } from "@omnixa/ui/button"
 import { Dialog, DialogHeader, DialogTitleGroup, DialogFooter } from "@omnixa/ui/dialog"
@@ -193,6 +194,22 @@ function CustomWorkspaceContent(props: { home: HomeController; owner: CustomOwne
     if (!current()) return
     patchWorkspace(draft ? { compose: draft, activeTab: "compose" } : { activeTab: "compose" })
   }
+
+  const location = useLocation()
+  const navigate = useNavigate()
+
+  // Consume one-shot ?tab=compose handoff from the global navigation rail after storage hydration.
+  createEffect(() => {
+    if (!storageReady()) return
+    const params = new URLSearchParams(location.search)
+    if (params.get("tab") !== "compose") return
+    params.delete("tab")
+    const nextSearch = params.toString()
+    untrack(() => {
+      patchWorkspace({ activeTab: "compose" })
+      navigate(`${location.pathname}${nextSearch ? `?${nextSearch}` : ""}`, { replace: true })
+    })
+  })
 
   // Consume any staged SnapshotV2 handoff from Session Detail once persisted storage has hydrated.
   createEffect(() => {
