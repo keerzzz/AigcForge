@@ -298,7 +298,8 @@
     }
   }
 
-  [data-slot="subagent-row"] {
+  [data-slot="subagent-row"],
+  [data-slot="subagent-row"][data-component="button-v2"] {
     display: flex;
     width: 100%;
     height: auto;
