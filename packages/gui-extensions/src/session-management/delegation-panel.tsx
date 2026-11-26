@@ -1617,8 +1617,8 @@ function DelegationContent(props: Props & { server: ServerRef }) {
                   </Show>
                   <Collapsible variant="ghost" data-slot="subagent-call-records">
                     <Collapsible.Trigger type="button">
-                      <Collapsible.Arrow />
                       <span>{ctx.t("session.collaboration.details")}</span>
+                      <Collapsible.Arrow />
                     </Collapsible.Trigger>
                     <Collapsible.Content>
                       <div data-slot="task-form-actions">
@@ -2350,10 +2350,12 @@ function formatSubagentPreview(text: string) {
   return text
     .replace(/^\|[-:\s|]+\|$/gm, " ")
     .replace(/^#{1,6}\s+/gm, "")
+    .replace(/^\s*[-*+]\s+/gm, " · ")
     .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
     .replace(/`([^`]+)`/g, "$1")
     .replace(/\*\*([^*]+)\*\*/g, "$1")
     .replace(/\s+/g, " ")
+    .replace(/^·\s*/, "")
     .trim()
 }
 

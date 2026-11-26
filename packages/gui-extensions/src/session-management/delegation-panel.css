@@ -371,13 +371,13 @@
 
   [data-slot="subagent-call-records"] {
     margin-inline: calc(var(--spacing) * 2);
-    margin-block-start: calc(var(--spacing) * 1.5);
+    margin-block-start: calc(var(--spacing) * 1);
     padding-inline-start: calc(var(--spacing) * 6);
 
     > [data-slot="collapsible-trigger"] {
       display: inline-flex;
       align-items: center;
-      gap: calc(var(--spacing) * 1.5);
+      gap: var(--spacing);
       padding-block: calc(var(--spacing) * 0.5);
       font-size: 12px;
       line-height: var(--line-height-compact);
