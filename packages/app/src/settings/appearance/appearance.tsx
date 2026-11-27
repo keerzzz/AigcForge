@@ -107,7 +107,7 @@ export const SettingsAppearance: Component = () => {
               description={
                 <>
                   {language.t("settings.general.row.theme.description")}{" "}
-                  <ExternalLink class="settings-link" href="https://github.com/keerzzz/AigcForge#readme">
+                  <ExternalLink class="settings-link" href="https://github.com/keerzzz/Omnixa#readme">
                     {language.t("common.learnMore")}
                   </ExternalLink>
                 </>

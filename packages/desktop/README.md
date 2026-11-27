@@ -36,7 +36,7 @@ CLI preparation uses these channel rules:
 default and does not require `OMNIXA_CLI_DIST` or run the packaging prebuild. `--download-server` reports that remote
 CLI downloads are disabled until a project-owned distribution is published.
 
-Production packaged builds use the GitHub update manifests from [keerzzz/AigcForge](https://github.com/keerzzz/AigcForge/releases).
+Production packaged builds use the GitHub update manifests from [keerzzz/Omnixa](https://github.com/keerzzz/Omnixa/releases).
 Development and beta builds report updates as disabled. The legacy hosted desktop publication script is retired;
 the current release entrypoint is [.github/workflows/publish.yml](../../.github/workflows/publish.yml).
 

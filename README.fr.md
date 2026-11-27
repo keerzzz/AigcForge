@@ -42,7 +42,7 @@ Le répertoire d’installation est `$HOME/.omnixa/bin`. L’installation à dis
 
 ### Application de bureau
 
-Destination des versions de bureau: [keerzzz/AigcForge](https://github.com/keerzzz/AigcForge/releases).
+Destination des versions de bureau: [keerzzz/Omnixa](https://github.com/keerzzz/Omnixa/releases).
 
 Compilation et empaquetage local depuis la même source: [packages/desktop/README.md](packages/desktop/README.md).
 

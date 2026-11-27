@@ -1080,7 +1080,7 @@ function App() {
         name: "docs.open",
         title: "Open docs",
         run: () => {
-          openUrl("https://github.com/keerzzz/AigcForge#readme").catch(() => {})
+          openUrl("https://github.com/keerzzz/Omnixa#readme").catch(() => {})
           dialog.clear()
         },
         category: "System",

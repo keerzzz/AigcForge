@@ -42,7 +42,7 @@
 
 ### تطبيق سطح المكتب
 
-وجهة إصدارات تطبيق سطح المكتب: [keerzzz/AigcForge](https://github.com/keerzzz/AigcForge/releases).
+وجهة إصدارات تطبيق سطح المكتب: [keerzzz/Omnixa](https://github.com/keerzzz/Omnixa/releases).
 
 البناء المحلي والحزم من المصدر نفسه: [packages/desktop/README.md](packages/desktop/README.md).
 

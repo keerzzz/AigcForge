@@ -125,7 +125,7 @@ stdenvNoCC.mkDerivation (finalAttrs: {
 
   meta = {
     description = "The open source coding agent";
-    homepage = "https://github.com/keerzzz/AigcForge";
+    homepage = "https://github.com/keerzzz/Omnixa";
     license = lib.licenses.mit;
     mainProgram = "omnixa";
     inherit (node_modules.meta) platforms;

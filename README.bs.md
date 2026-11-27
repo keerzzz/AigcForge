@@ -42,7 +42,7 @@ Instalacijski direktorij je `$HOME/.omnixa/bin`. Udaljena instalacija i automats
 
 ### Desktop aplikacija
 
-Odredište desktop izdanja: [keerzzz/AigcForge](https://github.com/keerzzz/AigcForge/releases).
+Odredište desktop izdanja: [keerzzz/Omnixa](https://github.com/keerzzz/Omnixa/releases).
 
 Lokalna izgradnja i pakovanje iz istog izvora: [packages/desktop/README.md](packages/desktop/README.md).
 

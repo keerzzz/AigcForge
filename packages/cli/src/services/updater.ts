@@ -253,7 +253,7 @@ const make = Effect.gen(function* () {
       title: "Omnixa update service is not configured",
       detail: "Automatic updates are disabled until an update endpoint is configured via OMNIXA_UPDATE_URL.",
       retry:
-        "Install a locally built Omnixa binary or set OMNIXA_UPDATE_URL. Release destination: https://github.com/keerzzz/AigcForge/releases.",
+        "Install a locally built Omnixa binary or set OMNIXA_UPDATE_URL. Release destination: https://github.com/keerzzz/Omnixa/releases.",
     })
 
   const release = Effect.fnUntraced(function* (method?: Method) {

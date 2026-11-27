@@ -1726,9 +1726,9 @@ test.describe("pages open before slow data", () => {
     const { settings } = await open(page)
     await settings.getByRole("tab", { name: "About", exact: true }).click()
     await expect(settings.getByText("Released under the MIT License", { exact: true })).toBeVisible()
-    await expect(settings.getByRole("link", { name: "keerzzz/AigcForge", exact: true })).toHaveAttribute(
+    await expect(settings.getByRole("link", { name: "keerzzz/Omnixa", exact: true })).toHaveAttribute(
       "href",
-      "https://github.com/keerzzz/AigcForge",
+      "https://github.com/keerzzz/Omnixa",
     )
     await expect(settings.getByRole("link", { name: "keerzzz", exact: true })).toHaveAttribute(
       "href",
@@ -1736,7 +1736,7 @@ test.describe("pages open before slow data", () => {
     )
     await expect(settings.getByRole("link", { name: "View project contributors", exact: true })).toHaveAttribute(
       "href",
-      "https://github.com/keerzzz/AigcForge/graphs/contributors",
+      "https://github.com/keerzzz/Omnixa/graphs/contributors",
     )
     await expect(settings.getByRole("link", { name: "OpenCode", exact: true })).toHaveAttribute(
       "href",

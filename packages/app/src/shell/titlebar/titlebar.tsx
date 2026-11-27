@@ -725,7 +725,7 @@ export function Titlebar() {
                                 class="flex h-7 shrink-0 items-center gap-2 rounded-[6px] px-2 text-[13px] leading-4 text-v2-text-text-faint hover:bg-v2-background-bg-layer-02 focus-visible:outline-none focus-visible:bg-v2-background-bg-layer-02"
                                 onClick={() => {
                                   setMobileTabs("open", false)
-                                  platform.openExternal("https://github.com/keerzzz/AigcForge/issues/new")
+                                  platform.openExternal("https://github.com/keerzzz/Omnixa/issues/new")
                                 }}
                               >
                                 <Icon name="help" size="small" />

@@ -5,7 +5,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/keerzzz/AigcForge.git",
+    "url": "git+https://github.com/keerzzz/Omnixa.git",
     "directory": "packages/ui"
   },
   "publishConfig": {

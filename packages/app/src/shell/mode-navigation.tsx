@@ -29,8 +29,8 @@ import {
 import { ModeRoute } from "./routes/mode"
 import "./mode-navigation.css"
 
-const REPO_URL = "https://github.com/keerzzz/AigcForge"
-const HELP_URL = "https://github.com/keerzzz/AigcForge/issues/new"
+const REPO_URL = "https://github.com/keerzzz/Omnixa"
+const HELP_URL = "https://github.com/keerzzz/Omnixa/issues/new"
 
 const builtinIcons = {
   chat: "rail-chat",

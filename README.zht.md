@@ -42,7 +42,7 @@
 
 ### 桌面應用程式
 
-桌面發行檔的發布目標: [keerzzz/AigcForge](https://github.com/keerzzz/AigcForge/releases).
+桌面發行檔的發布目標: [keerzzz/Omnixa](https://github.com/keerzzz/Omnixa/releases).
 
 本機同源建構與打包方式: [packages/desktop/README.md](packages/desktop/README.md).
 

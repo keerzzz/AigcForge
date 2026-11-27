@@ -42,7 +42,7 @@ Kurulum dizini `$HOME/.omnixa/bin` şeklindedir. Uzaktan kurulum ve otomatik CLI
 
 ### Masaüstü Uygulaması
 
-Masaüstü sürümlerinin yayın hedefi: [keerzzz/AigcForge](https://github.com/keerzzz/AigcForge/releases).
+Masaüstü sürümlerinin yayın hedefi: [keerzzz/Omnixa](https://github.com/keerzzz/Omnixa/releases).
 
 Aynı kaynaktan yerel derleme ve paketleme: [packages/desktop/README.md](packages/desktop/README.md).
 

@@ -42,7 +42,7 @@
 
 ### Εφαρμογή Desktop
 
-Προορισμός εκδόσεων Desktop: [keerzzz/AigcForge](https://github.com/keerzzz/AigcForge/releases).
+Προορισμός εκδόσεων Desktop: [keerzzz/Omnixa](https://github.com/keerzzz/Omnixa/releases).
 
 Τοπική δημιουργία και πακετάρισμα από τον ίδιο πηγαίο κώδικα: [packages/desktop/README.md](packages/desktop/README.md).
 

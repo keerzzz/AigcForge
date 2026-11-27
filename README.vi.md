@@ -42,7 +42,7 @@ Thư mục cài đặt là `$HOME/.omnixa/bin`. Cài đặt từ xa và tự đ�
 
 ### Ứng dụng Desktop
 
-Đích phát hành ứng dụng desktop: [keerzzz/AigcForge](https://github.com/keerzzz/AigcForge/releases).
+Đích phát hành ứng dụng desktop: [keerzzz/Omnixa](https://github.com/keerzzz/Omnixa/releases).
 
 Biên dịch và đóng gói cục bộ từ cùng mã nguồn: [packages/desktop/README.md](packages/desktop/README.md).
 

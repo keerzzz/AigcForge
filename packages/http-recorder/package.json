@@ -7,11 +7,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/keerzzz/AigcForge.git",
+    "url": "git+https://github.com/keerzzz/Omnixa.git",
     "directory": "packages/http-recorder"
   },
-  "homepage": "https://github.com/keerzzz/AigcForge/tree/dev/packages/http-recorder",
-  "bugs": "https://github.com/keerzzz/AigcForge/issues",
+  "homepage": "https://github.com/keerzzz/Omnixa/tree/dev/packages/http-recorder",
+  "bugs": "https://github.com/keerzzz/Omnixa/issues",
   "keywords": [
     "effect",
     "http",

@@ -1242,7 +1242,7 @@ export const dict = {
   "settings.about.otherContributor.other": "{{count}} others",
   "settings.about.firstPublished": "First published in Missouri, USA",
   "settings.about.firstIllustrated": "First illustrated in London, England",
-  "settings.about.website": "github.com/keerzzz/AigcForge",
+  "settings.about.website": "github.com/keerzzz/Omnixa",
   "settings.about.description": "Omnixa — Everything, Agentized",
   "settings.about.trademark": "Omnixa is open source software released under the MIT License.",
   "settings.about.typeset": "Typeset in Inter and IBM Plex Mono",

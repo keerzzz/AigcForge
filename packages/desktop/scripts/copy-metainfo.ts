@@ -34,9 +34,9 @@ const xml = `<?xml version="1.0" encoding="UTF-8"?>
 
   <content_rating type="oars-1.1" />
 
-  <url type="bugtracker">https://github.com/keerzzz/AigcForge/issues</url>
-  <url type="homepage">https://github.com/keerzzz/AigcForge</url>
-  <url type="vcs-browser">https://github.com/keerzzz/AigcForge</url>
+  <url type="bugtracker">https://github.com/keerzzz/Omnixa/issues</url>
+  <url type="homepage">https://github.com/keerzzz/Omnixa</url>
+  <url type="vcs-browser">https://github.com/keerzzz/Omnixa</url>
 </component>
 `
 
