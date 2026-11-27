@@ -238,7 +238,7 @@ it.live("executes a scheduled prompt rule through HTTP and settles the same Occu
     expect(triggered.status).toBe(200)
     const run = Schema.decodeUnknownSync(Schedule.Occurrence)(yield* Effect.promise(() => triggered.json()))
     expect(run.ruleRevision).toBe(rule.revision)
-    yield* awaitWithTimeout(fixture.llm.wait(2), "The scheduled prompt execution did not complete both LLM turns")
+    yield* awaitWithTimeout(fixture.llm.wait(2), "The scheduled prompt and its receipt did not reach the model")
     expect(
       (yield* awaitWithTimeout(
         fixture.request(`/api/experimental/session/${target.id}/wait`, { method: "POST" }),
@@ -302,11 +302,6 @@ it.live("executes a scheduled prompt rule through HTTP and settles the same Occu
       taskID: settled.taskID,
       phase: "settled",
       sourceSettlement: "settled",
-      result: {
-        sessionID: target.id,
-        inputID: run.inputID,
-        text: targetOutput,
-      },
     })
     const tasksResponse = yield* fixture.request(`/session/${meta.id}/task`)
     expect(tasksResponse.status).toBe(200)
@@ -323,10 +318,10 @@ it.live("executes a scheduled prompt rule through HTTP and settles the same Occu
       sessionID: target.id,
       inputID: SessionMessage.ID.make(run.inputID),
     })
-    expect(inputResult).toMatchObject({
-      status: "completed",
-      sharedInputs: [run.inputID],
-    })
+    if (inputResult.status !== "completed") throw new Error(`Scheduled input ended as ${inputResult.status}`)
+    expect(inputResult.sharedInputs).toEqual([run.inputID])
+    expect(settled.result?.messageIDs).toEqual([inputResult.assistant.id])
+    expect(operation.result).toEqual(settled.result)
     const targetMessagesResponse = yield* fixture.request(`/api/session/${target.id}/message?order=asc`)
     expect(targetMessagesResponse.status).toBe(200)
     const targetMessages = Schema.decodeUnknownSync(Schema.Struct({ data: Schema.Array(SessionMessage.Info) }))(
@@ -336,25 +331,20 @@ it.live("executes a scheduled prompt rule through HTTP and settles the same Occu
       type: "user",
       text: promptText,
     })
-    expect(
-      targetMessages.some(
-        (item) =>
-          item.type === "assistant" && item.content.some((part) => part.type === "text" && part.text === targetOutput),
-      ),
-    ).toBe(true)
+    expect(targetMessages.find((item) => item.id === inputResult.assistant.id)).toMatchObject({
+      type: "assistant",
+      content: expect.arrayContaining([expect.objectContaining({ type: "text", text: targetOutput })]),
+    })
     const metaMessagesResponse = yield* fixture.request(`/api/session/${meta.id}/message?order=asc`)
     expect(metaMessagesResponse.status).toBe(200)
     const metaMessages = Schema.decodeUnknownSync(Schema.Struct({ data: Schema.Array(SessionMessage.Info) }))(
       yield* Effect.promise(() => metaMessagesResponse.json()),
     ).data
-    expect(
-      metaMessages.some(
-        (item) =>
-          item.type === "synthetic" &&
-          item.text.includes(`<task operation="${run.operationID}" state="settled">`) &&
-          item.text.includes(targetOutput),
-      ),
-    ).toBe(true)
+    const notice = metaMessages
+      .filter((item) => item.type === "synthetic")
+      .find((item) => item.text.includes(`<task operation="${run.operationID}" state="settled">`))
+    if (!notice) throw new Error(`No completion notice for ${run.operationID}`)
+    expect(notice.text).toContain(targetOutput)
     expect(
       yield* fixture.database.db
         .select()
@@ -373,7 +363,13 @@ it.live("executes a scheduled prompt rule through HTTP and settles the same Occu
     ).toEqual([])
     const requests = yield* fixture.llm.requests()
     expect(requests).toHaveLength(2)
-    expect(JSON.stringify(requests[0].messages)).toContain(promptText)
-    expect(JSON.stringify(requests[1].messages)).toContain(targetOutput)
+    expect(requests[0].messages.find((message) => message.id === run.inputID)).toMatchObject({
+      role: "user",
+      content: expect.arrayContaining([expect.objectContaining({ type: "text", text: promptText })]),
+    })
+    expect(requests[1].messages.find((message) => message.id === notice.id)).toMatchObject({
+      role: "user",
+      content: expect.arrayContaining([expect.objectContaining({ type: "text", text: notice.text })]),
+    })
   }),
 )

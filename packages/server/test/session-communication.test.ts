@@ -140,19 +140,20 @@ it.live("wakes the target session on trigger=true, consumes the message, and lin
     const inboundText = "Please verify the HTTP communication wake"
     const toolReplyText = "Target consumed message and replied via share tool"
     const httpReplyText = "HTTP follow-up reply consumed by sender"
-    const communicationID = SessionCommunication.ID.create()
-    yield* fixture.llm.push(
-      TestLLM.tool("share-reply-1", "share", {
-        scope: "text",
-        text: toolReplyText,
-        replyTo: communicationID,
-        trigger: false,
-      }),
-      TestLLM.text("Target finished consuming and replying.", "second-reply-done"),
-    )
+    yield* fixture.llm.serve((request) => {
+      const message = request.messages.at(-1)
+      if (message?.role === "user") {
+        // Reply with the address delivered to the model, not the ID from the HTTP fixture.
+        const text = message.content.find((part) => part.type === "text")?.text
+        const replyTo = text?.match(/\breplyTo="([^"]+)"/)?.[1]
+        if (replyTo)
+          return TestLLM.tool("share-reply-1", "share", { scope: "text", text: toolReplyText, replyTo, trigger: false })
+      }
+      return TestLLM.text("Target finished processing.", "second-reply-done")
+    })
     const sent = yield* fixture.request(firstPath, {
       body: {
-        id: communicationID,
+        id: SessionCommunication.ID.create(),
         targetSessionID: fixture.second.id,
         content: { type: "text", text: inboundText },
         trigger: true,
@@ -169,7 +170,7 @@ it.live("wakes the target session on trigger=true, consumes the message, and lin
       actor: { type: "user", sessionID: fixture.first.id },
       targetSessionID: fixture.second.id,
     })
-    yield* awaitWithTimeout(fixture.llm.wait(2), "Target session did not consume the communication and run share reply")
+    yield* awaitWithTimeout(fixture.llm.wait(1), "The incoming communication did not wake the target model")
     expect(
       (yield* awaitWithTimeout(
         fixture.request(`/api/experimental/session/${fixture.second.id}/wait`, { method: "POST" }),
@@ -211,6 +212,7 @@ it.live("wakes the target session on trigger=true, consumes the message, and lin
     const toolReply = Schema.decodeUnknownSync(Schema.Struct({ data: SessionCommunication.Page }))(
       yield* Effect.promise(() => firstInboxList.json()),
     ).data.items.find((item) => item.replyTo === receipt.id)
+    if (!toolReply) throw new Error(`No share reply to the model-visible communication ${receipt.id}`)
     expect(toolReply).toMatchObject({
       replyTo: receipt.id,
       state: "pending",
@@ -255,14 +257,14 @@ it.live("wakes the target session on trigger=true, consumes the message, and lin
         .all()
         .pipe(Effect.orDie),
     ).toEqual([])
-    const readToolReply = yield* fixture.request(`${firstPath}/${toolReply?.id}`)
+    const readToolReply = yield* fixture.request(`${firstPath}/${toolReply.id}`)
     expect(readToolReply.status).toBe(200)
     expect(
       Schema.decodeUnknownSync(Schema.Struct({ data: SessionCommunication.Message }))(
         yield* Effect.promise(() => readToolReply.json()),
       ).data,
     ).toMatchObject({
-      id: toolReply?.id,
+      id: toolReply.id,
       replyTo: receipt.id,
       state: "visible",
       text: toolReplyText,
@@ -285,8 +287,16 @@ it.live("wakes the target session on trigger=true, consumes the message, and lin
     })
     const requests = yield* fixture.llm.requests()
     expect(requests).toHaveLength(4)
-    expect(JSON.stringify(requests[0].messages)).toContain(inboundText)
-    expect(JSON.stringify(requests[2].messages)).toContain(toolReplyText)
-    expect(JSON.stringify(requests[3].messages)).toContain(httpReplyText)
+    for (const [request, delivered] of [
+      [requests[0], receipt],
+      [requests[2], toolReply],
+      [requests[3], httpReply],
+    ] as const) {
+      const input = request.messages.findLast((message) => message.role === "user" && message.id !== undefined)
+      expect(input?.id).toBe(delivered.body.inputID)
+      const text = input?.content.find((part) => part.type === "text")?.text
+      expect(text).toContain(delivered.text)
+      expect(text).toContain(delivered.id)
+    }
   }),
 )
