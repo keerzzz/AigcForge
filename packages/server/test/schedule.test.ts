@@ -1,21 +1,37 @@
 import { expect } from "bun:test"
+import { eq } from "drizzle-orm"
 import { Effect, Layer, Schema } from "effect"
+import { TestLLM } from "@omnixa/ai/testing"
 import { Model } from "@omnixa/core/model"
 import { Provider } from "@omnixa/core/provider"
+import { SessionInputResult } from "@omnixa/core/session/input-result"
+import { SessionMessage } from "@omnixa/core/session/message"
 import { DeliveryTable, ScheduleTable } from "@omnixa/core/session/schedule.sql"
 import { SessionInboxTable } from "@omnixa/core/session/sql"
 import { InvalidRequestError } from "@omnixa/protocol/errors"
 import { Schedule } from "@omnixa/schema/schedule"
 import { Session } from "@omnixa/schema/session"
 import { SessionIdentity } from "@omnixa/schema/session-identity"
+import { SessionTask } from "@omnixa/schema/session-task"
 import { useOfflineCatalog } from "../../core/test/fixture/models"
-import { pollWithTimeout, testEffect } from "../../core/test/lib/effect"
+import { awaitWithTimeout, pollWithTimeout, testEffect } from "../../core/test/lib/effect"
 import { AssetHttpFixture } from "./fixture/asset-http"
 
 const it = testEffect(Layer.empty)
 const model = Model.Ref.make({ id: Model.ID.make("schedule-fixture"), providerID: Provider.ID.make("test") })
 const setup = () =>
   AssetHttpFixture.setup({ prefix: "omnixa-schedule-http-", assetDirectory: ".omnixa", files: [], model })
+const registerCatalog = (fixture: Effect.Success<ReturnType<typeof setup>>) =>
+  useOfflineCatalog([
+    {
+      info: Provider.Info.make({
+        ...Provider.Info.empty(model.providerID),
+        activation: "enabled",
+        package: "@omnixa/ai/providers/openai/responses",
+      }),
+      models: [Model.Info.make(Model.Info.default(model.providerID, model.id))],
+    },
+  ]).pipe(Effect.provideContext(fixture.local))
 
 it.live("AC17 serves Schedule rules and the six retained reminder endpoints without a model call", () =>
   Effect.gen(function* () {
@@ -135,16 +151,7 @@ it.live("AC01 rejects Build root coordination and caller-supplied legacy child t
     expect(
       Schema.decodeUnknownSync(Schema.Array(Schedule.Rule))(yield* Effect.promise(() => rules.json())),
     ).toHaveLength(0)
-    yield* useOfflineCatalog([
-      {
-        info: Provider.Info.make({
-          ...Provider.Info.empty(model.providerID),
-          activation: "enabled",
-          package: "@omnixa/ai/providers/openai/responses",
-        }),
-        models: [Model.Info.make(Model.Info.default(model.providerID, model.id))],
-      },
-    ]).pipe(Effect.provideContext(fixture.local))
+    yield* registerCatalog(fixture)
     const createdMeta = yield* fixture.request("/api/session", {
       body: {
         location: { directory: fixture.directory },
@@ -179,5 +186,194 @@ it.live("AC01 rejects Build root coordination and caller-supplied legacy child t
       beforeLegacy.inputs,
     )
     expect(yield* fixture.llm.requests()).toHaveLength(0)
+  }),
+)
+
+it.live("executes a scheduled prompt rule through HTTP and settles the same Occurrence from the target result", () =>
+  Effect.gen(function* () {
+    const fixture = yield* setup()
+    yield* registerCatalog(fixture)
+    const metaResponse = yield* fixture.request("/api/session", {
+      body: { title: "Schedule Meta HTTP", location: { directory: fixture.directory }, agent: "meta", model },
+    })
+    expect(metaResponse.status).toBe(200)
+    const meta = Schema.decodeUnknownSync(Schema.Struct({ data: Session.Info }))(
+      yield* Effect.promise(() => metaResponse.json()),
+    ).data
+    const targetResponse = yield* fixture.request("/api/session", {
+      body: {
+        title: "Schedule Target HTTP",
+        location: { directory: fixture.directory },
+        mode: "coding",
+        agent: "build",
+        model,
+      },
+    })
+    expect(targetResponse.status).toBe(200)
+    const target = Schema.decodeUnknownSync(Schema.Struct({ data: Session.Info }))(
+      yield* Effect.promise(() => targetResponse.json()),
+    ).data
+    const promptText = "Run the scheduled coding prompt"
+    const targetOutput = "Scheduled prompt execution finished."
+    const metaOutput = "Meta consumed the scheduled task result."
+    yield* fixture.llm.push(
+      TestLLM.textWithUsage(targetOutput, "schedule-target-done", 4),
+      TestLLM.textWithUsage(metaOutput, "schedule-meta-done", 3),
+    )
+    const createdRule = yield* fixture.request("/schedule/rule", {
+      body: {
+        sessionID: meta.id,
+        kind: "prompt",
+        content: promptText,
+        dueAt: Date.now() + 60_000,
+        timezone: "UTC",
+        target: { policy: "existing", sessionID: target.id },
+      },
+    })
+    expect(createdRule.status).toBe(200)
+    const rule = Schema.decodeUnknownSync(Schedule.Rule)(yield* Effect.promise(() => createdRule.json()))
+    const triggered = yield* fixture.request(`/schedule/rule/${rule.id}/run`, {
+      body: { expectedRevision: rule.revision },
+    })
+    expect(triggered.status).toBe(200)
+    const run = Schema.decodeUnknownSync(Schedule.Occurrence)(yield* Effect.promise(() => triggered.json()))
+    expect(run.ruleRevision).toBe(rule.revision)
+    yield* awaitWithTimeout(fixture.llm.wait(2), "The scheduled prompt execution did not complete both LLM turns")
+    expect(
+      (yield* awaitWithTimeout(
+        fixture.request(`/api/experimental/session/${target.id}/wait`, { method: "POST" }),
+        "Target session did not finish draining",
+      )).status,
+    ).toBe(204)
+    expect(
+      (yield* awaitWithTimeout(
+        fixture.request(`/api/experimental/session/${meta.id}/wait`, { method: "POST" }),
+        "Meta session did not finish draining",
+      )).status,
+    ).toBe(204)
+    const settled = yield* pollWithTimeout(
+      Effect.gen(function* () {
+        const response = yield* fixture.request(`/schedule/rule/${rule.id}/runs`)
+        expect(response.status).toBe(200)
+        return Schema.decodeUnknownSync(Schema.Array(Schedule.Occurrence))(
+          yield* Effect.promise(() => response.json()),
+        ).find((item) => item.id === run.id && item.status === "completed" && item.sourceSettlement === "completed")
+      }),
+      "The scheduled prompt occurrence did not settle with its target result",
+    )
+    expect(settled).toMatchObject({
+      id: run.id,
+      scheduleID: rule.id,
+      operationID: run.operationID,
+      inputID: run.inputID,
+      targetSessionID: target.id,
+      status: "completed",
+      sourceSettlement: "completed",
+      output: targetOutput,
+      admission: {
+        targetSessionID: target.id,
+        inputID: run.inputID,
+        operationID: run.operationID,
+      },
+      result: {
+        sessionID: target.id,
+        inputID: run.inputID,
+        text: targetOutput,
+      },
+    })
+    const finalRuleResponse = yield* fixture.request(`/schedule/rule/${rule.id}`)
+    expect(finalRuleResponse.status).toBe(200)
+    const finalRule = Schema.decodeUnknownSync(Schedule.Rule)(yield* Effect.promise(() => finalRuleResponse.json()))
+    expect(finalRule).toMatchObject({
+      id: rule.id,
+      status: "completed",
+      taskID: settled.taskID,
+    })
+    expect(finalRule.activeOccurrenceID).toBeUndefined()
+    const operationResponse = yield* fixture.request(`/session/${meta.id}/task/operations/${run.operationID}`)
+    expect(operationResponse.status).toBe(200)
+    const operation = Schema.decodeUnknownSync(SessionTask.OperationInfo)(
+      yield* Effect.promise(() => operationResponse.json()),
+    )
+    expect(operation).toMatchObject({
+      operationID: run.operationID,
+      inputID: run.inputID,
+      targetSessionID: target.id,
+      taskID: settled.taskID,
+      phase: "settled",
+      sourceSettlement: "settled",
+      result: {
+        sessionID: target.id,
+        inputID: run.inputID,
+        text: targetOutput,
+      },
+    })
+    const tasksResponse = yield* fixture.request(`/session/${meta.id}/task`)
+    expect(tasksResponse.status).toBe(200)
+    expect(
+      Schema.decodeUnknownSync(Schema.Array(SessionTask.Info))(yield* Effect.promise(() => tasksResponse.json())).find(
+        (task) => task.id === settled.taskID,
+      ),
+    ).toMatchObject({
+      id: settled.taskID,
+      status: "completed",
+      operationRef: { sourceSessionID: meta.id, operationID: run.operationID },
+    })
+    const inputResult = yield* SessionInputResult.read(fixture.database.db, {
+      sessionID: target.id,
+      inputID: SessionMessage.ID.make(run.inputID),
+    })
+    expect(inputResult).toMatchObject({
+      status: "completed",
+      sharedInputs: [run.inputID],
+    })
+    const targetMessagesResponse = yield* fixture.request(`/api/session/${target.id}/message?order=asc`)
+    expect(targetMessagesResponse.status).toBe(200)
+    const targetMessages = Schema.decodeUnknownSync(Schema.Struct({ data: Schema.Array(SessionMessage.Info) }))(
+      yield* Effect.promise(() => targetMessagesResponse.json()),
+    ).data
+    expect(targetMessages.find((item) => item.id === run.inputID)).toMatchObject({
+      type: "user",
+      text: promptText,
+    })
+    expect(
+      targetMessages.some(
+        (item) =>
+          item.type === "assistant" && item.content.some((part) => part.type === "text" && part.text === targetOutput),
+      ),
+    ).toBe(true)
+    const metaMessagesResponse = yield* fixture.request(`/api/session/${meta.id}/message?order=asc`)
+    expect(metaMessagesResponse.status).toBe(200)
+    const metaMessages = Schema.decodeUnknownSync(Schema.Struct({ data: Schema.Array(SessionMessage.Info) }))(
+      yield* Effect.promise(() => metaMessagesResponse.json()),
+    ).data
+    expect(
+      metaMessages.some(
+        (item) =>
+          item.type === "synthetic" &&
+          item.text.includes(`<task operation="${run.operationID}" state="settled">`) &&
+          item.text.includes(targetOutput),
+      ),
+    ).toBe(true)
+    expect(
+      yield* fixture.database.db
+        .select()
+        .from(SessionInboxTable)
+        .where(eq(SessionInboxTable.session_id, target.id))
+        .all()
+        .pipe(Effect.orDie),
+    ).toEqual([])
+    expect(
+      yield* fixture.database.db
+        .select()
+        .from(SessionInboxTable)
+        .where(eq(SessionInboxTable.session_id, meta.id))
+        .all()
+        .pipe(Effect.orDie),
+    ).toEqual([])
+    const requests = yield* fixture.llm.requests()
+    expect(requests).toHaveLength(2)
+    expect(JSON.stringify(requests[0].messages)).toContain(promptText)
+    expect(JSON.stringify(requests[1].messages)).toContain(targetOutput)
   }),
 )
