@@ -362,7 +362,13 @@ jobs:
 
       - name: Package
         if: needs.version.outputs.release
-        run: npx electron-builder ${{ matrix.settings.platform_flag }} --publish never --config electron-builder.config.ts
+        shell: bash
+        run: |
+          if [ "${{ steps.signing.outputs.macos-available }}" != "true" ]; then
+            unset CSC_LINK CSC_KEY_PASSWORD APPLE_API_KEY APPLE_API_KEY_ID APPLE_API_ISSUER
+            export OMNIXA_MAC_UNSIGNED=1
+          fi
+          npx electron-builder ${{ matrix.settings.platform_flag }} --publish never --config electron-builder.config.ts
         working-directory: packages/desktop
         timeout-minutes: 60
         env:

@@ -67,6 +67,7 @@ test.each(channels)("channel identity for $channel", async (identity) => {
 test("shared packaging defaults", async () => {
   const config = await load("dev")
   expect(config.mac?.sign).toBeFunction()
+  expect(config.mac?.notarize).toBe(true)
   expect(config.dmg?.sign).not.toBe(true)
   expect(config.mac?.extendInfo?.NSAutoFillRequiresTextContentTypeForOneTimeCodeOnMac).toBe(true)
   const include = path.join(import.meta.dirname, "resources/windows/installer.nsh")
@@ -76,6 +77,21 @@ test("shared packaging defaults", async () => {
   expect(config.extraResources).toEqual([
     { from: "resources/", to: "", filter: ["omnixa-cli", "omnixa-cli.exe", "omnixa-cli.version"] },
   ])
+})
+
+test("skips macOS notarization only when OMNIXA_MAC_UNSIGNED=1", async () => {
+  const previous = process.env.OMNIXA_MAC_UNSIGNED
+  process.env.OMNIXA_MAC_UNSIGNED = "1"
+
+  try {
+    const config = await load("unsigned")
+    expect(config.mac?.sign).toBeFunction()
+    expect(config.mac?.notarize).toBe(false)
+  } finally {
+    delete process.env.OMNIXA_MAC_UNSIGNED
+
+    if (previous !== undefined) process.env.OMNIXA_MAC_UNSIGNED = previous
+  }
 })
 
 test("trims external dependencies without excluding runtime files", async () => {

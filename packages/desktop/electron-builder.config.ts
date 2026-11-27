@@ -127,7 +127,7 @@ const getBase = (appId: string): Configuration => ({
       const { sign } = await import("app-builder-lib/out/codeSign/macCodeSign")
       await sign(macSignOptions(options))
     },
-    notarize: true,
+    notarize: process.env.OMNIXA_MAC_UNSIGNED !== "1",
     target: ["dmg", "zip"],
   },
   protocols: {
