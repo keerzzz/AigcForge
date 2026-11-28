@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
   "name": "@omnixa/codemode",
-  "version": "0.0.10",
+  "version": "0.0.12",
   "description": "Effect-native confined code execution over schema-described tools",
   "type": "module",
   "license": "MIT",

@@ -39,3 +39,10 @@ tsconfig.tsbuildinfo
 /artifacts/
 
 /.omnixa/
+
+# Local-only planning, review receipts, and audit ledgers
+/docs/research/
+/docs/review/
+/docs/assets/
+/docs/technical-debt.md
+/V2_HTTP_API_AUDIT.md

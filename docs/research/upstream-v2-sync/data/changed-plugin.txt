@@ -1,3 +1,0 @@
-package.json
-script/publish.ts
-tsconfig.json

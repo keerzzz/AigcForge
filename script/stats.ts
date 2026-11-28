@@ -72,10 +72,17 @@ async function fetchReleases(): Promise<Release[]> {
   let page = 1
   const per = 100
 
+  const token = process.env.GH_TOKEN ?? process.env.GITHUB_TOKEN
+
   while (true) {
     const url = `https://api.github.com/repos/keerzzz/Omnixa/releases?page=${page}&per_page=${per}`
 
-    const response = await fetch(url)
+    const response = await fetch(url, {
+      headers: {
+        Accept: "application/vnd.github+json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    })
     if (!response.ok) {
       throw new Error(`GitHub API error: ${response.status} ${response.statusText}`)
     }

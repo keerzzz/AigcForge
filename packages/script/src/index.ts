@@ -39,8 +39,14 @@ const VERSION = await (async () => {
   if (env.OMNIXA_VERSION) return env.OMNIXA_VERSION
   if (IS_PREVIEW) return `0.0.0-${CHANNEL}-${previewBuildNumber()}`
   const repo = process.env.GH_REPO || "keerzzz/Omnixa"
+  const token = process.env.GH_TOKEN ?? process.env.GITHUB_TOKEN
   const version = await fetch(`https://api.github.com/repos/${repo}/releases/latest`, {
-    headers: { "User-Agent": "omnixa", "X-GitHub-Api-Version": "2022-11-28" },
+    headers: {
+      Accept: "application/vnd.github+json",
+      "User-Agent": "omnixa",
+      "X-GitHub-Api-Version": "2022-11-28",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     signal: AbortSignal.timeout(10_000),
   })
     .then((res) => (res.ok ? res.json() : null))

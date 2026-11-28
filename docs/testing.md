@@ -6,8 +6,7 @@
 
 - 根 `test` 是 guard，禁止从根跑产品测试。使用 [script/bun](../script/bun) 对齐根 packageManager，包脚本决定条件、preload、wrapper 和测试 tsconfig。
 - 主线独占测试/构建槽，一次一个包；E2E 按任务使用 workers=1、retries=0。只读研究可并行，不并发测试/构建或初始化大型索引。
-- `docs/review/evidence/**` 保存历史源码、失败脚本和构建产物的原始字节，排除于当前源码 lint；活跃测试继续由 owning package 检查。
-- 先得到可信且可满足的行为红证，再最小修复并复验；已有等价 keeper 就扩展，不复制生产实现进测试。
+- 活跃测试由 owning package 检查；先得到可信且可满足的行为红证，再最小修复并复验。已有等价 keeper 就扩展，不复制生产实现进测试。
 - 一个可观察合同一个最强适用 owner。UI 行为沿 App keeper；宿主生命周期沿现有 host/graph component tests；纯领域/安全/编码由 owning module 证明，不重复覆盖。
 - 不加 test-only production seams、flags、globals 或 data attributes，不用固定 sleep/timeout 等待并发完成。复用 Deferred、真实事件/状态与 Playwright readiness。
 - 改公开 Protocol/Server HttpApi 后正式生成 Client，不手改 generated。执行前保护 WIP；Client `check:generated` 会先生成，不能当只读命令。
@@ -82,27 +81,27 @@ App 的单元、browser 与 E2E 类型各有独立入口：
 | 数据/存储         | 新库和旧库副本升级、实体/关系/快照/输入结果、重复启动和失败保留；不重编号 migration |
 | 服务/发布         | 同源 bundled CLI、认证/IPC/PTY、冷启动/复用/接管和产物可重建                        |
 
-全部 batch 目标保留。某小节只关闭明确验证的合同；其它未交付范围继续在[唯一账本](technical-debt.md)，不能用技术债登记把核心功能算完成。
+某小节只关闭明确验证的合同；其余未交付范围在本地技术债账本登记，不能用技术债登记把核心功能算完成。
 
 ## 4. 真实桌面与环境保护
 
-产品小节在源码/依赖/产物冻结且复审通过后，由明确验收负责人运行隔离的真实 Electron + DeepSeek Flash；包级检查和受控模型不替代它，真实模型也不替代可重复的 CAS/故障/取消测试。
+产品小节在源码/依赖/产物冻结且复审通过后，在隔离环境中验证真实 Electron 桌面与受控模型链；包级检查和受控模型不替代端到端桌面验证，真实模型也不替代可重复的 CAS/故障/取消测试。
 
-先确认隔离 user-data、Home/config、数据库副本、端口、服务注册和当前 PID/产物身份。禁止默认通过 installed client 的 ensure 接管用户服务，不操作现用库或秘密。开启/重启/关闭隔离进程及真实 provider 的预算必须在具体任务授权内；文档首批没有该运行授权，不把旧会话允许当新会话凭据。
+先确认隔离 user-data、Home/config、数据库副本、端口、服务注册和当前 PID/产物身份。禁止默认通过 installed client 的 ensure 接管用户服务，不操作现用库或秘密。开启/重启/关闭隔离进程及真实 provider 的预算必须在具体任务授权内。
 
 ## 5. 性能与停止条件
 
 遵循 [performance guide](../packages/app/e2e/performance/AGENTS.md)：production build、串行、同 runtime/fixture/硬件、原始样本、可选 profiling。基准只断言场景完成与指标采集，不设机器相关硬阈值，不用几次样本宣称统计显著性。
 
-场景无法完成、指标缺失、功能回退、数据/权限/身份错误或源码产物不匹配为阻断。数值变慢需保留样本、定位瓶颈并由负责人记录是否接受及解除条件，不把“留 P6”当自动放行；性能预算如需新增，另作有依据的决定。
+场景无法完成、指标缺失、功能回退、数据/权限/身份错误或源码产物不匹配为阻断。数值变慢需保留样本、定位瓶颈并由负责人记录是否接受及解除条件；性能预算如需新增，另作有依据的决定。
 
-## 研究补充的验证边界
+## 6. 资产与组合验证边界
 
-[DeepSeek Harness对齐附件](research/upstream-v2-sync/2026-10-29-deepseek-harness-alignment.md)的用户选择为强化五模式、候选审阅后保存与显式采用。后续任务验证：定义/提供者/消费者配套、来源版本/依赖、卸载/取消/迟到响应、候选不执行、确认/CAS保存不自动安装授权挂载、显式采用/旧组合保护、权限变化逐次、引用删除与持久/live轨迹身份。Scope回收不能证明外部副作用撤销，fork/resume不是确定性重执行。
+五模式与候选审阅验证重点：定义/提供者/消费者配套、来源版本/依赖、卸载/取消/迟到响应、候选不执行、确认/CAS 保存不自动安装授权挂载、显式采用/旧组合保护、权限变化逐次、引用删除与持久/live 轨迹身份。Scope 回收不能证明外部副作用撤销，fork/resume 不是确定性重执行。
 
-配置/能力诊断先本地Schema与来源检查，真实provider preflight显式授权预算，不默认在启动发网络请求。dsh为developer preview且官方未宣称安全审计通过；MIT、审批或沙箱不作为绝对隔离证据，不引入1.5秒/100%或机器相关阈值。
+配置/能力诊断先本地 Schema 与来源检查，真实 provider preflight 显式授权预算，不默认在启动发网络请求。MIT、审批或沙箱不作为绝对隔离证据，不引入机器相关硬阈值。
 
-## 6. 文档-only 与发布
+## 7. 文档-only 与发布
 
 文档-only 检查路径/标题锚点、协议冲突、manifest/源码事实、任务状态与允许文件差异；既有脏文件用修改前后核对隔离本轮变更。禁止为得到 green 执行生成、安装、桌面或产品测试。文档通过不表示功能通过。
 
