@@ -1,12 +1,12 @@
 # Omnixa V2 架构入口
 
-本文件按职责导航，不替代源码合同、[V2 规格](specs/v2/README.md)或[共享底座决定](docs/research/upstream-v2-sync/2026-10-29-shared-foundation-decision.md)。执行首读见 [CLAUDE.md](CLAUDE.md)，工程边界见 [AGENTS.md](AGENTS.md)，产品职责见 [DESIGN.md](DESIGN.md)，验证见 [docs/testing.md](docs/testing.md)。
+本文件按职责导航，不替代源码合同或 [V2 规格](specs/v2/README.md)。执行首读见 [CLAUDE.md](CLAUDE.md)，工程边界见 [AGENTS.md](AGENTS.md)，产品职责见 [DESIGN.md](DESIGN.md)，验证见 [docs/testing.md](docs/testing.md)。
 
 ## 当前事实与目标分开
 
-2026-10-29 文档核验：根 [package.json](package.json) 使用 `packages/*`，当前工作树有25个包，Bun 1.4.2、Effect 4.0.1。清单包含未提交/未跟踪的恢复内容；包存在、类型通过与干净检出可构建不是同一事实。精确运行身份由批次冻结记录决定，不把本页版本当作长期钉住的依赖。
+根 [package.json](package.json) 使用 `packages/*`，当前工作树有 25 个包，Bun 1.4.2、Effect 4.0.1。包存在、类型通过与干净检出可构建不是同一事实。精确运行身份由冻结记录决定，不把本页版本当作长期钉住的依赖。
 
-当前已存在共同 Session 执行、Client 数据层、App Shell 和 GUI 扩展宿主；完整模式工作台、全模式行为版本冻结和产品生命周期仍未闭环。具体未交付状态只维护在[唯一账本](docs/technical-debt.md)。
+当前已存在共同 Session 执行、Client 数据层、App Shell 和 GUI 扩展宿主；完整模式工作台、全模式行为版本冻结和产品生命周期按模块边界持续演进。
 
 ## 包职责清单
 
@@ -62,11 +62,11 @@
 
 ### 会话内容挂载与咨询归属（目标合同）
 
-2026-11-10的[SC00任务单](docs/research/upstream-v2-sync/2026-11-10-session-surfaces-task-sheet.md)固定拟新增SDK接缝与咨询操作；当前实现由各片源码及工件接受。
+SC00 会话表面任务规范固定了 SDK 接缝与咨询操作；当前实现由各片源码及工件接受。
 
-- 拟新增`SessionTargetRef`只描述已注册live ServerRef上的稳定Session及其实际Location，不要求Shell tab。真实`MountedSession`和`SessionScreen`继续持有source布局；target内容从该server现有Data与参数化会话解析读取。跨server key沿`${server.id}\n${session.id}`；挂载不写parentID、controller、fork或执行claim。
-- 同server所有目标共享现ServerRuntime、SharedEvents与Data。可见/持有目标各自水合及重连重读；旧API响应在原Data owner弃读。草稿寿命在原Composer/Tab memory owner补多视图持有，存储沿既有target键，视图不复制第二份历史或草稿。
-- 拟新增`Session.createConsultation`采用明确两阶段：Created与不可编辑咨询归属在同目标aggregate事务提交，普通prompt hook可读取该Session；prepare结束后附服务参考/provenance，再以原InboxEnqueued事务准入首问并更新归属。参考在咨询row或实际pending/User.files中保存，取消carrier时同事务转回row；取消首问后新输入ID重新携带保存参考，首问终态保持。重试先核target及咨询owner，匹配时不加载活源；阶段B使用target实际Location。提交后仅pending首问可以补advisory wake，HTTP重试不重启已promoted/cancelled首问，唯一准入owner拒绝咨询已取消firstID复活。
+- `SessionTargetRef` 只描述已注册 live ServerRef 上的稳定 Session 及其实际 Location，不要求 Shell tab。真实 `MountedSession` 和 `SessionScreen` 继续持有 source 布局；target 内容从该 server 现有 Data 与参数化会话解析读取。跨 server key 沿 `${server.id}\n${session.id}`；挂载不写 parentID、controller、fork 或执行 claim。
+- 同 server 所有目标共享现 ServerRuntime、SharedEvents 与 Data。可见/持有目标各自水合及重连重读；旧 API 响应在原 Data owner 弃读。草稿寿命在原 Composer/Tab memory owner 补多视图持有，存储沿既有 target 键，视图不复制第二份历史或草稿。
+- `Session.createConsultation` 采用明确两阶段：Created 与不可编辑咨询归属在同目标 aggregate 事务提交，普通 prompt hook 可读取该 Session；prepare 结束后附服务参考/provenance，再以原 InboxEnqueued 事务准入首问并更新归属。参考在咨询 row 或实际 pending/User.files 中保存，取消 carrier 时同事务转回 row；取消首问后新输入 ID 重新携带保存参考，首问终态保持。重试先核 target 及咨询 owner，匹配时不加载活源；阶段 B 使用 target 实际 Location。提交后仅 pending 首问可以补 advisory wake，HTTP 重试不重启已 promoted/cancelled 首问，唯一准入 owner 拒绝咨询已取消 firstID 复活。
 
 ## 按任务读取
 
@@ -79,26 +79,24 @@
 | Home/模式/Draft/Session   | App shell/routes、shell/state、new-session、session resolution、Client Solid data                        |
 | Panel/扩展/状态栏         | [GUI guide](packages/gui-extensions/AGENTS.md)、App runtime/extension、Desktop main extension            |
 | 桌面/存储/服务            | [Desktop guide](packages/desktop/AGENTS.md)、[CLI guide](packages/cli/AGENTS.md)、Client service         |
-| 产品范围与迁移差异        | [代码族调查](docs/research/upstream-v2-sync/2026-10-29-code-family-review.md)、总计划 B01、唯一账本      |
+| 产品范围与迁移差异        | 各包 manifest、V2 规格及本地迁移路线/技术债归档                                                          |
 
-页面/包架构按批次调查并记录其完整消费者链；不因更新本入口就宣称25包全部架构已经审批。规格不放待办；批次计划与任务提示词是唯一总计划的执行附件，不能另设领域权威。
+页面/包架构按批次调查并记录其完整消费者链；不因更新本入口就宣称 25 包全部架构已经审批。规格不放待办。
 
-## DeepSeek Harness 研究接入
+## 电路板与可插拔装配架构
 
-[研究对齐附件](docs/research/upstream-v2-sync/2026-10-29-deepseek-harness-alignment.md)区分用户原文、官方文档与待实现目标。采纳能力定义/提供者/消费者配套、声明依赖/来源版本、受控生命周期、事实与live事件分开及可观察诊断的检查方法；全部映射V2现有owner，不引入Cordis、SAP、AgentNode、独立轨迹库或每能力一个模型循环。
+采纳能力定义/提供者/消费者配套、声明依赖/来源版本、受控生命周期、事实与 live 事件分开及可观察诊断的检查方法；全部映射 V2 现有 owner，不引入平行框架、独立轨迹库或每能力一个模型循环。
 
-用户确认的最终模型为V2电路板＋Chat资产元件＋Custom装配，形成智能体/脚手架。治理身份/版本/typed接缝/生命周期，但不把每个工具或UI面板都套新Agent类。保留五模式、审阅后显式采用；空用户库存Chat/Custom均有底座入口，失效必需依赖不fallback。
+最终架构模型为 **V2 电路板底座 ＋ Chat 资产元件 ＋ Custom 自由装配**，形成专业智能体与脚手架。治理身份/版本/typed 接缝/生命周期，但不把每个工具或 UI 面板都套新 Agent 类。保留五模式、审阅后显式采用；空用户库存下 Chat/Custom 均有底座入口，失效必需依赖不静默 fallback。
 
-2026-11-08 用户补充：可插拔、可替换、可启停、可组合逻辑覆盖全部底座能力与工作界面，包括项目树、会话列表、SSE 数据通道和侧边栏，共同支撑 Custom 装配自定义智能体或脚手架。完整目标与讨论顺序见[全平台装配方向](docs/research/upstream-v2-sync/2026-10-29-shared-foundation-decision.md#platform-assembly-direction)：先完成当前元智能体实施任务，再讨论具体架构与布局。
+可插拔、可替换、可启停、可组合逻辑覆盖全部底座能力与工作界面，包括项目树、会话列表、SSE 数据通道和侧边栏，共同支撑 Custom 装配自定义智能体或脚手架。
 
-2026-11-09 用户要求以会话详情页已有右侧栏作为统一模块底座。[右侧栏实施附件](docs/research/upstream-v2-sync/2026-11-09-unified-right-sidebar-implementation-plan.md)已按[第一性审批](docs/review/v2-implementation-approval-2026-11-09-unified-right-sidebar.md)完成减法修订并批准：复用 Extension Host/Panel/createRegion/SideRegion，一个管理扩展贡献任务、协作、Meta、工作流和产物五个独立 Panel；文件树保留辅助 Slot，终端保留 DockRegion。显示、标签布局、扩展启禁和业务执行分别归原 owner；Custom 的明确实际输出可直接复用同宿主，不设置两输出前置。具体功能接受与后继项见原账本。
+会话详情页以右侧栏作为统一模块底座：复用 Extension Host/Panel/createRegion/SideRegion，一个管理扩展贡献任务、协作、Meta、工作流和产物五个独立 Panel；文件树保留辅助 Slot，终端保留 DockRegion。显示、标签布局、扩展启禁和业务执行分别归原 owner；Custom 的明确实际输出可直接复用同宿主，不设置两输出前置。
 
-新Custom从V2通用owner与电路板目标重新设计，默认旧Custom不作参考；现有目标仓Custom专属规则是待重构源码事实，不定义目标。基础组合/内置与用户引用/装配绑定/采用快照合同先由B04.0设计，旧会话数据保护另列，不以旧格式绑架新模式。
+新 Custom 从 V2 通用 owner 与电路板目标设计：保持显式 builtin root/source/revision、Location Profile 保存/CAS/完整读回、Plan digest 确认与原子 Session/快照采用，以及同一 Session 执行与结果消费；保存与已采用快照保持分离。
 
-2026-11-08 已验证接缝：显式 builtin root/source/revision、Location Profile 保存/CAS/完整读回、Plan digest 确认与原子 Session/快照采用，以及同一 Session 执行与结果消费，见 [Profile 接受](/home/keer/.codex/outputs/2026-11-08/b06-profile-runtime-root-v1/root-final-acceptance.json)。后续按用户当前优先级完善底层统一来源/consumer 绑定/行为冻结与显式升级；完整装配界面留待后继。
+### Agent 选择合同
 
-### 2026-10-31 Agent选择合同
+普通根按显式 Agent / `default_agent` 选择，`Build`、`Plan`、`Meta` 并列；选中 `Meta` 时启用其统筹能力。注册 Agent/Model/Tool 独立，执行共用 Session/Runner。
 
-普通根按显式Agent/default_agent，Build/Plan/Meta并列；选中Meta时启用其统筹能力。注册Agent/Model/Tool独立，执行共用Session/Runner。当前修正未验收，见[专项§13](docs/research/upstream-v2-sync/2026-10-29-meta-cpu-closure-plan.md#13-2026-10-31-agent选择裁决与当前修正)。注册公共化仅为后续Custom调查，不另建注册表。
-
-2026-10-31补充澄清：“CPU”仅为说明Meta统筹职责的架构比喻，不是产品术语或实现类别。UI只显示智能体/模型/Meta，代码与注释使用Agent、Meta、Session、Delegation等真实领域名称；不得据比喻新增CPU类型、字段、执行规则或模型入口。文中历史CPU用语仅解释旧讨论，不构成当前命名指令。
+补充澄清：“CPU”仅为历史讨论中说明 Meta 统筹职责的比喻，不是产品术语或实现类别。UI 只显示智能体/模型/Meta，代码与注释使用 `Agent`、`Meta`、`Session`、`Delegation` 等真实领域名称；不得据比喻新增类型、字段、执行规则或模型入口。

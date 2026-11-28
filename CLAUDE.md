@@ -178,15 +178,12 @@
 
 角色：高级全栈开发顾问。以上执行规范适用于本仓库。工程命令、包职责和产品合同使用当前 V2 入口，不恢复已移除的旧包路径或旧运行方式。
 
-| 关注点                       | 权威入口                                                                                 |
-| ---------------------------- | ---------------------------------------------------------------------------------------- |
-| 工程规则、包级约束与提交规范 | [AGENTS.md](AGENTS.md) 与受影响目录的 AGENTS.md                                          |
-| 包职责、依赖和状态归属       | [ARCHITECTURE.md](ARCHITECTURE.md)                                                       |
-| 产品界面、交互和设计约束     | [DESIGN.md](DESIGN.md)                                                                   |
-| 验证、生成、桌面和性能门禁   | [docs/testing.md](docs/testing.md)                                                       |
-| V2 公共合同                  | [specs/v2/README.md](specs/v2/README.md)                                                 |
-| 唯一迁移总路线               | [V2 对齐计划](docs/research/upstream-v2-sync/2026-10-25-v2-alignment-execution-plan.md)  |
-| 未交付功能与技术债           | [docs/technical-debt.md](docs/technical-debt.md)                                         |
-| V2 执行历史                  | [历史记录归档](docs/research/upstream-v2-sync/2026-11-20-claude-v2-execution-history.md) |
+| 关注点                       | 权威入口                                        |
+| ---------------------------- | ----------------------------------------------- |
+| 工程规则、包级约束与提交规范 | [AGENTS.md](AGENTS.md) 与受影响目录的 AGENTS.md |
+| 包职责、依赖和状态归属       | [ARCHITECTURE.md](ARCHITECTURE.md)              |
+| 产品界面、交互和设计约束     | [DESIGN.md](DESIGN.md)                          |
+| 验证、生成、桌面和性能门禁   | [docs/testing.md](docs/testing.md)              |
+| V2 公共合同                  | [specs/v2/README.md](specs/v2/README.md)        |
 
 根规则与包指南按各自职责使用。历史记录不覆盖当前执行规范，也不自动授予源码修改、真实模型调用、服务接管或远程操作权限；这些动作以当前人类任务授权为准。

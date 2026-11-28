@@ -87,7 +87,7 @@ Read [You Might Not Need an Effect](https://react.dev/learn/you-might-not-need-a
   - Give a fallback the area's size when the area has fixed geometry, so nothing shifts; leave it empty otherwise.
   - Make a state change that may suspend inside `startTransition`, so the current content stays until the next is ready.
 - Return stable objects from `Panel.list` and reactive contributions, so the host never remounts a trigger or a panel.
-- Timeline slots may contribute lightweight header and response actions. Render from the host's supplied facts; start extraction, asynchronous requests, or execution only after an explicit click. Never add row-owned subscriptions, background work, or model calls. Keep action objects and mounts stable while tokens stream. The planned response slot follows the [SC00 contract](../../docs/research/upstream-v2-sync/2026-11-10-session-surfaces-task-sheet.md).
+- Timeline slots may contribute lightweight header and response actions. Render from the host's supplied facts; start extraction, asynchronous requests, or execution only after an explicit click. Never add row-owned subscriptions, background work, or model calls. Keep action objects and mounts stable while tokens stream.
 
 ## Localization
 

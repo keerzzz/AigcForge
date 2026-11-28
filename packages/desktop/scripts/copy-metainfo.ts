@@ -8,7 +8,7 @@ const appId = channel === "prod" ? "ai.omnixa.desktop" : `ai.omnixa.desktop.${ch
 
 const productName = channel === "prod" ? "Omnixa" : `Omnixa ${channel.charAt(0).toUpperCase() + channel.slice(1)}`
 
-const summary = `Open source AI coding agent${channel !== "prod" ? ` (${channel})` : ""}`
+const summary = `Everything, Agentized — Open-source AI agent workbench${channel !== "prod" ? ` (${channel})` : ""}`
 
 const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">

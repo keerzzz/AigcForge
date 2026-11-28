@@ -1,7 +1,0 @@
-package.json
-README.md
-script/build.ts
-script/pack.ts
-script/verify-package.ts
-src/index.ts
-tsconfig.json

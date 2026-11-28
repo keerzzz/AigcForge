@@ -1,3 +1,0 @@
-package.json
-src/index.ts
-tsconfig.json

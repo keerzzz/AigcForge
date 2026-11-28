@@ -1,78 +1,110 @@
-# Omnixa
+<p align="center">
+  <img src="packages/desktop/icons/prod/dock.png" width="96" height="96" alt="Omnixa Logo" />
+</p>
 
-<p align="center">The open source AI coding agent.</p>
+<h1 align="center">Omnixa</h1>
 
 <p align="center">
-  <a href="README.md">English</a> |
-  <a href="README.zh.md">简体中文</a> |
-  <a href="README.zht.md">繁體中文</a> |
-  <a href="README.ko.md">한국어</a> |
-  <a href="README.de.md">Deutsch</a> |
-  <a href="README.es.md">Español</a> |
-  <a href="README.fr.md">Français</a> |
-  <a href="README.it.md">Italiano</a> |
-  <a href="README.da.md">Dansk</a> |
-  <a href="README.ja.md">日本語</a> |
-  <a href="README.pl.md">Polski</a> |
-  <a href="README.ru.md">Русский</a> |
-  <a href="README.bs.md">Bosanski</a> |
-  <a href="README.ar.md">العربية</a> |
-  <a href="README.no.md">Norsk</a> |
-  <a href="README.br.md">Português (Brasil)</a> |
-  <a href="README.th.md">ไทย</a> |
-  <a href="README.tr.md">Türkçe</a> |
-  <a href="README.uk.md">Українська</a> |
-  <a href="README.bn.md">বাংলা</a> |
-  <a href="README.gr.md">Ελληνικά</a> |
-  <a href="README.vi.md">Tiếng Việt</a>
+  <strong>Everything, Agentized.</strong><br />
+  An open-source multi-agent AI workbench for coding, structured workflows, and custom agent orchestration across Desktop, Web, TUI, and CLI.
+</p>
+
+<p align="center">
+  <a href="https://github.com/keerzzz/Omnixa/releases"><img src="https://img.shields.io/github/v/release/keerzzz/Omnixa?style=flat-square&label=Release" alt="Latest Release" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-38BDF8?style=flat-square" alt="MIT License" /></a>
+  <img src="https://img.shields.io/badge/Platforms-macOS%20%7C%20Windows%20%7C%20Linux-475569?style=flat-square" alt="Platforms" />
+</p>
+
+<p align="center">
+  <strong>English</strong> | <a href="README.zh.md">简体中文</a>
 </p>
 
 ---
 
-### Installation
+## Why Omnixa (`Omni × X → a`)
 
-Install a locally built CLI binary from this checkout:
+**Omnixa** stands for **`Omni`** (every tool, prompt, skill, document, and workflow) **`× X`** (composable cross-mode routing and transformation) **`→ a`** (autonomous, verifiable agents).
+
+Instead of locking AI inside a single chat box or a single-purpose coding loop, Omnixa provides a unified local-first runtime ("circuit board") where reusable capabilities snap together into specialized agents and multi-agent teams—with durable state, explicit permissions, and full execution visibility.
+
+## Key Capabilities
+
+- **Five Domain Workspaces + Custom Assembly**
+  - **Coding**: Full-featured software engineering with `build` (execution) and `plan` (read-only exploration & architecture analysis).
+  - **Chat**: Asset studio for drafting, reviewing, and versioning reusable prompts, skills, commands, tools, and agent definitions.
+  - **Work**: Structured task execution, multi-step workflows, delegation graphs, and deliverable tracking.
+  - **Custom**: Compose reusable assets into version-pinned custom agent profiles with explicit snapshot adoption.
+  - **Assistant**: Personal long-term memory, notes, knowledge base, and scheduled reminders.
+
+- **Meta-Agent Orchestration & Governance**
+  - Select **`meta`** alongside **`build`** and **`plan`** to coordinate complex multi-step work.
+  - **Task & Subagent Delegation**: Fan out isolated child sessions, run multi-model **`Judge`** reviews, and inspect live execution trees in the unified right sidebar.
+  - **Verifiable Goals & Schedules**: Bind sessions to `Goals` with machine-checked command/human acceptance conditions and step budgets, or automate recurring work via `Schedules`.
+  - **Cross-Session Communication & Project Memory**: Exchange traceable messages across active sessions with exact `replyTo` provenance and curate scoped project facts.
+
+- **One Durable Engine Across Four Surfaces**
+  - Native **Desktop App** (Electron for macOS Apple Silicon & Intel, Windows x64 & ARM64, Linux AppImage / `.deb` / `.rpm`), **Web Workspace**, **Terminal UI (OpenTUI)**, and **CLI (`omnixa`)** all share one local SQLite + SSE session server.
+  - Write-ahead execution claims, durable inbox queuing/steering, and step-level recovery keep work safe across restarts.
+
+- **Model-Agnostic & Standards-Native**
+  - Connect **Anthropic, OpenAI, Google Gemini, DeepSeek, OpenRouter, Ollama**, or any OpenAI-compatible provider with live capability & pricing metadata from `models.dev` (plus offline snapshot fallback).
+  - Built-in support for **MCP (Model Context Protocol)**, **LSP**, persistent **PTY** terminals, and **CodeMode**.
+
+## Download & Quick Start
+
+### 1. Desktop App
+
+Download the latest installer for **macOS** (`.dmg` / `.zip`), **Windows** (`.exe`), or **Linux** (`.AppImage` / `.deb` / `.rpm`) from [**GitHub Releases**](https://github.com/keerzzz/Omnixa/releases).
+
+### 2. Run & Build from Source
+
+Prerequisites: [Bun](https://bun.sh) `1.4.2+` (matching root `packageManager`).
+
+```bash
+git clone https://github.com/keerzzz/Omnixa.git
+cd Omnixa
+bun install
+
+# Launch the Web workspace in development
+bun run dev:web
+
+# Launch the Electron Desktop app in development
+bun run dev:desktop
+```
+
+To install a locally built CLI binary into `$HOME/.omnixa/bin`:
 
 ```bash
 ./install --binary /absolute/path/to/omnixa
 "$HOME/.omnixa/bin/omnixa" --version
 ```
 
-The installation directory is `$HOME/.omnixa/bin`. Remote installation and automatic CLI upgrades require a configured `OMNIXA_UPDATE_URL`.
+For full packaged Desktop builds, see [packages/desktop/README.md](packages/desktop/README.md).
 
-### Desktop App
+## Built-in Agents
 
-Desktop release destination: [keerzzz/Omnixa](https://github.com/keerzzz/Omnixa/releases).
+Switch primary agents anytime from the Composer selector or with `Tab`:
 
-Same-source local build and packaging: [packages/desktop/README.md](packages/desktop/README.md).
+- **`build`** — Default full-capability agent for code editing, shell execution, and implementation.
+- **`plan`** — Read-only analysis agent that denies file edits by default and asks before running shell commands.
+- **`meta`** — Orchestration coordinator for task decomposition, subagent delegation, verifiable goals, schedules, and cross-session collaboration.
+- **`@general`** — Built-in subagent for deep codebase research and multi-step parallel searches.
 
-### Agents
+## Documentation & Architecture
 
-Omnixa includes two built-in agents you can switch between with the `Tab` key.
+| Topic                                    | Entrypoint                                               |
+| :--------------------------------------- | :------------------------------------------------------- |
+| Package Ownership & Runtime Architecture | [ARCHITECTURE.md](ARCHITECTURE.md)                       |
+| Workspace Surfaces & UX Contracts        | [DESIGN.md](DESIGN.md)                                   |
+| V2 Public Specifications                 | [specs/v2/README.md](specs/v2/README.md)                 |
+| Desktop Packaging & Startup Benchmarks   | [packages/desktop/README.md](packages/desktop/README.md) |
+| Validation & Testing Gates               | [docs/testing.md](docs/testing.md)                       |
+| Contributing Guide                       | [CONTRIBUTING.md](CONTRIBUTING.md)                       |
 
-- **build** - Default, full-access agent for development work
-- **plan** - Read-only agent for analysis and code exploration
-  - Denies file edits by default
-  - Asks permission before running bash commands
-  - Ideal for exploring unfamiliar codebases or planning changes
+## Building on Omnixa
 
-Also included is a **general** subagent for complex searches and multistep tasks.
-This is used internally and can be invoked using `@general` in messages.
+If you publish a community project with `omnixa` in its name (for example, `omnixa-plugin-*` or `omnixa-recipes`), please note in your README that it is an independent community project and not officially affiliated with the Omnixa maintainers.
 
-Learn more about [agents](packages/core/README.md).
+## License
 
-### Documentation
-
-For more info on how to configure Omnixa, [**head over to our docs**](specs/v2/README.md).
-
-### Contributing
-
-If you're interested in contributing to Omnixa, please read our [contributing docs](./CONTRIBUTING.md) before submitting a pull request.
-
-### Building on Omnixa
-
-If you are working on a project that's related to Omnixa and is using "omnixa" as part of its name, for example "omnixa-dashboard" or "omnixa-mobile", please add a note to your README to clarify that it is not built by the Omnixa team and is not affiliated with us in any way.
-
----
-
-Based on [OpenCode](https://github.com/anomalyco/opencode), under the [MIT license](LICENSE).
+Released under the [MIT License](LICENSE). Built upon the open-source foundation of [OpenCode](https://github.com/anomalyco/opencode).

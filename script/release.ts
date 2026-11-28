@@ -194,7 +194,7 @@ you can now do and why it matters. Vary the sentence openings, and leave contrib
 sections. For example:
 
 - **Reopen Closed Tabs**: Right-click the new-session button in the tab bar to bring back a session you closed by
-  mistake. ([#123](https://github.com/keerzzz/AigcForge/pull/123))
+  mistake. ([#123](https://github.com/keerzzz/Omnixa/pull/123))
 
 Every highlight must also appear in the detailed sections that follow. Use "###" for Highlights and each release section,
 "####" for Improvements and Bug fixes, and never use "#" or "##" headings in the changelog, since each release is filed
