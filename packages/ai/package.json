@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "version": "0.0.13",
+  "version": "0.0.14",
   "name": "@omnixa/ai",
   "type": "module",
   "license": "MIT",
