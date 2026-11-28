@@ -5,6 +5,8 @@ on:
     branches: [dev, main]
     paths:
       - ".github/workflows/storybook.yml"
+      - ".github/workflows/ci-scope.yml"
+      - "packages/script/src/pr-ci.mjs"
       - "package.json"
       - "bun.lock"
       - "packages/storybook/**"
@@ -15,6 +17,8 @@ on:
     branches: [dev, main]
     paths:
       - ".github/workflows/storybook.yml"
+      - ".github/workflows/ci-scope.yml"
+      - "packages/script/src/pr-ci.mjs"
       - "package.json"
       - "bun.lock"
       - "packages/storybook/**"
@@ -23,12 +27,17 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.action == 'edited' && !github.event.changes.base && github.head_ref != 'release-candidate' && github.run_id || github.ref }}
   cancel-in-progress: true
 
 jobs:
+  scope:
+    uses: ./.github/workflows/ci-scope.yml
+
   build:
-    name: storybook build
+    name: ${{ needs.scope.outputs.prefix }}storybook build
+    needs: scope
+    if: needs.scope.outputs.lane == 'full'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository

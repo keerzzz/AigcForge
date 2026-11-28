@@ -10,8 +10,8 @@ on:
   workflow_dispatch:
 
 concurrency:
-  # Preserve every branch push for release consumers; PRs cancel stale runs.
-  group: ${{ github.workflow }}-${{ github.event_name == 'push' && github.run_id || github.event.pull_request.number || github.ref }}
+  # Preserve branch pushes for release consumers. An edit must not cancel a code run.
+  group: ${{ github.workflow }}-${{ (github.event_name == 'push' || (github.event.action == 'edited' && !github.event.changes.base && github.head_ref != 'release-candidate')) && github.run_id || github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -22,8 +22,13 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
+  scope:
+    uses: ./.github/workflows/ci-scope.yml
+
   quality:
-    name: typecheck
+    name: ${{ needs.scope.outputs.prefix }}typecheck
+    needs: scope
+    if: needs.scope.outputs.lane == 'full'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -55,21 +60,16 @@ jobs:
           fi
           bun run lint:changed "$migration_lint_base"
 
-  unit:
-    name: unit (${{ matrix.settings.name }})
-    strategy:
-      fail-fast: false
-      matrix:
-        settings:
-          - name: linux
-            host: ubuntu-latest
-          - name: windows
-            host: windows-latest
-    runs-on: ${{ matrix.settings.host }}
-    defaults:
+  # Fixed job names also exist when the platform tests are not applicable.
+  unit-linux:
+    name: ${{ needs.scope.outputs.prefix }}unit (linux)
+    needs: scope
+    if: needs.scope.outputs.lane == 'full'
+    runs-on: ubuntu-latest
+    defaults: &bash-defaults
       run:
         shell: bash
-    steps:
+    steps: &unit-steps
       - name: Checkout repository
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
@@ -160,23 +160,23 @@ jobs:
         working-directory: packages/client
         run: bun run check:generated
 
-  e2e:
-    name: e2e (${{ matrix.settings.name }})
-    strategy:
-      fail-fast: false
-      matrix:
-        settings:
-          - name: linux
-            host: ubuntu-24.04
-          - name: windows
-            host: windows-latest
-    runs-on: ${{ matrix.settings.host }}
-    env:
+  unit-windows:
+    name: ${{ needs.scope.outputs.prefix }}unit (windows)
+    needs: scope
+    if: needs.scope.outputs.lane == 'full'
+    runs-on: windows-latest
+    defaults: *bash-defaults
+    steps: *unit-steps
+
+  e2e-linux:
+    name: ${{ needs.scope.outputs.prefix }}e2e (linux)
+    needs: scope
+    if: needs.scope.outputs.lane == 'full'
+    runs-on: ubuntu-24.04
+    env: &e2e-env
       PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.playwright-browsers
-    defaults:
-      run:
-        shell: bash
-    steps:
+    defaults: *bash-defaults
+    steps: &e2e-steps
       - name: Checkout repository
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
@@ -300,7 +300,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: playwright-${{ matrix.settings.name }}-${{ github.run_attempt }}
+          name: playwright-${{ runner.os == 'Windows' && 'windows' || 'linux' }}-${{ github.run_attempt }}
           if-no-files-found: ignore
           retention-days: 7
           path: |
@@ -311,20 +311,35 @@ jobs:
             packages/app/component-tests/test-results
             packages/app/component-tests/playwright-report
 
+  e2e-windows:
+    name: ${{ needs.scope.outputs.prefix }}e2e (windows)
+    needs: scope
+    if: needs.scope.outputs.lane == 'full'
+    runs-on: windows-latest
+    env: *e2e-env
+    defaults: *bash-defaults
+    steps: *e2e-steps
+
   lint-test-typecheck:
-    name: Lint, Test, and Typecheck
-    needs: [quality, unit, e2e]
-    if: always()
+    name: ${{ needs.scope.outputs.prefix }}Lint, Test, and Typecheck
+    needs: [scope, quality, unit-linux, unit-windows, e2e-linux, e2e-windows]
+    if: always() && needs.scope.outputs.lane != 'metadata'
     runs-on: ubuntu-latest
     steps:
       - name: Verify CI results
         shell: bash
         env:
-          QUALITY_RESULT: ${{ needs.quality.result }}
-          UNIT_RESULT: ${{ needs.unit.result }}
-          E2E_RESULT: ${{ needs.e2e.result }}
+          SCOPE_RESULT: ${{ needs.scope.result }}
+          LANE: ${{ needs.scope.outputs.lane }}
+          PRODUCT_RESULTS: >-
+            ${{ needs.quality.result }} ${{ needs.unit-linux.result }} ${{ needs.unit-windows.result }}
+            ${{ needs.e2e-linux.result }} ${{ needs.e2e-windows.result }}
         run: |
-          printf 'quality=%s unit=%s e2e=%s\n' "$QUALITY_RESULT" "$UNIT_RESULT" "$E2E_RESULT"
-          if [ "$QUALITY_RESULT" != success ] || [ "$UNIT_RESULT" != success ] || [ "$E2E_RESULT" != success ]; then
-            exit 1
-          fi
+          echo "scope=$SCOPE_RESULT lane=$LANE product=$PRODUCT_RESULTS"
+          [[ "$SCOPE_RESULT" == success ]] || exit 1
+          case "$LANE" in
+            full) expected=success ;;
+            readme) expected=skipped ;;
+            *) exit 1 ;;
+          esac
+          [[ "$PRODUCT_RESULTS" == "$expected $expected $expected $expected $expected" ]]

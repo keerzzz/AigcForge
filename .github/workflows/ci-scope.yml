@@ -1,0 +1,38 @@
+name: CI scope
+
+on:
+  workflow_call:
+    outputs:
+      lane:
+        description: full, readme or metadata
+        value: ${{ jobs.select.outputs.lane }}
+      prefix:
+        description: Keep metadata-only runs out of the product check namespace
+        value: ${{ jobs.select.outputs.prefix }}
+
+jobs:
+  select:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      lane: ${{ steps.scope.outputs.lane }}
+      prefix: ${{ steps.scope.outputs.lane == 'metadata' && 'PR metadata / ' || '' }}
+    steps:
+      - if: github.event_name == 'pull_request'
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Select checks from the base branch policy
+        id: scope
+        shell: bash
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == pull_request ]] && git cat-file -e 'HEAD^1:packages/script/src/pr-ci.mjs' 2>/dev/null; then
+            git show 'HEAD^1:packages/script/src/pr-ci.mjs' | node --input-type=module >> "$GITHUB_OUTPUT"
+          else
+            echo 'lane=full' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Check links and images in both root READMEs
+        if: steps.scope.outputs.lane == 'readme'
+        run: ./script/bun packages/script/src/check-readmes.ts
