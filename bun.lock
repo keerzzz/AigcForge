@@ -32,7 +32,7 @@
     },
     "packages/ai": {
       "name": "@omnixa/ai",
-      "version": "0.0.12",
+      "version": "0.0.13",
       "dependencies": {
         "@aws-sdk/credential-providers": "3.1057.0",
         "@omnixa/schema": "workspace:*",
@@ -54,7 +54,7 @@
     },
     "packages/app": {
       "name": "@omnixa/app",
-      "version": "0.0.12",
+      "version": "0.0.13",
       "dependencies": {
         "@corvu/drawer": "catalog:",
         "@dnd-kit/abstract": "0.5.0",
@@ -112,7 +112,7 @@
     },
     "packages/cli": {
       "name": "@omnixa/cli",
-      "version": "0.0.12",
+      "version": "0.0.13",
       "bin": {
         "omnixa": "./bin/omnixa.cjs",
         "omnixa2": "./bin/omnixa2.cjs",
@@ -180,7 +180,7 @@
     },
     "packages/client": {
       "name": "@omnixa/client",
-      "version": "0.0.12",
+      "version": "0.0.13",
       "dependencies": {
         "@omnixa/protocol": "workspace:*",
         "@omnixa/schema": "workspace:*",
@@ -205,7 +205,7 @@
     },
     "packages/codemode": {
       "name": "@omnixa/codemode",
-      "version": "0.0.12",
+      "version": "0.0.13",
       "dependencies": {
         "acorn": "8.15.0",
         "effect": "catalog:",
@@ -218,7 +218,7 @@
     },
     "packages/core": {
       "name": "@omnixa/core",
-      "version": "0.0.12",
+      "version": "0.0.13",
       "dependencies": {
         "@agentclientprotocol/sdk": "catalog:",
         "@ai-sdk/cohere": "3.0.27",
@@ -288,7 +288,7 @@
     },
     "packages/desktop": {
       "name": "@omnixa/desktop",
-      "version": "0.0.12",
+      "version": "0.0.13",
       "dependencies": {
         "@zip.js/zip.js": "2.7.62",
         "electron-context-menu": "5.0.0",
@@ -335,7 +335,7 @@
     },
     "packages/gui-extensions": {
       "name": "@omnixa/gui-extensions",
-      "version": "0.0.12",
+      "version": "0.0.13",
       "dependencies": {
         "@betteroffice/docx": "0.4.3",
         "@betteroffice/fonts": "0.4.0",
@@ -384,7 +384,7 @@
     },
     "packages/http-recorder": {
       "name": "@omnixa/http-recorder",
-      "version": "0.0.12",
+      "version": "0.0.13",
       "dependencies": {
         "@effect/platform-node-shared": "catalog:",
       },
@@ -403,7 +403,7 @@
     },
     "packages/httpapi-codegen": {
       "name": "@omnixa/httpapi-codegen",
-      "version": "0.0.12",
+      "version": "0.0.13",
       "dependencies": {
         "effect": "catalog:",
         "prettier": "3.6.2",
@@ -416,7 +416,7 @@
     },
     "packages/latex": {
       "name": "@omnixa/latex",
-      "version": "0.0.12",
+      "version": "0.0.13",
       "dependencies": {
         "@omnixa/plugin": "workspace:*",
         "@opentui/core": "catalog:",
@@ -430,7 +430,7 @@
     },
     "packages/merman": {
       "name": "@omnixa/merman",
-      "version": "0.0.12",
+      "version": "0.0.13",
       "dependencies": {
         "@omnixa/plugin": "workspace:*",
         "@opentui/core": "catalog:",
@@ -445,7 +445,7 @@
     },
     "packages/plugin": {
       "name": "@omnixa/plugin",
-      "version": "0.0.12",
+      "version": "0.0.13",
       "dependencies": {
         "@ai-sdk/provider": "3.0.8",
         "@omnixa/ai": "workspace:*",
@@ -482,7 +482,7 @@
     },
     "packages/plugin-browser": {
       "name": "@omnixa/plugin-browser",
-      "version": "0.0.12",
+      "version": "0.0.13",
       "dependencies": {
         "@omnixa/plugin": "workspace:*",
         "@omnixa/schema": "workspace:*",
@@ -497,7 +497,7 @@
     },
     "packages/protocol": {
       "name": "@omnixa/protocol",
-      "version": "0.0.12",
+      "version": "0.0.13",
       "dependencies": {
         "@omnixa/schema": "workspace:*",
         "effect": "catalog:",
@@ -512,7 +512,7 @@
     },
     "packages/schema": {
       "name": "@omnixa/schema",
-      "version": "0.0.12",
+      "version": "0.0.13",
       "dependencies": {
         "@standard-schema/spec": "catalog:",
         "effect": "catalog:",
@@ -526,7 +526,7 @@
     },
     "packages/script": {
       "name": "@omnixa/script",
-      "version": "0.0.12",
+      "version": "0.0.13",
       "dependencies": {
         "effect": "catalog:",
         "semver": "^7.6.3",
@@ -538,7 +538,7 @@
     },
     "packages/server": {
       "name": "@omnixa/server",
-      "version": "0.0.12",
+      "version": "0.0.13",
       "dependencies": {
         "@effect/platform-node": "catalog:",
         "@effect/platform-node-shared": "catalog:",
@@ -563,7 +563,7 @@
     },
     "packages/session-ui": {
       "name": "@omnixa/session-ui",
-      "version": "0.0.12",
+      "version": "0.0.13",
       "dependencies": {
         "@kobalte/core": "catalog:",
         "@omnixa/client": "workspace:*",
@@ -599,7 +599,7 @@
     },
     "packages/simulation": {
       "name": "@omnixa/simulation",
-      "version": "0.0.12",
+      "version": "0.0.13",
       "dependencies": {
         "@omnixa/ai": "workspace:*",
         "@omnixa/core": "workspace:*",
@@ -619,7 +619,7 @@
     },
     "packages/storybook": {
       "name": "@omnixa/storybook",
-      "version": "0.0.12",
+      "version": "0.0.13",
       "devDependencies": {
         "@omnixa/client": "workspace:*",
         "@omnixa/session-ui": "workspace:*",
@@ -649,7 +649,7 @@
     },
     "packages/theme": {
       "name": "@omnixa/theme",
-      "version": "0.0.12",
+      "version": "0.0.13",
       "dependencies": {
         "@opentui/core": "catalog:",
         "effect": "catalog:",
@@ -663,7 +663,7 @@
     },
     "packages/tui": {
       "name": "@omnixa/tui",
-      "version": "0.0.12",
+      "version": "0.0.13",
       "dependencies": {
         "@omnixa/client": "workspace:*",
         "@omnixa/core": "workspace:*",
@@ -697,7 +697,7 @@
     },
     "packages/ui": {
       "name": "@omnixa/ui",
-      "version": "0.0.12",
+      "version": "0.0.13",
       "dependencies": {
         "@kitlangton/solid-motion": "0.2.2",
         "@kobalte/core": "catalog:",
@@ -733,7 +733,7 @@
     },
     "packages/util": {
       "name": "@omnixa/util",
-      "version": "0.0.12",
+      "version": "0.0.13",
       "dependencies": {
         "@effect/opentelemetry": "catalog:",
         "@effect/platform-node": "catalog:",
