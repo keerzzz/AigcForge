@@ -70,6 +70,40 @@ export async function openSession(page: Page, input: WorkspaceInput & { sessionI
   return { ...workspace, session: target, editor }
 }
 
+// Keep both HTTP readbacks on the same selection before sending the event that invalidates them.
+export async function switchMetaToBuild(
+  workspace: Awaited<ReturnType<typeof openSession>>,
+  identities: NonNullable<WorkspaceInput["identities"]>,
+  seq: number,
+) {
+  const sessionID = workspace.session.id
+  const identity = identities[sessionID]
+
+  if (identity?.agent !== "meta") throw new Error(`Expected a Meta identity for ${sessionID}`)
+
+  const event = { id: `evt_build_${sessionID}_${seq}`, seq }
+  Object.assign(workspace.session, { agent: "build" })
+  identities[sessionID] = {
+    ...identity,
+    agent: "build",
+    coordination: {
+      available: false,
+      reasons: [{ code: "meta-not-selected", severity: "info" }],
+      selection: { agent: "build", event },
+    },
+  }
+  await workspace.push([
+    {
+      id: event.id,
+      type: "session.agent.selected",
+      created: workspace.session.time.updated + 1,
+      location: identity.location,
+      durable: { aggregateID: sessionID, seq, version: 1 },
+      data: { sessionID, agent: "build", previous: "meta" },
+    },
+  ])
+}
+
 // Opens a new-session draft (no sessions by default) and waits until its composer accepts input.
 export async function openDraft(page: Page, input: WorkspaceInput & { draftID?: string }) {
   const draftID = input.draftID ?? `draft_${input.name.toLowerCase().replace(/[^a-z0-9]+/g, "_")}`
