@@ -39,7 +39,7 @@ import {
   tabKey,
 } from "../utils/app"
 import { installSseTransport } from "../utils/sse-transport"
-import { fileDiff, fileNode, mockRemoteServer, openSession } from "../utils/workspace"
+import { fileDiff, fileNode, mockRemoteServer, openSession, switchMetaToBuild } from "../utils/workspace"
 import { expectSessionTitle } from "../utils/waits"
 import { attachSession, openAdvanced, openSidePanel } from "../utils/side-panel"
 import {
@@ -1239,8 +1239,7 @@ test("MP03 Goals keep drafts in the Meta right panel and submit exact revisions 
     },
   }
 
-  const transport = await installSseTransport(page, { server: SERVER })
-  await openSession(page, {
+  const workspace = await openSession(page, {
     name: "MP03 Goals",
     directory,
     goals,
@@ -1306,7 +1305,6 @@ test("MP03 Goals keep drafts in the Meta right panel and submit exact revisions 
       return goal
     },
   })
-  await transport.waitForConnection()
   await openAdvanced(page)
   const side = page.locator("#review-panel")
   const panel = side.getByRole("region", { name: "Goals", exact: true })
@@ -1353,26 +1351,7 @@ test("MP03 Goals keep drafts in the Meta right panel and submit exact revisions 
     sessionID,
     body: { goalID: expect.stringMatching(/^gol_/), objective: "Start the next Goal" },
   })
-  const selected = identities[sessionID]
-
-  if (!selected) throw new Error("Goal identity fixture is missing")
-  identities[sessionID] = {
-    ...selected,
-    agent: "build",
-    coordination: {
-      available: false,
-      reasons: [{ code: "meta-not-selected", severity: "info" }],
-      selection: { agent: "build", event: { id: "evt_mp03_goal_withdraw", seq: 2 } },
-    },
-  }
-  await transport.send({
-    id: "evt_mp03_goal_withdraw",
-    type: "session.agent.selected",
-    created: 3,
-    location: { directory },
-    durable: { aggregateID: sessionID, seq: 2, version: 1 },
-    data: { sessionID, agent: "build", previous: "meta" },
-  })
+  await switchMetaToBuild(workspace, identities, 2)
   await expect(panel.getByRole("button", { name: "New Goal", exact: true })).toHaveCount(0)
   await expect(panel.getByRole("button", { name: "Revised Goal objective", exact: true })).toBeVisible()
   await expect(page).toHaveURL(sessionHref(sessionID))
@@ -1479,7 +1458,7 @@ test("MP03 Communications retain exact replies across SSE, failed acknowledgemen
     },
   })
 
-  await openSession(page, {
+  const workspace = await openSession(page, {
     name: "MP03 Communications",
     directory,
     sessionID: middleID,
@@ -1704,6 +1683,30 @@ test("MP03 Communications retain exact replies across SSE, failed acknowledgemen
   expect(requests).toHaveLength(4)
   await expect(panel.getByRole("listitem")).toHaveCount(5)
   await expect(timeline).toHaveCount(2)
+
+  await test.step("Switching the sender to Build withdraws writes but keeps the reply chain readable", async () => {
+    const create = panel.getByRole("button", { name: "New communication", exact: true })
+    const reply = detail.getByRole("button", { name: "Reply to this communication", exact: true })
+    await panel.getByRole("button", { name: "Received from Meta A", exact: true }).click()
+    await reply.click()
+    await form.getByRole("textbox", { name: "Message", exact: true }).fill("Unsent reply from Meta B")
+    await expect(form.getByRole("button", { name: "Reply to this communication", exact: true })).toBeEnabled()
+    await expect(create).toBeEnabled()
+
+    await switchMetaToBuild(workspace, identities, 2)
+
+    await expect(create).toHaveCount(0)
+    await expect(reply).toHaveCount(0)
+    await expect(
+      form.getByRole("button", { name: "Reply to this communication", exact: true, disabled: false }),
+    ).toHaveCount(0)
+    await savedRow.getByRole("button", { name: "Sent to Meta A", exact: true }).click()
+    await expect(detail.locator("pre")).toHaveText(text)
+    await detail.getByRole("button", { name: received.id, exact: true }).click()
+    await expect(detail.locator("pre")).toHaveText(received.text)
+    expect(requests).toHaveLength(4)
+  })
+
   await page.goto(sessionHref(firstID))
   await expectSessionTitle(page, "Meta A")
   await expect(timeline).toHaveCount(2)
@@ -2091,7 +2094,7 @@ test("MP03 Schedule keeps the saved target through revision edits and separates 
     },
   }
 
-  await openSession(page, {
+  const workspace = await openSession(page, {
     name: "MP03 Schedule",
     directory,
     provider: provider({ id: "mp03-normal-model", name: "MP03 normal model" }),
@@ -2295,9 +2298,24 @@ test("MP03 Schedule keeps the saved target through revision edits and separates 
   await expect(panel.getByText("Completed", { exact: true })).toHaveCount(0)
   expect(mutations.at(-1)).toMatchObject({ action: "run", id: rule.id, body: { expectedRevision: 4 } })
   await expect(page).toHaveURL(sessionHref(sessionID))
-  await panel.getByRole("button", { name: "Cancel schedule", exact: true }).click()
-  await expect(panel.getByRole("button", { name: "Edit schedule", exact: true })).toHaveCount(0)
-  await expect(panel.getByText("Input admitted", { exact: true })).toBeVisible()
+
+  await test.step("Switching the source to Build withdraws new schedule work but preserves stop and history", async () => {
+    const create = panel.getByRole("button", { name: "New schedule", exact: true })
+    await expect(create).toBeEnabled()
+
+    await switchMetaToBuild(workspace, identities, 2)
+
+    await expect(create).toHaveCount(0)
+    await expect(panel.getByRole("button", { name: "Edit schedule", exact: true })).toHaveCount(0)
+    await expect(panel.getByRole("button", { name: "Run one occurrence", exact: true })).toHaveCount(0)
+    const detail = panel.locator('[data-slot="schedule-detail"]')
+    await expect(detail.getByText(rule.id, { exact: true })).toBeVisible()
+    await detail.getByRole("button", { name: "Cancel schedule", exact: true }).click()
+    await expect(detail.getByText("Cancelled", { exact: true })).toBeVisible()
+    expect(mutations.at(-1)).toMatchObject({ action: "cancel", id: rule.id, body: { expectedRevision: 4 } })
+    const occurrence = detail.getByRole("listitem").filter({ has: page.getByText("sco_mp03_run", { exact: true }) })
+    await expect(occurrence.getByText("Input admitted", { exact: true })).toBeVisible()
+  })
 })
 
 test("Files navigation keeps durable tabs and persists explicit preview mode across reloads", async ({
