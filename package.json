@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/package.json",
   "name": "omnixa",
   "description": "Everything, Agentized — Open-source multi-agent AI workbench across Desktop, Web, TUI, and CLI",
-  "version": "0.0.13",
+  "version": "0.0.14",
   "private": true,
   "type": "module",
   "packageManager": "bun@1.4.2",
