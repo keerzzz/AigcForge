@@ -199,7 +199,7 @@ function getConfig() {
         publish: {
           provider: "github",
           owner: "keerzzz",
-          repo: "AigcForge",
+          repo: "Omnixa",
           channel: "latest",
         },
         deb: { fpm: [metainfoFpm(appId)] },

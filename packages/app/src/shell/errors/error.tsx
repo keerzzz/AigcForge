@@ -413,7 +413,7 @@ export const ErrorPage: Component<ErrorPageProps> = (props) => {
             <button
               type="button"
               class="flex items-center text-text-interactive-base gap-1"
-              onClick={() => platform.openExternal("https://github.com/keerzzz/AigcForge/issues/new")}
+              onClick={() => platform.openExternal("https://github.com/keerzzz/Omnixa/issues/new")}
             >
               <div>{language.t("error.page.report.discord")}</div>
               <Icon name="discord" class="text-text-interactive-base" />

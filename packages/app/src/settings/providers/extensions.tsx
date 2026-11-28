@@ -150,7 +150,7 @@ export const SettingsExtensions: Component<{
                 </span>
                 <ExternalLink
                   class="settings-extension-link text-13-regular"
-                  href="https://github.com/keerzzz/AigcForge#readme"
+                  href="https://github.com/keerzzz/Omnixa#readme"
                 >
                   {language.t("settings.extensions.addSkills")}
                 </ExternalLink>

@@ -42,7 +42,7 @@
 
 ### デスクトップアプリ
 
-デスクトップ版のリリース先: [keerzzz/AigcForge](https://github.com/keerzzz/AigcForge/releases).
+デスクトップ版のリリース先: [keerzzz/Omnixa](https://github.com/keerzzz/Omnixa/releases).
 
 同じソースからのローカルビルドとパッケージ作成: [packages/desktop/README.md](packages/desktop/README.md).
 

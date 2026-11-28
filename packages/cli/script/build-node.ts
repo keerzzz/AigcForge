@@ -141,7 +141,7 @@ for (const target of targets) {
         name: `@omnixa/${name}`,
         version: Script.version,
         license: pkg.license,
-        repository: { type: "git", url: "git+https://github.com/keerzzz/AigcForge.git" },
+        repository: { type: "git", url: "git+https://github.com/keerzzz/Omnixa.git" },
         os: [target.platform],
         cpu: [target.arch],
       },

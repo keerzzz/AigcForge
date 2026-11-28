@@ -1386,7 +1386,7 @@ export const dict = {
   "settings.about.otherContributor.other": "其他{{count}}人",
   "settings.about.firstPublished": "首次在美国密苏里州发布",
   "settings.about.firstIllustrated": "首次在英国伦敦展出",
-  "settings.about.website": "github.com/keerzzz/AigcForge",
+  "settings.about.website": "github.com/keerzzz/Omnixa",
   "settings.about.description": "Omnixa — 万物皆可智能体",
   "settings.about.trademark": "Omnixa 是基于 MIT 许可证发布的开源软件。",
   "settings.about.typeset": "Inter和IBM Plex Mono中的排版",

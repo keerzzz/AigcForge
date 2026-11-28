@@ -18,7 +18,7 @@ const channels = [
     appId: "ai.omnixa.desktop",
     productName: "Omnixa",
     protocolName: "Omnixa",
-    repository: "AigcForge",
+    repository: "Omnixa",
   },
 ] as const
 

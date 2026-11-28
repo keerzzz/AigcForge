@@ -9,7 +9,7 @@ const sha = (await $`git rev-parse HEAD`.quiet().text()).trim()
 const strict = process.env.OMNIXA_RELEASE_NOTES_STRICT === "true"
 
 if (!Script.preview) {
-  const github = new Release.GitHub(process.env.GH_REPO ?? "keerzzz/AigcForge", process.env.GH_TOKEN ?? "")
+  const github = new Release.GitHub(process.env.GH_REPO ?? "keerzzz/Omnixa", process.env.GH_TOKEN ?? "")
   const existing = await github.draft(Script.version, sha)
   const release = existing ?? (await github.draft(Script.version, sha, await releaseNotes(sha, strict)))
   if (!release) throw new Release.Failure({ reason: "Draft release was not created" })

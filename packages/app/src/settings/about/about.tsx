@@ -44,7 +44,7 @@ export function SettingsAbout(_props: { active: boolean }) {
           })}
         </p>
         <p>
-          <ExternalLink href="https://github.com/keerzzz/AigcForge/blob/main/LICENSE">
+          <ExternalLink href="https://github.com/keerzzz/Omnixa/blob/main/LICENSE">
             {language.t("settings.about.license")}
           </ExternalLink>
         </p>
@@ -53,7 +53,7 @@ export function SettingsAbout(_props: { active: boolean }) {
         <div>
           <dt>{language.t("settings.about.repository")}</dt>
           <dd>
-            <ExternalLink href="https://github.com/keerzzz/AigcForge">keerzzz/AigcForge</ExternalLink>
+            <ExternalLink href="https://github.com/keerzzz/Omnixa">keerzzz/Omnixa</ExternalLink>
           </dd>
         </div>
         <div>
@@ -65,7 +65,7 @@ export function SettingsAbout(_props: { active: boolean }) {
         <div>
           <dt>{language.t("settings.about.contributors")}</dt>
           <dd>
-            <ExternalLink href="https://github.com/keerzzz/AigcForge/graphs/contributors">
+            <ExternalLink href="https://github.com/keerzzz/Omnixa/graphs/contributors">
               {language.t("settings.about.viewContributors")}
             </ExternalLink>
           </dd>

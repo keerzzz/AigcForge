@@ -10,7 +10,7 @@ const root = path.resolve(import.meta.dir, "..")
 
 async function main() {
   const command = Bun.argv[2]
-  const repo = process.env.GH_REPO ?? "keerzzz/AigcForge"
+  const repo = process.env.GH_REPO ?? "keerzzz/Omnixa"
   const github = new Release.GitHub(repo, process.env.GH_TOKEN ?? "")
   if (command === "plan") {
     const event = Release.json(Release.Event, await Bun.file(required("GITHUB_EVENT_PATH")).text(), "GitHub event")

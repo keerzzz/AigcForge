@@ -40,7 +40,7 @@ const targets = await Promise.all(
     for await (const chunk of file.stream()) sha256.update(chunk)
     return {
       ...target,
-      url: `https://github.com/keerzzz/AigcForge/releases/download/v${encodeURIComponent(Script.version)}/${filename}`,
+      url: `https://github.com/keerzzz/Omnixa/releases/download/v${encodeURIComponent(Script.version)}/${filename}`,
       sha256: sha256.digest("hex"),
     }
   }),
@@ -67,7 +67,7 @@ await Bun.write(
     "",
     `class ${formulaClass} < Formula`,
     `  desc "Omnixa V2${Script.channel === "beta" ? " beta" : ""} - the AI coding agent for the terminal"`,
-    '  homepage "https://github.com/keerzzz/AigcForge"',
+    '  homepage "https://github.com/keerzzz/Omnixa"',
     `  version "${Script.version}"`,
     '  license "MIT"',
     "",

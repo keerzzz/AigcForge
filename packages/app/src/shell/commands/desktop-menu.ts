@@ -273,19 +273,19 @@ export const DESKTOP_MENU: DesktopMenu[] = [
     id: "help",
     labelKey: "desktop.menu.help",
     items: [
-      { type: "item", labelKey: "desktop.menu.documentation", href: "https://github.com/keerzzz/AigcForge#readme" },
-      { type: "item", labelKey: "desktop.menu.supportForum", href: "https://github.com/keerzzz/AigcForge/discussions" },
+      { type: "item", labelKey: "desktop.menu.documentation", href: "https://github.com/keerzzz/Omnixa#readme" },
+      { type: "item", labelKey: "desktop.menu.supportForum", href: "https://github.com/keerzzz/Omnixa/discussions" },
       { type: "item", labelKey: "desktop.menu.exportLogs", command: "logs.export" },
       { type: "separator" },
       {
         type: "item",
         labelKey: "desktop.menu.shareFeedback",
-        href: "https://github.com/keerzzz/AigcForge/issues/new?template=feature_request.yml",
+        href: "https://github.com/keerzzz/Omnixa/issues/new?template=feature_request.yml",
       },
       {
         type: "item",
         labelKey: "desktop.menu.reportBug",
-        href: "https://github.com/keerzzz/AigcForge/issues/new?template=bug_report.yml",
+        href: "https://github.com/keerzzz/Omnixa/issues/new?template=bug_report.yml",
       },
     ],
   },

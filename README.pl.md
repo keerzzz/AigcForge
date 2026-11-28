@@ -42,7 +42,7 @@ Katalog instalacji to `$HOME/.omnixa/bin`. Instalacja zdalna i automatyczne aktu
 
 ### Aplikacja desktopowa
 
-Miejsce publikacji wersji desktopowych: [keerzzz/AigcForge](https://github.com/keerzzz/AigcForge/releases).
+Miejsce publikacji wersji desktopowych: [keerzzz/Omnixa](https://github.com/keerzzz/Omnixa/releases).
 
 Lokalne budowanie i pakowanie z tego samego źródła: [packages/desktop/README.md](packages/desktop/README.md).
 

@@ -1,10 +1,10 @@
 # omnixa VS Code Extension
 
-A Visual Studio Code extension that integrates [omnixa](https://github.com/keerzzz/AigcForge) directly into your development workflow.
+A Visual Studio Code extension that integrates [omnixa](https://github.com/keerzzz/Omnixa) directly into your development workflow.
 
 ## Prerequisites
 
-This extension requires the [omnixa CLI](https://github.com/keerzzz/AigcForge) to be installed on your system. Visit [omnixa.ai](https://github.com/keerzzz/AigcForge) for installation instructions.
+This extension requires the [omnixa CLI](https://github.com/keerzzz/Omnixa) to be installed on your system. Visit [omnixa.ai](https://github.com/keerzzz/Omnixa) for installation instructions.
 
 ## Features
 
@@ -15,7 +15,7 @@ This extension requires the [omnixa CLI](https://github.com/keerzzz/AigcForge) t
 
 ## Support
 
-This is an early release. If you encounter issues or have feedback, please create an issue at https://github.com/keerzzz/AigcForge/issues.
+This is an early release. If you encounter issues or have feedback, please create an issue at https://github.com/keerzzz/Omnixa/issues.
 
 ## Development
 

@@ -129,7 +129,7 @@ export function StatsPoster(props: { stats: SessionStatsInfo }) {
         </For>
       </box>
       <box width="100%" flexDirection="row" justifyContent="flex-end">
-        <text fg={theme.text.base}>github.com/keerzzz/AigcForge</text>
+        <text fg={theme.text.base}>github.com/keerzzz/Omnixa</text>
       </box>
     </box>
   )

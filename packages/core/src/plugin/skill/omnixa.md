@@ -5,7 +5,7 @@ the core concepts needed to configure and customize Omnixa, extend it with
 plugins, and build integrations with the Omnixa SDK, clients, and HTTP API.
 
 The authoritative source of truth for this build is the repository itself
-(<https://github.com/keerzzz/AigcForge>), especially `CLAUDE.md`, `AGENTS.md`,
+(<https://github.com/keerzzz/Omnixa>), especially `CLAUDE.md`, `AGENTS.md`,
 `ARCHITECTURE.md`, `DESIGN.md`, `docs/testing.md`, and `specs/v2/README.md`.
 Do not fetch unhosted `omnixa.ai` documentation URLs; inspect the in-repo V2
 specifications, schemas, and running server `/openapi.json` instead.

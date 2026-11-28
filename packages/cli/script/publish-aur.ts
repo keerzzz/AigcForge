@@ -62,7 +62,7 @@ await Bun.write(
     `pkgver=${pkgver}`,
     "pkgrel=1",
     "pkgdesc='Omnixa beta - the AI coding agent for the terminal'",
-    "url='https://github.com/keerzzz/AigcForge'",
+    "url='https://github.com/keerzzz/Omnixa'",
     "arch=('x86_64' 'aarch64')",
     "license=('MIT')",
     "depends=('glibc' 'gcc-libs' 'ripgrep')",

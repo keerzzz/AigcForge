@@ -367,7 +367,7 @@ export const ProjectSettingsExtensions: Component<{
                 kind="skills"
                 empty={projectSkills().length === 0}
                 action={
-                  <ExternalLink class="settings-extension-link" href="https://github.com/keerzzz/AigcForge#readme">
+                  <ExternalLink class="settings-extension-link" href="https://github.com/keerzzz/Omnixa#readme">
                     {language.t("settings.extensions.addSkills")}
                   </ExternalLink>
                 }

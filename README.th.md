@@ -42,7 +42,7 @@
 
 ### แอปพลิเคชันเดสก์ท็อป
 
-ปลายทางของรุ่นเดสก์ท็อป: [keerzzz/AigcForge](https://github.com/keerzzz/AigcForge/releases).
+ปลายทางของรุ่นเดสก์ท็อป: [keerzzz/Omnixa](https://github.com/keerzzz/Omnixa/releases).
 
 การสร้างและแพ็กเกจในเครื่องจากซอร์สเดียวกัน: [packages/desktop/README.md](packages/desktop/README.md).
 

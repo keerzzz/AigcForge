@@ -42,7 +42,7 @@
 
 ### 데스크톱 앱
 
-데스크톱 릴리스 대상: [keerzzz/AigcForge](https://github.com/keerzzz/AigcForge/releases).
+데스크톱 릴리스 대상: [keerzzz/Omnixa](https://github.com/keerzzz/Omnixa/releases).
 
 동일한 소스에서 로컬 빌드 및 패키징: [packages/desktop/README.md](packages/desktop/README.md).
 

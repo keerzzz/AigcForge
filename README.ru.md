@@ -42,7 +42,7 @@
 
 ### Десктопное приложение
 
-Место публикации десктопных выпусков: [keerzzz/AigcForge](https://github.com/keerzzz/AigcForge/releases).
+Место публикации десктопных выпусков: [keerzzz/Omnixa](https://github.com/keerzzz/Omnixa/releases).
 
 Локальная сборка и упаковка из того же исходного кода: [packages/desktop/README.md](packages/desktop/README.md).
 

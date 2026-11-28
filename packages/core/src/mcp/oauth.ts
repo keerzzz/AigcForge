@@ -178,7 +178,7 @@ export const provider = (options: Options): OAuthClientProvider => {
     clientMetadata: {
       redirect_uris: [redirectUrl],
       client_name: "omnixa",
-      client_uri: "https://github.com/keerzzz/AigcForge",
+      client_uri: "https://github.com/keerzzz/Omnixa",
       grant_types: ["authorization_code", "refresh_token"],
       response_types: ["code"],
       token_endpoint_auth_method: client?.client_secret ? "client_secret_post" : "none",

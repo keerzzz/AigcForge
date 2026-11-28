@@ -42,7 +42,7 @@ Installasjonsmappen er `$HOME/.omnixa/bin`. Fjerninstallasjon og automatiske CLI
 
 ### Desktop-app
 
-Mål for desktoputgivelser: [keerzzz/AigcForge](https://github.com/keerzzz/AigcForge/releases).
+Mål for desktoputgivelser: [keerzzz/Omnixa](https://github.com/keerzzz/Omnixa/releases).
 
 Lokal bygging og pakking fra samme kilde: [packages/desktop/README.md](packages/desktop/README.md).
 

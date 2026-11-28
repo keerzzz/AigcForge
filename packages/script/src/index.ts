@@ -38,7 +38,7 @@ const IS_PREVIEW = CHANNEL !== "latest"
 const VERSION = await (async () => {
   if (env.OMNIXA_VERSION) return env.OMNIXA_VERSION
   if (IS_PREVIEW) return `0.0.0-${CHANNEL}-${previewBuildNumber()}`
-  const repo = process.env.GH_REPO || "keerzzz/AigcForge"
+  const repo = process.env.GH_REPO || "keerzzz/Omnixa"
   const version = await fetch(`https://api.github.com/repos/${repo}/releases/latest`, {
     headers: { "User-Agent": "omnixa", "X-GitHub-Api-Version": "2022-11-28" },
     signal: AbortSignal.timeout(10_000),

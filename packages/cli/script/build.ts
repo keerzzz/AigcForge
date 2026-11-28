@@ -209,7 +209,7 @@ export default { path: file, version: ${JSON.stringify(omnixaPty.version)}, sha2
         name: `@omnixa/${name}`,
         version: Script.version,
         license: "MIT",
-        repository: { type: "git", url: "git+https://github.com/keerzzz/AigcForge.git" },
+        repository: { type: "git", url: "git+https://github.com/keerzzz/Omnixa.git" },
         os: [item.os],
         cpu: [item.arch],
       },

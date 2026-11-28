@@ -42,7 +42,7 @@
 
 ### ডেস্কটপ অ্যাপ
 
-ডেস্কটপ রিলিজের গন্তব্য: [keerzzz/AigcForge](https://github.com/keerzzz/AigcForge/releases).
+ডেস্কটপ রিলিজের গন্তব্য: [keerzzz/Omnixa](https://github.com/keerzzz/Omnixa/releases).
 
 একই সোর্স থেকে স্থানীয় বিল্ড ও প্যাকেজিং: [packages/desktop/README.md](packages/desktop/README.md).
 

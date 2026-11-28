@@ -42,7 +42,7 @@ The installation directory is `$HOME/.omnixa/bin`. Remote installation and autom
 
 ### Desktop App
 
-Desktop release destination: [keerzzz/AigcForge](https://github.com/keerzzz/AigcForge/releases).
+Desktop release destination: [keerzzz/Omnixa](https://github.com/keerzzz/Omnixa/releases).
 
 Same-source local build and packaging: [packages/desktop/README.md](packages/desktop/README.md).
 
